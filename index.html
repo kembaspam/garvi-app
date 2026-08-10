@@ -1028,9 +1028,10 @@ function renderAgenda(){
 function mapsLinkFor(direccion){
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(direccion+', Alicante, España')}`;
 }
-function buildAvisoCopyText(a){
+function buildAvisoCopyText(a,cantidadCopiar){
   const cfg=AVISO_CFG[a.tipo]||{label:a.tipo};
-  let primera=a.cantidad>1?`${cfg.label} +${a.cantidad-1}`:cfg.label;
+  const n=cantidadCopiar||a.cantidad||1;
+  let primera=n>1?`${cfg.label} +${n-1}`:cfg.label;
   if(a.hora) primera+=` - ${a.hora}h`;
   const parts=[primera];
   if(a.nota) parts.push(a.nota);
@@ -1050,6 +1051,27 @@ function fallbackCopy(text,msg){
   document.body.appendChild(ta); ta.focus(); ta.select();
   try{document.execCommand('copy');toastMsg(msg||'Copiado ✓');}catch(e){toastMsg('No se pudo copiar');}
   document.body.removeChild(ta);
+}
+function iniciarCopiaAviso(id){
+  const a=avisos.find(x=>x.id===id); if(!a) return;
+  const total=a.cantidad||1;
+  if(total<=1){ copyToClipboard(buildAvisoCopyText(a),'Aviso copiado ✓'); return; }
+  document.getElementById('modal-body').innerHTML=`
+    <div class="modal-header"><span class="modal-title">Copiar aviso</span><button class="btn btn-secondary btn-sm" data-action="close-modal">✕</button></div>
+    <p style="font-size:13px;color:var(--text2);margin-bottom:10px">Quedan <strong>${total}</strong> cambios pendientes de ${a.nota||'este cliente'}. ¿Cuántos vas a copiar y enviar ahora?</p>
+    <div class="form-row"><label>Cantidad a copiar</label><input id="cp-cantidad" type="number" min="1" max="${total}" value="1"></div>
+    <button class="btn btn-primary btn-full" style="margin-top:8px" data-action="confirmar-copia-aviso" data-param="${a.id}">📋 Copiar y descontar</button>`;
+  document.getElementById('modal-overlay').classList.add('open');
+}
+function confirmarCopiaAviso(id){
+  const a=avisos.find(x=>x.id===id); if(!a) return;
+  const total=a.cantidad||1;
+  let n=parseInt((document.getElementById('cp-cantidad')||{}).value,10)||1;
+  n=Math.min(Math.max(n,1),total);
+  copyToClipboard(buildAvisoCopyText(a,n),`${n} de ${total} copiado(s) ✓`);
+  a.cantidad=total-n;
+  if(a.cantidad<=0){ a.cantidad=0; a.done=true; }
+  saveAvisos();closeModal();renderAgenda();renderCalendar();
 }
 function calChangeMonth(delta){
   calMonth+=delta;
@@ -2810,7 +2832,8 @@ document.addEventListener('click',e=>{
   else if(action==='crear-aviso') crearAviso();
   else if(action==='del-aviso'){if(confirm('¿Eliminar aviso?')) delAviso(param);}
   else if(action==='toggle-aviso-done'){const a=avisos.find(x=>x.id===param);if(a){a.done=!a.done;saveAvisos();renderAgenda();renderCalendar();}}
-  else if(action==='copy-aviso'){const a=avisos.find(x=>x.id===param);if(a) copyToClipboard(buildAvisoCopyText(a),'Aviso copiado ✓');}
+  else if(action==='copy-aviso') iniciarCopiaAviso(param);
+  else if(action==='confirmar-copia-aviso') confirmarCopiaAviso(param);
   else if(action==='guardar-certificado') guardarCertificado();
   else if(action==='nuevo-certificado') nuevoCertificado();
   else if(action==='ver-certificado') verCertificado(param);
