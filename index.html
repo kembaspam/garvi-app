@@ -481,6 +481,7 @@ label{
 .agenda-item .tarea-check{margin-top:2px}
 .agenda-tipo-pill{display:inline-block;padding:2px 9px;border-radius:20px;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px}
 .agenda-cantidad{font-size:11px;font-weight:800;color:#fff;background:var(--accent-blue);border-radius:20px;padding:1px 7px;margin-left:5px}
+.agenda-section-title{font-size:11px;font-weight:800;color:var(--success);text-transform:uppercase;letter-spacing:.05em;margin:14px 0 6px;padding-top:10px;border-top:1px dashed var(--border)}
 .agenda-hora{font-size:11px;font-weight:700;color:var(--text2);margin-left:6px}
 .agenda-nota{font-size:13.5px;color:var(--text);font-weight:600;margin-top:1px}
 .agenda-meta{font-size:11.5px;color:var(--muted);margin-top:3px}
@@ -992,26 +993,17 @@ function renderCalendar(){
   <div class="cal-legend">${Object.entries(AVISO_CFG).map(([k,v])=>`<span><i style="background:${v.color}"></i>${v.label}</span>`).join('')}</div>`;
   wrap.innerHTML=html;
 }
-function renderAgenda(){
-  const list=document.getElementById('agenda-list'); if(!list) return;
-  const title=document.getElementById('agenda-title');
-  const dayAvisos=avisosDelDia(calSelDay).sort((a,b)=>{
-    if(a.hora&&b.hora) return a.hora.localeCompare(b.hora);
-    if(a.hora&&!b.hora) return -1;
-    if(!a.hora&&b.hora) return 1;
-    return (a.creada||'').localeCompare(b.creada||'');
-  });
-  const dt=new Date(calSelDay+'T00:00:00');
-  title.textContent=dt.toLocaleDateString('es-ES',{weekday:'long',day:'numeric',month:'long'});
-  list.innerHTML=dayAvisos.length?dayAvisos.map(a=>{
-    const cfg=AVISO_CFG[a.tipo]||{label:a.tipo,color:'#999'};
-    const rango=a.fechaFin&&a.fechaFin!==a.fecha?`${fmtDate(a.fecha)} → ${fmtDate(a.fechaFin)}`:fmtDate(a.fecha);
-    return `<div class="agenda-item${a.done?' done':''}" style="border-left-color:${cfg.color}">
+function renderAvisoCard(a){
+  const cfg=AVISO_CFG[a.tipo]||{label:a.tipo,color:'#999'};
+  const rango=a.fechaFin&&a.fechaFin!==a.fecha?`${fmtDate(a.fecha)} → ${fmtDate(a.fechaFin)}`:fmtDate(a.fecha);
+  const horaCompletado=a.completadoEn?new Date(a.completadoEn).toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'}):'';
+  return `<div class="agenda-item${a.done?' done':''}" style="border-left-color:${a.done?'var(--success)':cfg.color}">
       <div class="tarea-check${a.done?' done':''}" data-action="toggle-aviso-done" data-param="${a.id}" title="Marcar completado">${a.done?'✓':''}</div>
       <div style="flex:1">
         <span class="agenda-tipo-pill" style="background:${cfg.color}22;color:${cfg.color}">${cfg.label}</span>
         ${a.cantidad>1?`<span class="agenda-cantidad">+${a.cantidad-1}</span>`:''}
         ${a.hora?`<span class="agenda-hora">🕐 ${a.hora}</span>`:''}
+        ${a.done&&horaCompletado?`<span class="agenda-hora" style="color:var(--success)">✓ Completado ${horaCompletado}</span>`:''}
         <div class="agenda-nota">${a.nota||''}</div>
         <div class="agenda-meta">${rango}${a.telefono?' · 📞 '+a.telefono:''}${a.pago?' · 💰 '+a.pago:''}</div>
         ${a.direccion?`<div class="agenda-meta">📍 ${a.direccion} <a class="agenda-copy-link" href="${mapsLinkFor(a.direccion)}" target="_blank" rel="noopener">abrir en Maps</a></div>`:''}
@@ -1023,7 +1015,31 @@ function renderAgenda(){
       </div>
       <button class="btn btn-danger btn-sm btn-icon" data-action="del-aviso" data-param="${a.id}">🗑</button>
     </div>`;
-  }).join(''):'<div class="empty-state" style="padding:20px 0"><div class="icon">🗓</div>Sin avisos este día</div>';
+}
+function renderAgenda(){
+  const list=document.getElementById('agenda-list'); if(!list) return;
+  const title=document.getElementById('agenda-title');
+  const todos=avisosDelDia(calSelDay);
+  const pendientes=todos.filter(a=>!a.done).sort((a,b)=>{
+    if(a.hora&&b.hora) return a.hora.localeCompare(b.hora);
+    if(a.hora&&!b.hora) return -1;
+    if(!a.hora&&b.hora) return 1;
+    return (a.creada||'').localeCompare(b.creada||'');
+  });
+  const completados=todos.filter(a=>a.done).sort((a,b)=>(a.completadoEn||'').localeCompare(b.completadoEn||''));
+  const dt=new Date(calSelDay+'T00:00:00');
+  title.textContent=dt.toLocaleDateString('es-ES',{weekday:'long',day:'numeric',month:'long'});
+  let html='';
+  if(!pendientes.length&&!completados.length){
+    html='<div class="empty-state" style="padding:20px 0"><div class="icon">🗓</div>Sin avisos este día</div>';
+  } else {
+    html+=pendientes.map(renderAvisoCard).join('')||'<div class="empty-state" style="padding:10px 0">Sin avisos pendientes</div>';
+    if(completados.length){
+      html+=`<div class="agenda-section-title">✅ Completados (${completados.length})</div>`;
+      html+=completados.map(renderAvisoCard).join('');
+    }
+  }
+  list.innerHTML=html;
 }
 function mapsLinkFor(direccion){
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(direccion+', Alicante, España')}`;
@@ -1070,7 +1086,7 @@ function confirmarCopiaAviso(id){
   n=Math.min(Math.max(n,1),total);
   copyToClipboard(buildAvisoCopyText(a,n),`${n} de ${total} copiado(s) ✓`);
   a.cantidad=total-n;
-  if(a.cantidad<=0){ a.cantidad=0; a.done=true; }
+  if(a.cantidad<=0){ a.cantidad=0; a.done=true; a.completadoEn=new Date().toISOString(); }
   saveAvisos();closeModal();renderAgenda();renderCalendar();
 }
 function calChangeMonth(delta){
@@ -2831,7 +2847,7 @@ document.addEventListener('click',e=>{
   else if(action==='editar-aviso') nuevoAvisoModal(param);
   else if(action==='crear-aviso') crearAviso();
   else if(action==='del-aviso'){if(confirm('¿Eliminar aviso?')) delAviso(param);}
-  else if(action==='toggle-aviso-done'){const a=avisos.find(x=>x.id===param);if(a){a.done=!a.done;saveAvisos();renderAgenda();renderCalendar();}}
+  else if(action==='toggle-aviso-done'){const a=avisos.find(x=>x.id===param);if(a){a.done=!a.done;a.completadoEn=a.done?new Date().toISOString():'';saveAvisos();renderAgenda();renderCalendar();}}
   else if(action==='copy-aviso') iniciarCopiaAviso(param);
   else if(action==='confirmar-copia-aviso') confirmarCopiaAviso(param);
   else if(action==='guardar-certificado') guardarCertificado();
