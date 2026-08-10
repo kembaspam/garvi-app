@@ -107,9 +107,10 @@ html,body{height:100%;font-family:'DM Sans',sans-serif;font-size:14px;color:var(
     box-shadow:0 -2px 12px rgba(15,32,68,.08);
   }
   .sidebar-logo,.sidebar-footer{display:none}
-  .sidebar-nav{display:flex;flex-direction:row;width:100%;padding:0;overflow:visible}
+  .sidebar-nav{display:flex;flex-direction:row;width:100%;height:100%;padding:0;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+  .sidebar-nav::-webkit-scrollbar{display:none}
   .tab-btn{
-    flex:1;flex-direction:column;gap:3px;
+    flex:0 0 auto;width:68px;flex-direction:column;gap:3px;
     padding:5px 2px;justify-content:center;align-items:center;
     border-left:none;border-top:2px solid transparent;
     color:var(--muted);font-size:10px;min-height:unset;
@@ -121,6 +122,13 @@ html,body{height:100%;font-family:'DM Sans',sans-serif;font-size:14px;color:var(
   #app{margin-left:0;padding-bottom:64px}
   .section{padding:16px}
   .section-header{top:0}
+  .search-row{flex-wrap:wrap}
+  .search-row .search-input{flex:1 1 100%}
+  .lineas-table-wrap{overflow-x:auto}
+  .lineas-table{min-width:520px}
+  .modal{padding:16px}
+  .doc-preview{padding:16px}
+  .doc-head{flex-wrap:wrap;gap:10px}
 }
 
 /* ── LOGIN ─────────────────────────────────────────── */
@@ -469,6 +477,7 @@ label{
 .agenda-item{display:flex;gap:10px;align-items:flex-start;padding:11px 8px 11px 12px;border-bottom:1px solid var(--border2);border-left:4px solid transparent;border-radius:6px;margin-bottom:2px;background:var(--surface2)}
 .agenda-item:last-child{margin-bottom:0}
 .agenda-tipo-pill{display:inline-block;padding:2px 9px;border-radius:20px;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px}
+.agenda-hora{font-size:11px;font-weight:700;color:var(--text2);margin-left:6px}
 .agenda-nota{font-size:13.5px;color:var(--text);font-weight:600;margin-top:1px}
 .agenda-meta{font-size:11.5px;color:var(--muted);margin-top:3px}
 .agenda-copy-link{color:var(--accent-blue);cursor:pointer;text-decoration:underline;font-weight:700;margin-left:4px}
@@ -506,6 +515,9 @@ label{
 @media(max-width:900px){.cont-map-layout{grid-template-columns:1fr}}
 #cont-map{height:560px;border-radius:10px;overflow:hidden;background:var(--surface2)}
 #cont-list-card{max-height:560px;overflow-y:auto}
+@media(max-width:767px){#cont-map{height:400px}#cont-list-card{max-height:400px}}
+#cont-map-card.map-fullscreen{position:fixed;inset:0;z-index:5500;border-radius:0;margin:0;padding:10px;display:flex;flex-direction:column;background:var(--surface)}
+#cont-map-card.map-fullscreen #cont-map{flex:1;height:auto;border-radius:0}
 .cont-pin{width:36px;height:36px;border-radius:50% 50% 50% 0;background:var(--accent);border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.5);transform:rotate(-45deg);display:flex;align-items:center;justify-content:center}
 .cont-pin span{transform:rotate(45deg);color:#0f2044;font-weight:800;font-size:13px;line-height:1}
 .cont-pin-aprox{background:repeating-linear-gradient(45deg,var(--accent),var(--accent) 4px,#fff8e1 4px,#fff8e1 8px);opacity:.85}
@@ -548,11 +560,11 @@ label{
     <button class="tab-btn" data-action="tab" data-param="contenedores"><span class="tab-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h18M3 7l2 13h14l2-13M3 7l2-3h14l2 3M9 11v6M15 11v6"/></svg></span><span class="tab-label">Contenedores</span><span class="badge" id="badge-ret" style="display:none">0</span></button>
     <button class="tab-btn" data-action="tab" data-param="albaranes"><span class="tab-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2M9 12h6M9 16h4"/></svg></span><span class="tab-label">Albaranes</span></button>
     <button class="tab-btn" data-action="tab" data-param="facturas"><span class="tab-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l4-2 4 2 4-2 4 2"/></svg></span><span class="tab-label">Facturación</span></button>
-    <button class="tab-btn" data-action="tab" data-param="finanzas"><span class="tab-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2"/></svg></span><span class="tab-label">Finanzas</span></button>
-    <button class="tab-btn" data-action="tab" data-param="clientes"><span class="tab-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 7a4 4 0 100 8 4 4 0 000-8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg></span><span class="tab-label">Clientes</span></button>
-    <button class="tab-btn" data-action="tab" data-param="tareas"><span class="tab-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 12l2 2 4-4"/></svg></span><span class="tab-label">Tareas</span></button>
     <button class="tab-btn" data-action="tab" data-param="presupuestos"><span class="tab-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg></span><span class="tab-label">Presupuestos</span></button>
     <button class="tab-btn" data-action="tab" data-param="certificados"><span class="tab-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15a5 5 0 100-10 5 5 0 000 10z"/><path d="M8.5 13.5L7 22l5-3 5 3-1.5-8.5"/></svg></span><span class="tab-label">Certificados</span></button>
+    <button class="tab-btn" data-action="tab" data-param="tareas"><span class="tab-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 12l2 2 4-4"/></svg></span><span class="tab-label">Tareas</span></button>
+    <button class="tab-btn" data-action="tab" data-param="finanzas"><span class="tab-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2"/></svg></span><span class="tab-label">Finanzas</span></button>
+    <button class="tab-btn" data-action="tab" data-param="clientes"><span class="tab-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 7a4 4 0 100 8 4 4 0 000-8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg></span><span class="tab-label">Clientes</span></button>
   </div>
   <div class="sidebar-footer">
     <div class="sidebar-avatar" id="sidebar-avatar">—</div>
@@ -979,7 +991,12 @@ function renderCalendar(){
 function renderAgenda(){
   const list=document.getElementById('agenda-list'); if(!list) return;
   const title=document.getElementById('agenda-title');
-  const dayAvisos=avisosDelDia(calSelDay).sort((a,b)=>(a.creada||'').localeCompare(b.creada||''));
+  const dayAvisos=avisosDelDia(calSelDay).sort((a,b)=>{
+    if(a.hora&&b.hora) return a.hora.localeCompare(b.hora);
+    if(a.hora&&!b.hora) return -1;
+    if(!a.hora&&b.hora) return 1;
+    return (a.creada||'').localeCompare(b.creada||'');
+  });
   const dt=new Date(calSelDay+'T00:00:00');
   title.textContent=dt.toLocaleDateString('es-ES',{weekday:'long',day:'numeric',month:'long'});
   list.innerHTML=dayAvisos.length?dayAvisos.map(a=>{
@@ -988,6 +1005,7 @@ function renderAgenda(){
     return `<div class="agenda-item" style="border-left-color:${cfg.color}">
       <div style="flex:1">
         <span class="agenda-tipo-pill" style="background:${cfg.color}22;color:${cfg.color}">${cfg.label}</span>
+        ${a.hora?`<span class="agenda-hora">🕐 ${a.hora}</span>`:''}
         <div class="agenda-nota">${a.nota||''}</div>
         <div class="agenda-meta">${rango}${a.telefono?' · 📞 '+a.telefono:''}${a.pago?' · 💰 '+a.pago:''}</div>
         ${a.direccion?`<div class="agenda-meta">📍 ${a.direccion} <a class="agenda-copy-link" href="${mapsLinkFor(a.direccion)}" target="_blank" rel="noopener">abrir en Maps</a></div>`:''}
@@ -1003,7 +1021,7 @@ function mapsLinkFor(direccion){
 }
 function buildAvisoCopyText(a){
   const cfg=AVISO_CFG[a.tipo]||{label:a.tipo};
-  const parts=[cfg.label];
+  const parts=[a.hora?`${cfg.label} - ${a.hora}h`:cfg.label];
   if(a.nota) parts.push(a.nota);
   if(a.direccion) parts.push(a.direccion+'\n'+mapsLinkFor(a.direccion));
   if(a.telefono) parts.push(a.telefono);
@@ -1073,8 +1091,9 @@ function renderAvisoFields(){
       <div><label>Pago</label><input id="av-pago" placeholder="Ej: Pendiente, Pagado, 50€…"></div>
     </div>
     ${tipo==='permiso'
-      ?`<div class="form-row cols2"><div><label>Fecha inicio</label><input id="av-fecha" type="date" value="${calSelDay}"></div><div><label>Fecha final</label><input id="av-fechafin" type="date" value="${calSelDay}"></div></div>`
-      :`<div class="form-row"><label>Fecha</label><input id="av-fecha" type="date" value="${calSelDay}"></div>`}
+      ?`<div class="form-row cols2"><div><label>Fecha inicio</label><input id="av-fecha" type="date" value="${calSelDay}"></div><div><label>Fecha final</label><input id="av-fechafin" type="date" value="${calSelDay}"></div></div>
+        <div class="form-row"><label>Hora (opcional)</label><input id="av-hora" type="time"></div>`
+      :`<div class="form-row cols2"><div><label>Fecha</label><input id="av-fecha" type="date" value="${calSelDay}"></div><div><label>Hora (opcional)</label><input id="av-hora" type="time"></div></div>`}
     <div class="form-row"><label>Información adicional</label><textarea id="av-info" rows="2" placeholder="Cualquier otro detalle…"></textarea></div>`;
   document.getElementById('av-nota').addEventListener('input',e=>{
     const m=avisoMemGet(e.target.value);
@@ -1108,9 +1127,10 @@ function crearAviso(){
   const infoAdicional=(document.getElementById('av-info')||{}).value||'';
   const fecha=(document.getElementById('av-fecha')||{}).value||calSelDay;
   const fechaFin=(document.getElementById('av-fechafin')||{}).value||'';
+  const hora=(document.getElementById('av-hora')||{}).value||'';
   if(tipo==='permiso'&&!nota){toastMsg('Indica el cliente del permiso');return;}
   const nuevoId=Date.now().toString();
-  avisos.push({id:nuevoId,tipo,fecha,fechaFin:tipo==='permiso'?fechaFin:'',nota:nota.trim(),direccion:direccion.trim(),telefono:telefono.trim(),pago:pago.trim(),infoAdicional:infoAdicional.trim(),creada:new Date().toISOString()});
+  avisos.push({id:nuevoId,tipo,fecha,fechaFin:tipo==='permiso'?fechaFin:'',hora,nota:nota.trim(),direccion:direccion.trim(),telefono:telefono.trim(),pago:pago.trim(),infoAdicional:infoAdicional.trim(),creada:new Date().toISOString()});
   if(tipo==='permiso'&&fechaFin){
     avisos.push({id:nuevoId+'r',tipo:'retirada',fecha:fechaFin,nota:'Retirada — fin de permiso: '+nota.trim(),direccion:direccion.trim(),telefono:telefono.trim(),pago:'',infoAdicional:'',autoFrom:nuevoId,creada:new Date().toISOString()});
   }
@@ -1188,6 +1208,7 @@ function renderContenedores(){
           <div style="display:flex;align-items:center;gap:8px">
             <div id="cont-map-status" style="font-size:11px;color:var(--muted)"></div>
             <button class="btn btn-secondary btn-sm" style="padding:3px 8px;font-size:11px" data-action="cont-map-retry" title="Reintentar direcciones no localizadas">🔄</button>
+            <button class="btn btn-secondary btn-sm" style="padding:3px 8px;font-size:11px" data-action="cont-map-fullscreen" title="Pantalla completa">⛶</button>
           </div>
         </div>
         <div id="cont-map"></div>
@@ -1344,6 +1365,13 @@ function recalcularUbicaciones(){
   toastMsg('Reintentando localizar direcciones…');
   updateContMapMarkers();
 }
+function toggleMapFullscreen(){
+  const card=document.getElementById('cont-map-card'); if(!card) return;
+  card.classList.toggle('map-fullscreen');
+  const btn=document.querySelector('[data-action="cont-map-fullscreen"]');
+  if(btn) btn.textContent=card.classList.contains('map-fullscreen')?'✕':'⛶';
+  setTimeout(()=>{ if(contMapInstance) contMapInstance.invalidateSize(); },100);
+}
 let contMapInstance=null, contMapMarkers=[];
 const DIRECCIONES_FIJAS={
   'NAVE GARVI':'Calle Rosa de los Vientos, Alicante',
@@ -1365,6 +1393,14 @@ function initContMap(){
   const satelite=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:19,attribution:'Tiles © Esri'}).addTo(contMapInstance);
   L.control.layers({'🛰️ Satélite':satelite,'🗺️ Calles':calles}).addTo(contMapInstance);
   updateContMapMarkers();
+  // El contenedor puede no tener aún su tamaño final al crear el mapa (sobre todo en móvil) → recalcular tras el layout
+  setTimeout(()=>{ if(contMapInstance) contMapInstance.invalidateSize(); },150);
+  setTimeout(()=>{ if(contMapInstance) contMapInstance.invalidateSize(); },600);
+  if(!window._contMapResizeBound){
+    window._contMapResizeBound=true;
+    window.addEventListener('resize',()=>{ if(contMapInstance) contMapInstance.invalidateSize(); });
+    window.addEventListener('orientationchange',()=>{ setTimeout(()=>{ if(contMapInstance) contMapInstance.invalidateSize(); },300); });
+  }
 }
 function updateContMapMarkers(){
   if(!contMapInstance) return;
@@ -1794,10 +1830,12 @@ function nuevaFacturaModal(idEditar){
     </div>
     <div class="quick-btns" id="quick-btns-list"></div>
     <hr class="divider" style="margin:8px 0 10px">
+    <div class="lineas-table-wrap">
     <table class="lineas-table" id="lineas-table">
       <thead><tr><th style="width:40%">Concepto</th><th style="width:10%">Cant.</th><th style="width:16%">Precio</th><th style="width:10%">IVA%</th><th style="width:16%;text-align:right">Subtotal</th><th style="width:8%"></th></tr></thead>
       <tbody id="lineas-body"></tbody>
     </table>
+    </div>
     <button class="btn btn-secondary btn-sm" style="margin-bottom:8px" data-action="add-linea">+ Línea vacía</button>
     <div class="totales-box" id="totales-box"></div>
     <div class="form-row" style="margin-top:12px">
@@ -2683,6 +2721,7 @@ document.addEventListener('click',e=>{
   else if(action==='pdf-albaranes') pdfAlbaranes();
   else if(action==='pdf-contenedores') pdfContenedores();
   else if(action==='cont-map-retry') recalcularUbicaciones();
+  else if(action==='cont-map-fullscreen') toggleMapFullscreen();
   else if(action==='pdf-finanzas') pdfFinanzas();
   else if(action==='pdf-clientes') pdfClientes();
   else if(action==='pdf-tareas') pdfTareas();
