@@ -1010,7 +1010,10 @@ function renderAgenda(){
         <div class="agenda-meta">${rango}${a.telefono?' · 📞 '+a.telefono:''}${a.pago?' · 💰 '+a.pago:''}</div>
         ${a.direccion?`<div class="agenda-meta">📍 ${a.direccion} <a class="agenda-copy-link" href="${mapsLinkFor(a.direccion)}" target="_blank" rel="noopener">abrir en Maps</a></div>`:''}
         ${a.infoAdicional?`<div class="agenda-meta">ℹ️ ${a.infoAdicional}</div>`:''}
-        <button class="btn btn-secondary btn-sm" style="margin-top:6px;padding:2px 9px;font-size:11px" data-action="copy-aviso" data-param="${a.id}">📋 Copiar aviso</button>
+        <div style="display:flex;gap:6px;margin-top:6px">
+          <button class="btn btn-secondary btn-sm" style="padding:2px 9px;font-size:11px" data-action="copy-aviso" data-param="${a.id}">📋 Copiar aviso</button>
+          <button class="btn btn-secondary btn-sm" style="padding:2px 9px;font-size:11px" data-action="editar-aviso" data-param="${a.id}">✏️ Editar</button>
+        </div>
       </div>
       <button class="btn btn-danger btn-sm btn-icon" data-action="del-aviso" data-param="${a.id}">🗑</button>
     </div>`;
@@ -1047,16 +1050,19 @@ function calChangeMonth(delta){
   renderCalendar();
 }
 function calSelectDay(iso){calSelDay=iso;renderCalendar();renderAgenda();}
-function nuevoAvisoModal(){
+let editAvisoId=null;
+function nuevoAvisoModal(id){
+  editAvisoId=id||null;
+  const a=editAvisoId?avisos.find(x=>x.id===editAvisoId):null;
   document.getElementById('modal-body').innerHTML=`
-    <div class="modal-header"><span class="modal-title">Nuevo aviso</span><button class="btn btn-secondary btn-sm" data-action="close-modal">✕</button></div>
+    <div class="modal-header"><span class="modal-title">${a?'Editar aviso':'Nuevo aviso'}</span><button class="btn btn-secondary btn-sm" data-action="close-modal">✕</button></div>
     <div class="form-row"><label>Tipo</label>
-      <select id="av-tipo">${Object.entries(AVISO_CFG).map(([k,v])=>`<option value="${k}">${v.label}</option>`).join('')}</select>
+      <select id="av-tipo">${Object.entries(AVISO_CFG).map(([k,v])=>`<option value="${k}"${a&&a.tipo===k?' selected':''}>${v.label}</option>`).join('')}</select>
     </div>
     <div id="av-fields"></div>
-    <button class="btn btn-primary btn-full" style="margin-top:10px" data-action="crear-aviso">Guardar aviso</button>`;
-  document.getElementById('av-tipo').addEventListener('change',renderAvisoFields);
-  renderAvisoFields();
+    <button class="btn btn-primary btn-full" style="margin-top:10px" data-action="crear-aviso">${a?'Guardar cambios':'Guardar aviso'}</button>`;
+  document.getElementById('av-tipo').addEventListener('change',()=>renderAvisoFields());
+  renderAvisoFields(a);
   document.getElementById('modal-overlay').classList.add('open');
 }
 function avisoMemGet(nota){
@@ -1069,32 +1075,33 @@ function avisoMemSet(nota,data){
   mem[nota.trim().toLowerCase()]=data;
   localStorage.setItem('garvi_aviso_memoria',JSON.stringify(mem));
 }
-function renderAvisoFields(){
+function renderAvisoFields(editing){
   const tipo=document.getElementById('av-tipo').value;
+  const a=editing&&editing.tipo===tipo?editing:null;
   const box=document.getElementById('av-fields');
-  const permisos=avisos.filter(a=>a.tipo==='permiso');
+  const permisos=avisos.filter(x=>x.tipo==='permiso');
   if(tipo==='renovacion'){
     box.innerHTML=`
       <div class="form-row"><label>Permiso a renovar</label>
-        <select id="av-permiso">${permisos.length?permisos.map(p=>`<option value="${p.id}">${p.nota||'Permiso'} (hasta ${fmtDate(p.fechaFin||p.fecha)})</option>`).join(''):'<option value="">Sin permisos creados</option>'}</select>
+        <select id="av-permiso">${permisos.length?permisos.map(p=>`<option value="${p.id}"${a&&a.permisoId===p.id?' selected':''}>${p.nota||'Permiso'} (hasta ${fmtDate(p.fechaFin||p.fecha)})</option>`).join(''):'<option value="">Sin permisos creados</option>'}</select>
       </div>
-      <div class="form-row"><label>Nueva fecha final</label><input id="av-fechafin" type="date" value="${calSelDay}"></div>`;
+      <div class="form-row"><label>Nueva fecha final</label><input id="av-fechafin" type="date" value="${a?a.fechaFin||calSelDay:calSelDay}"></div>`;
     return;
   }
-  const notasList=[...new Set(avisos.map(a=>a.nota).filter(Boolean))];
+  const notasList=[...new Set(avisos.map(x=>x.nota).filter(Boolean))];
   box.innerHTML=`
     <datalist id="dl-avisos-notas">${notasList.map(n=>`<option value="${n}">`).join('')}</datalist>
-    <div class="form-row"><label>Cliente</label><input id="av-nota" list="dl-avisos-notas" placeholder="Nombre del cliente…"></div>
-    <div class="form-row"><label>Dirección</label><input id="av-direccion" placeholder="Dirección…"></div>
+    <div class="form-row"><label>Cliente</label><input id="av-nota" list="dl-avisos-notas" placeholder="Nombre del cliente…" value="${f_esc(a?a.nota:'')}"></div>
+    <div class="form-row"><label>Dirección</label><input id="av-direccion" placeholder="Dirección…" value="${f_esc(a?a.direccion:'')}"></div>
     <div class="form-row cols2">
-      <div><label>Teléfono</label><input id="av-telefono" type="tel" placeholder="Teléfono de contacto…"></div>
-      <div><label>Pago</label><input id="av-pago" placeholder="Ej: Pendiente, Pagado, 50€…"></div>
+      <div><label>Teléfono</label><input id="av-telefono" type="tel" placeholder="Teléfono de contacto…" value="${f_esc(a?a.telefono:'')}"></div>
+      <div><label>Pago</label><input id="av-pago" placeholder="Ej: Pendiente, Pagado, 50€…" value="${f_esc(a?a.pago:'')}"></div>
     </div>
     ${tipo==='permiso'
-      ?`<div class="form-row cols2"><div><label>Fecha inicio</label><input id="av-fecha" type="date" value="${calSelDay}"></div><div><label>Fecha final</label><input id="av-fechafin" type="date" value="${calSelDay}"></div></div>
-        <div class="form-row"><label>Hora (opcional)</label><input id="av-hora" type="time"></div>`
-      :`<div class="form-row cols2"><div><label>Fecha</label><input id="av-fecha" type="date" value="${calSelDay}"></div><div><label>Hora (opcional)</label><input id="av-hora" type="time"></div></div>`}
-    <div class="form-row"><label>Información adicional</label><textarea id="av-info" rows="2" placeholder="Cualquier otro detalle…"></textarea></div>`;
+      ?`<div class="form-row cols2"><div><label>Fecha inicio</label><input id="av-fecha" type="date" value="${a?a.fecha:calSelDay}"></div><div><label>Fecha final</label><input id="av-fechafin" type="date" value="${a?a.fechaFin||calSelDay:calSelDay}"></div></div>
+        <div class="form-row"><label>Hora (opcional)</label><input id="av-hora" type="time" value="${a?a.hora||'':''}"></div>`
+      :`<div class="form-row cols2"><div><label>Fecha</label><input id="av-fecha" type="date" value="${a?a.fecha:calSelDay}"></div><div><label>Hora (opcional)</label><input id="av-hora" type="time" value="${a?a.hora||'':''}"></div></div>`}
+    <div class="form-row"><label>Información adicional</label><textarea id="av-info" rows="2" placeholder="Cualquier otro detalle…">${a?a.infoAdicional||'':''}</textarea></div>`;
   document.getElementById('av-nota').addEventListener('input',e=>{
     const m=avisoMemGet(e.target.value);
     if(m){
@@ -1106,17 +1113,23 @@ function renderAvisoFields(){
 }
 function crearAviso(){
   const tipo=document.getElementById('av-tipo').value;
+  const editando=editAvisoId?avisos.find(x=>x.id===editAvisoId):null;
   if(tipo==='renovacion'){
     const permId=(document.getElementById('av-permiso')||{}).value;
     const nuevaFin=(document.getElementById('av-fechafin')||{}).value;
     const perm=avisos.find(a=>a.id===permId);
     if(!perm){toastMsg('Selecciona un permiso válido');return;}
     if(!nuevaFin){toastMsg('Indica la nueva fecha final');return;}
-    perm.fechaFin=nuevaFin;
-    avisos.push({id:Date.now().toString(),tipo:'renovacion',fecha:todayISO(),fechaFin:nuevaFin,nota:'Renovación de: '+(perm.nota||'Permiso'),direccion:perm.direccion||'',telefono:perm.telefono||'',permisoId:perm.id,creada:new Date().toISOString()});
-    const retiradaLigada=avisos.find(a=>a.tipo==='retirada'&&a.autoFrom===perm.id);
-    if(retiradaLigada) retiradaLigada.fecha=nuevaFin;
-    else avisos.push({id:Date.now().toString()+'r',tipo:'retirada',fecha:nuevaFin,nota:'Retirada — fin de permiso: '+(perm.nota||''),direccion:perm.direccion||'',telefono:perm.telefono||'',pago:'',infoAdicional:'',autoFrom:perm.id,creada:new Date().toISOString()});
+    if(editando&&editando.tipo==='renovacion'){
+      editando.permisoId=perm.id; editando.fechaFin=nuevaFin; editando.nota='Renovación de: '+(perm.nota||'Permiso');
+      editando.direccion=perm.direccion||''; editando.telefono=perm.telefono||'';
+    } else {
+      perm.fechaFin=nuevaFin;
+      avisos.push({id:Date.now().toString(),tipo:'renovacion',fecha:todayISO(),fechaFin:nuevaFin,nota:'Renovación de: '+(perm.nota||'Permiso'),direccion:perm.direccion||'',telefono:perm.telefono||'',permisoId:perm.id,creada:new Date().toISOString()});
+      const retiradaLigada=avisos.find(a=>a.tipo==='retirada'&&a.autoFrom===perm.id);
+      if(retiradaLigada) retiradaLigada.fecha=nuevaFin;
+      else avisos.push({id:Date.now().toString()+'r',tipo:'retirada',fecha:nuevaFin,nota:'Retirada — fin de permiso: '+(perm.nota||''),direccion:perm.direccion||'',telefono:perm.telefono||'',pago:'',infoAdicional:'',autoFrom:perm.id,creada:new Date().toISOString()});
+    }
     saveAvisos();closeModal();renderCalendar();renderAgenda();toastMsg('Permiso renovado ✓');
     return;
   }
@@ -1129,13 +1142,20 @@ function crearAviso(){
   const fechaFin=(document.getElementById('av-fechafin')||{}).value||'';
   const hora=(document.getElementById('av-hora')||{}).value||'';
   if(tipo==='permiso'&&!nota){toastMsg('Indica el cliente del permiso');return;}
-  const nuevoId=Date.now().toString();
-  avisos.push({id:nuevoId,tipo,fecha,fechaFin:tipo==='permiso'?fechaFin:'',hora,nota:nota.trim(),direccion:direccion.trim(),telefono:telefono.trim(),pago:pago.trim(),infoAdicional:infoAdicional.trim(),creada:new Date().toISOString()});
+  const datos={tipo,fecha,fechaFin:tipo==='permiso'?fechaFin:'',hora,nota:nota.trim(),direccion:direccion.trim(),telefono:telefono.trim(),pago:pago.trim(),infoAdicional:infoAdicional.trim()};
+  const targetId=editando?editando.id:Date.now().toString();
+  if(editando) Object.assign(editando,datos);
+  else avisos.push({id:targetId,...datos,creada:new Date().toISOString()});
+  // Sincroniza (o crea/quita) la retirada automática ligada al permiso
+  const retiradaLigada=avisos.find(x=>x.tipo==='retirada'&&x.autoFrom===targetId);
   if(tipo==='permiso'&&fechaFin){
-    avisos.push({id:nuevoId+'r',tipo:'retirada',fecha:fechaFin,nota:'Retirada — fin de permiso: '+nota.trim(),direccion:direccion.trim(),telefono:telefono.trim(),pago:'',infoAdicional:'',autoFrom:nuevoId,creada:new Date().toISOString()});
+    if(retiradaLigada) Object.assign(retiradaLigada,{fecha:fechaFin,nota:'Retirada — fin de permiso: '+nota.trim(),direccion:direccion.trim(),telefono:telefono.trim()});
+    else avisos.push({id:targetId+'r',tipo:'retirada',fecha:fechaFin,nota:'Retirada — fin de permiso: '+nota.trim(),direccion:direccion.trim(),telefono:telefono.trim(),pago:'',infoAdicional:'',autoFrom:targetId,creada:new Date().toISOString()});
+  } else if(retiradaLigada){
+    avisos=avisos.filter(x=>x.id!==retiradaLigada.id);
   }
   avisoMemSet(nota,{telefono:telefono.trim(),pago:pago.trim(),direccion:direccion.trim()});
-  saveAvisos();closeModal();calSelDay=fecha;renderCalendar();renderAgenda();toastMsg('Aviso guardado ✓');
+  saveAvisos();closeModal();calSelDay=fecha;renderCalendar();renderAgenda();toastMsg(editando?'Aviso actualizado ✓':'Aviso guardado ✓');
 }
 function delAviso(id){avisos=avisos.filter(a=>a.id!==id&&a.autoFrom!==id);saveAvisos();renderCalendar();renderAgenda();toastMsg('Eliminado');}
 
@@ -2776,6 +2796,7 @@ document.addEventListener('click',e=>{
   else if(action==='cal-next') calChangeMonth(1);
   else if(action==='cal-sel-day') calSelectDay(param);
   else if(action==='nuevo-aviso') nuevoAvisoModal();
+  else if(action==='editar-aviso') nuevoAvisoModal(param);
   else if(action==='crear-aviso') crearAviso();
   else if(action==='del-aviso'){if(confirm('¿Eliminar aviso?')) delAviso(param);}
   else if(action==='copy-aviso'){const a=avisos.find(x=>x.id===param);if(a) copyToClipboard(buildAvisoCopyText(a),'Aviso copiado ✓');}
