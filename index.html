@@ -9,6 +9,8 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <title>GARVI</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
@@ -284,7 +286,7 @@ label{
 /* ── MODAL ─────────────────────────────────────────── */
 #modal-overlay{
   position:fixed;inset:0;background:rgba(15,32,68,.45);
-  backdrop-filter:blur(3px);z-index:200;display:none;
+  backdrop-filter:blur(3px);z-index:5000;display:none;
   align-items:flex-end;justify-content:center;
 }
 @media(min-width:768px){#modal-overlay{align-items:center}}
@@ -434,7 +436,7 @@ label{
 .toast{
   position:fixed;bottom:80px;left:50%;transform:translateX(-50%);
   background:var(--sidebar-bg);color:#fff;border-radius:10px;
-  padding:10px 20px;font-size:13px;font-weight:600;z-index:999;
+  padding:10px 20px;font-size:13px;font-weight:600;z-index:6000;
   opacity:0;transition:opacity .2s;pointer-events:none;
   box-shadow:0 4px 20px rgba(15,32,68,.3);
 }
@@ -443,6 +445,33 @@ label{
 /* ── PRESUPUESTOS ─────────────────────────────────── */
 .pres-layout{display:grid;grid-template-columns:1.2fr 1fr;gap:16px;margin-bottom:16px}
 @media(max-width:720px){.pres-layout{grid-template-columns:1fr}}
+/* ── INICIO / CALENDARIO ─────────────────────────────────────── */
+.inicio-layout{display:grid;grid-template-columns:1.3fr 1fr;gap:16px;align-items:start}
+@media(max-width:900px){.inicio-layout{grid-template-columns:1fr}}
+.cal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.cal-head-title{font-size:15px;font-weight:800;color:var(--text);text-transform:capitalize}
+.cal-nav-btn{background:var(--surface2);border:1px solid var(--border);border-radius:8px;width:30px;height:30px;cursor:pointer;color:var(--text2);font-size:15px;display:flex;align-items:center;justify-content:center}
+.cal-nav-btn:hover{background:var(--accent);color:#fff;border-color:var(--accent)}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.cal-dow{font-size:10.5px;font-weight:700;color:var(--muted);text-align:center;padding:4px 0;text-transform:uppercase}
+.cal-day{position:relative;aspect-ratio:1;border-radius:10px;border:1.5px solid transparent;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;font-size:12.5px;color:var(--text);gap:2px;transition:all .12s}
+.cal-day:hover{background:var(--surface2);transform:scale(1.04)}
+.cal-day.other{color:var(--muted);opacity:.32}
+.cal-day.today{border-color:var(--accent);font-weight:800;box-shadow:0 0 0 2px rgba(240,180,41,.15)}
+.cal-day.selected{background:var(--sidebar-bg);color:#fff;font-weight:800;box-shadow:0 2px 8px rgba(15,32,68,.3)}
+.cal-day.permiso-activo{background:rgba(124,58,237,.12)}
+.cal-day.selected.permiso-activo{background:var(--sidebar-bg)}
+.cal-dots{display:flex;gap:3px;position:absolute;bottom:4px}
+.cal-dot{width:6px;height:6px;border-radius:50%;box-shadow:0 0 0 1px rgba(255,255,255,.6)}
+.cal-legend{display:flex;flex-wrap:wrap;gap:6px;margin-top:14px}
+.cal-legend span{display:flex;align-items:center;gap:5px;font-size:10.5px;font-weight:700;color:var(--text2);background:var(--surface2);padding:4px 9px 4px 7px;border-radius:20px}
+.cal-legend i{width:8px;height:8px;border-radius:50%;display:inline-block}
+.agenda-item{display:flex;gap:10px;align-items:flex-start;padding:11px 8px 11px 12px;border-bottom:1px solid var(--border2);border-left:4px solid transparent;border-radius:6px;margin-bottom:2px;background:var(--surface2)}
+.agenda-item:last-child{margin-bottom:0}
+.agenda-tipo-pill{display:inline-block;padding:2px 9px;border-radius:20px;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px}
+.agenda-nota{font-size:13.5px;color:var(--text);font-weight:600;margin-top:1px}
+.agenda-meta{font-size:11.5px;color:var(--muted);margin-top:3px}
+.agenda-copy-link{color:var(--accent-blue);cursor:pointer;text-decoration:underline;font-weight:700;margin-left:4px}
 .cat-row{display:flex;align-items:center;gap:6px;padding:7px 4px;border-bottom:1px solid var(--border);font-size:12px}
 .cat-row:last-child{border-bottom:none}
 .cat-name{flex:1;color:var(--text);font-weight:600}
@@ -469,6 +498,21 @@ label{
 .doc-sign-wrap{display:flex;justify-content:flex-end;margin-top:24px}
 .doc-sign-wrap img{width:200px;display:block;margin:0 auto 4px}
 .doc-sign-name{font-size:11px;color:#333;text-align:center}
+.cert-table{width:100%;border-collapse:collapse;margin:8px 0 16px;font-size:11.5px}
+.cert-table th{background:#0f2044;color:#fff;padding:7px 8px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.03em}
+.cert-table td{padding:8px;border:1px solid #ddd;color:#222;vertical-align:top}
+/* ── MAPA CONTENEDORES ───────────────────────────────────────── */
+.cont-map-layout{display:grid;grid-template-columns:1.4fr 1fr;gap:14px;align-items:start}
+@media(max-width:900px){.cont-map-layout{grid-template-columns:1fr}}
+#cont-map{height:560px;border-radius:10px;overflow:hidden;background:var(--surface2)}
+#cont-list-card{max-height:560px;overflow-y:auto}
+.cont-pin{width:36px;height:36px;border-radius:50% 50% 50% 0;background:var(--accent);border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.5);transform:rotate(-45deg);display:flex;align-items:center;justify-content:center}
+.cont-pin span{transform:rotate(45deg);color:#0f2044;font-weight:800;font-size:13px;line-height:1}
+.cont-pin-aprox{background:repeating-linear-gradient(45deg,var(--accent),var(--accent) 4px,#fff8e1 4px,#fff8e1 8px);opacity:.85}
+.leaflet-tooltip{font-family:'DM Sans',sans-serif;font-size:12px}
+.leaflet-popup-content{font-family:'DM Sans',sans-serif}
+.map-popup-title{font-weight:800;font-size:12.5px;color:var(--text);margin-bottom:4px}
+.map-popup-btn{display:inline-block;background:var(--accent-blue);color:#fff;border:none;border-radius:6px;padding:5px 10px;font-size:11.5px;font-weight:700;cursor:pointer;margin-top:4px}
 
 </style>
 </head>
@@ -484,6 +528,9 @@ label{
     </div>
     <div class="form-row"><label>Usuario</label><input id="li-user" type="text" placeholder="usuario" autocomplete="username"></div>
     <div class="form-row"><label>Contraseña</label><input id="li-pass" type="password" placeholder="contraseña" autocomplete="current-password"></div>
+    <label style="display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--text2);margin-top:6px;cursor:pointer">
+      <input id="li-remember" type="checkbox" checked style="width:15px;height:15px;margin:0"> Recordar sesión
+    </label>
     <div class="login-err" id="li-err"></div>
     <button class="btn btn-primary btn-full" style="margin-top:10px" data-action="login">Entrar</button>
   </div>
@@ -497,13 +544,15 @@ label{
     </div>
   </div>
   <div class="sidebar-nav">
-    <button class="tab-btn active" data-action="tab" data-param="contenedores"><span class="tab-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h18M3 7l2 13h14l2-13M3 7l2-3h14l2 3M9 11v6M15 11v6"/></svg></span><span class="tab-label">Contenedores</span><span class="badge" id="badge-ret" style="display:none">0</span></button>
+    <button class="tab-btn active" data-action="tab" data-param="inicio"><span class="tab-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><path d="M9 22V12h6v10"/></svg></span><span class="tab-label">Inicio</span></button>
+    <button class="tab-btn" data-action="tab" data-param="contenedores"><span class="tab-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h18M3 7l2 13h14l2-13M3 7l2-3h14l2 3M9 11v6M15 11v6"/></svg></span><span class="tab-label">Contenedores</span><span class="badge" id="badge-ret" style="display:none">0</span></button>
     <button class="tab-btn" data-action="tab" data-param="albaranes"><span class="tab-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2M9 12h6M9 16h4"/></svg></span><span class="tab-label">Albaranes</span></button>
     <button class="tab-btn" data-action="tab" data-param="facturas"><span class="tab-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l4-2 4 2 4-2 4 2"/></svg></span><span class="tab-label">Facturación</span></button>
     <button class="tab-btn" data-action="tab" data-param="finanzas"><span class="tab-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2"/></svg></span><span class="tab-label">Finanzas</span></button>
     <button class="tab-btn" data-action="tab" data-param="clientes"><span class="tab-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 7a4 4 0 100 8 4 4 0 000-8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg></span><span class="tab-label">Clientes</span></button>
     <button class="tab-btn" data-action="tab" data-param="tareas"><span class="tab-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 12l2 2 4-4"/></svg></span><span class="tab-label">Tareas</span></button>
     <button class="tab-btn" data-action="tab" data-param="presupuestos"><span class="tab-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg></span><span class="tab-label">Presupuestos</span></button>
+    <button class="tab-btn" data-action="tab" data-param="certificados"><span class="tab-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15a5 5 0 100-10 5 5 0 000 10z"/><path d="M8.5 13.5L7 22l5-3 5 3-1.5-8.5"/></svg></span><span class="tab-label">Certificados</span></button>
   </div>
   <div class="sidebar-footer">
     <div class="sidebar-avatar" id="sidebar-avatar">—</div>
@@ -512,170 +561,175 @@ label{
   </div>
 </nav>
 <div id="app">
-  <div class="section active" id="sec-contenedores"></div>
+  <div class="section active" id="sec-inicio"></div>
+  <div class="section" id="sec-contenedores"></div>
   <div class="section" id="sec-albaranes"></div>
   <div class="section" id="sec-facturas"></div>
   <div class="section" id="sec-finanzas"></div>
   <div class="section" id="sec-clientes"></div>
   <div class="section" id="sec-tareas"></div>
   <div class="section" id="sec-presupuestos"></div>
+  <div class="section" id="sec-certificados"></div>
 </div>
 <div id="modal-overlay"><div class="modal" id="modal-body"></div></div>
 <div class="toast" id="toast"></div>
 <script>
-// ─── DATOS REALES (PDF 04-06-26) ─────────────────────────────────
+// ─── DATOS REALES (PDF 09-08-26) ─────────────────────────────────
 // [num, cliente, dir, tel, tipo, fecha, estado]
+// NOTA: 'estado' se mantiene igual que antes de esta actualización (no venía claro en el PDF); revisar manualmente si algún contenedor cambió de roto/bueno/reparado.
 const RAW=[
-['0','NAVE GARVI','','','','2026-06-07','normal'],
-['1','ARENA ALICANTE','C/Ciprés 60, Alicante','615782279','BASURA','2026-05-19','normal'],
-['2','GRANJA TORRELLANO','','','','2026-05-24','rotos_granja'],
-['3','GRANJA TORRELLANO','','','','2026-05-24','rotos_granja'],
-['4','GRANJA TORRELLANO','','','','2026-05-24','rotos_granja'],
-['5','AKRA','C/Algas Marinas 3, Alicante','661637773','MEZCLA','2026-05-22','normal'],
-['6','GRANJA TORRELLANO','','','','2026-05-24','rotos_granja'],
-['7','ANGEL','C/Riu Serpis, Busot','685879394','MEZCLA','2026-06-04','normal'],
-['8','SERVITRIA','Polg. Torrellano, Elche','613456645','BASURA','2026-06-01','reparados'],
-['9','GRANJA TORRELLANO','','','','2026-05-24','rotos_granja'],
-['10','MONICA','Plg. Alto 2 Nº51, Torrellano','638341872','ESPECIAL','2025-12-16','rotos'],
-['11','GRANJA TORRELLANO','','','','2026-05-24','rotos_granja'],
-['12','GRANJA TORRELLANO','','','','2026-05-24','rotos_granja'],
-['13','NAVE GARVI','','','','2026-06-04','rotos'],
-['14','GRANJA TORRELLANO','','','','2026-05-24','rotos_granja'],
-['15','GRANJA TORRELLANO','','','','2026-05-24','rotos_granja'],
-['16','GRANJA TORRELLANO','','','','2026-05-24','rotos_granja'],
-['17','GRANJA TORRELLANO','','','','2026-05-24','rotos_granja'],
-['18','GRANJA TORRELLANO','','','','2026-05-24','rotos_granja'],
-['19','GRANJA TORRELLANO','','','','2026-05-24','rotos_granja'],
-['20','GRANJA TORRELLANO','','','','2026-05-24','rotos_granja'],
-['21','GRANJA TORRELLANO','','','','2026-05-24','rotos_granja'],
-['22','HOTEL EL CAMPELLO','C/San Francisco 25, El Campello','616918334','MEZCLA','2026-06-01','reparados'],
-['23','GRANJA TORRELLANO','','','','2026-05-24','rotos_granja'],
-['24','GRANJA TORRELLANO','','','','2026-05-24','rotos_granja'],
-['25','GRANJA TORRELLANO','','','','2026-05-24','rotos_granja'],
-['26','GRANJA TORRELLANO','','','','2026-05-24','rotos_granja'],
-['27','CUPOLA','C/Dr. Buades 29, San Juan Pueblo','690198731','MEZCLA','2026-05-21','normal'],
-['28','CYTEM','Avd/Elche 164, Alicante','','LIMPIO','2026-05-20','rotos'],
-['29','NAVE GARVI','','','','2026-04-27','rotos'],
-['30','GRANJA TORRELLANO','','','','2026-05-24','rotos_granja'],
-['31','NOVALIGEPRO','C/Virgen del Socorro 21, Alicante','691136117','MEZCLA','2026-06-04','normal'],
-['32','GRANJA TORRELLANO','','','','2026-05-24','rotos_granja'],
-['33','FERROVIAL SERVITRIA','Ciudad de la Justicia, Alicante','642838136','MEZCLA','2026-06-02','normal'],
-['34','JOSE','Avd/Los Árboles 40, Alicante','617646381','MEZCLA','2026-05-22','normal'],
-['35','SERVITRIA','Polg. Torrellano, Elche','613456645','BASURA','2026-06-01','rotos'],
-['36','IMPROSET','Avd/Cataluña 13, Alicante','699457669','MEZCLA','2026-05-22','reparados'],
-['37','MONICA','Plg. Alto 2 Nº51, Torrellano','638341872','ESPECIAL','2026-05-08','rotos'],
-['38','GRANJA TORRELLANO','','','','2026-05-24','rotos_granja'],
-['39','GRANJA TORRELLANO','','','','2026-05-24','rotos_granja'],
-['40','GRANJA TORRELLANO','','','','2026-05-24','rotos_granja'],
-['41','OMAR','C/Ossa Menor 6, Muchamiel','651803464','MEZCLA','2026-06-01','normal'],
-['42','GRANJA TORRELLANO','','','','2026-05-24','rotos_granja'],
-['43','GRANJA TORRELLANO','','','','2026-05-24','rotos_granja'],
-['44','GRANJA TORRELLANO','','','','2026-05-24','rotos_granja'],
-['45','ESCLAPES','C/Fuerteventura 5, El Campello','677509044','MEZCLA','2026-05-22','reparados'],
-['46','OSCAR GARCIA','Carrer La Maigmona 58, San Juan','669860547','MEZCLA','2026-06-03','normal'],
+// total rows: 151
+['0','NAVE GARVI','','','','2026-08-09','normal'],
+['1','ARENA ALICANTE','Camino Ciprés 60, Alicante','615782279','BASURA','2026-05-19','normal'],
+['2','GRANJA TORRELLANO','','','','2026-08-02','rotos_granja'],
+['3','GRANJA TORRELLANO','','','','2026-08-02','rotos_granja'],
+['4','GRANJA TORRELLANO','','','','2026-08-02','rotos_granja'],
+['5','NAVE GARVI','','','','2026-08-09','normal'],
+['6','GRANJA TORRELLANO','','','','2026-08-02','rotos_granja'],
+['7','BLS','C/Río Guadiana 20, San Vicente','621410744','LIMPIO','2026-08-03','normal'],
+['8','LYN','C/Aeródromo, San Vicente','654010444','MEZCLA','2026-07-27','reparados'],
+['9','GRANJA TORRELLANO','','','','2026-08-02','rotos_granja'],
+['10','GRANJA TORRELLANO','','','','2026-08-02','rotos'],
+['11','GRANJA TORRELLANO','','','','2026-08-02','rotos_granja'],
+['12','GRANJA TORRELLANO','','','','2026-08-02','rotos_granja'],
+['13','EMILIO','Avd/Alcalde Lorenzo Carbonell 41, Alicante','','PODA','2026-07-15','rotos'],
+['14','GRANJA TORRELLANO','','','','2026-08-02','rotos_granja'],
+['15','GRANJA TORRELLANO','','','','2026-08-02','rotos_granja'],
+['16','GRANJA TORRELLANO','','','','2026-08-02','rotos_granja'],
+['17','GRANJA TORRELLANO','','','','2026-08-02','rotos_granja'],
+['18','GRANJA TORRELLANO','','','','2026-08-02','rotos_granja'],
+['19','GRANJA TORRELLANO','','','','2026-08-02','rotos_granja'],
+['20','GRANJA TORRELLANO','','','','2026-08-02','rotos_granja'],
+['21','GRANJA TORRELLANO','','','','2026-08-02','rotos_granja'],
+['22','SERVITRIA','C/Pascual Ros Aguilar, Polg. Torrellano, Elche','600848705','MEZCLA','2026-07-31','reparados'],
+['23','GRANJA TORRELLANO','','','','2026-08-02','rotos_granja'],
+['24','GRANJA TORRELLANO','','','','2026-08-02','rotos_granja'],
+['25','GRANJA TORRELLANO','','','','2026-08-02','rotos_granja'],
+['26','GRANJA TORRELLANO','','','','2026-08-02','rotos_granja'],
+['27','SK','C/Alvarez Sereix 10, Alicante','671436198','MEZCLA','2026-08-07','normal'],
+['28','CYTEM','Avd/Elche 164, Alicante','','BASURA','2026-07-24','rotos'],
+['29','NAVE GARVI','','','','2026-08-02','rotos'],
+['30','GRANJA TORRELLANO','','','','2026-08-02','rotos_granja'],
+['31','VENTANAS ALICANTE','C/Meteorito 11, Alicante','607303238','MEZCLA','2026-07-28','normal'],
+['32','GRANJA TORRELLANO','','','','2026-08-02','rotos_granja'],
+['33','NOVALIGEPRO','C/De Malaga 7, El Campello','654983412','BASURA','2026-08-07','normal'],
+['34','UTE CSPA','Plaza Toros, Alicante','655632840','BASURA','2026-08-04','normal'],
+['35','CUPOLA','C/Dr.Gadea 29, San Juan Pueblo','690198731','MEZCLA','2026-07-29','rotos'],
+['36','FERROVIAL SERVITRIA','Ciudad de la Justicia, Alicante','642838136','BASURA','2026-08-06','reparados'],
+['37','MONICA','IFA, Alicante','638341872','ESPECIAL','2026-05-08','rotos'],
+['38','GRANJA TORRELLANO','','','','2026-08-02','rotos_granja'],
+['39','GRANJA TORRELLANO','','','','2026-08-02','rotos_granja'],
+['40','GRANJA TORRELLANO','','','','2026-08-02','rotos_granja'],
+['41','ESCLAPES','Colegio Salesianos, Alicante','609477470','MEZCLA','2026-08-04','normal'],
+['42','GRANJA TORRELLANO','','','','2026-08-02','rotos_granja'],
+['43','GRANJA TORRELLANO','','','','2026-08-02','rotos_granja'],
+['44','GRANJA TORRELLANO','','','','2026-08-02','rotos_granja'],
+['45','NAVE GARVI','','','','2026-08-09','reparados'],
+['46','RAUL PARDINES','C/La Pantera 20, Cañada del Fenollar','607342870','MEZCLA','2026-08-03','normal'],
 ['47','NOVALIGEPRO','C/Clara Campo Amor, San Juan','654983412','MEZCLA','2026-06-03','rotos'],
-['48','GRANJA TORRELLANO','','','','2026-05-24','rotos_granja'],
-['49','BLS','C/Río Guadiana 20, San Vicente','611848058','LIMPIO','2026-06-04','normal'],
-['50','RAUL PARDINES','C/Pantera 20, Alicante','607342870','MEZCLA','2026-05-11','normal'],
-['51','GRANJA TORRELLANO','','','','2026-05-24','rotos_granja'],
-['52','JOSE PEREZ','C/Liéntiscle 8, Cotoveta','666343269','LIMPIO','2026-05-26','reparados'],
-['53','NAVE GARVI','','','','2026-04-27','rotos'],
-['54','GRANJA TORRELLANO','','','','2026-05-24','rotos_granja'],
-['55','FRANCISCO DUMONT','C/Tramuntana 6, Alicante','619444853','MEZCLA','2019-07-05','normal'],
-['56','GRANJA TORRELLANO','','','','2026-05-24','rotos_granja'],
-['57','MESFER','C/Benidoleig 2, Alicante','606122049','MEZCLA','2026-06-04','reparados'],
-['58','JOSE IVAN LONDOÑO','C/Calderón de la Barca 14, Muchamiel','642486024','MEZCLA','2026-05-18','rotos'],
-['59','CUPOLA','Su Nave, Alicante','634731689','MEZCLA','2026-02-19','rotos'],
-['60','GRANJA TORRELLANO','','','','2026-05-24','rotos_granja'],
-['61','FRANQ CALLNET','Campo junto cement., San Vicente','686697753','MEZCLA','2019-08-28','normal'],
-['62','GRANJA TORRELLANO','','','','2026-05-24','rotos_granja'],
-['63','GRANJA TORRELLANO','','','','2026-05-24','rotos_granja'],
-['64','NAVE GARVI','','','','2026-04-27','rotos'],
-['65','ARENA ALICANTE','C/Ciprés 60, Alicante','615782279','MEZCLA','2026-05-15','rotos'],
-['66','GRANJA TORRELLANO','','','','2026-05-24','rotos_granja'],
-['67','ARENA ALICANTE','C/Edil Marina Olcina, Alicante','615782279','BASURA','2026-05-19','rotos'],
-['68','GRANJA TORRELLANO','','','','2026-05-24','rotos_granja'],
-['69','GRANJA TORRELLANO','','','','2026-05-24','rotos_granja'],
-['70','GRANJA TORRELLANO','','','','2026-05-24','rotos_granja'],
-['71','MARIUS','Avd/Los Patos 27, Busot','633567688','LIMPIO','2026-05-08','buenos'],
-['72','VIALDA','C/Francisco Escolano 7, Alicante','653183415','MEZCLA','2026-05-19','buenos'],
-['73','SK','Plaza Luceros 11, Alicante','600836319','MEZCLA','2026-05-18','buenos'],
-['74','BERTA','C/Las Tórtolas 18, San Vicente','687552448','MEZCLA','2026-06-03','buenos'],
-['75','CARHOUSE','CC Plaza Mar 2, Alicante','635547669','BASURA','2026-06-02','buenos'],
-['76','NAVE GARVI','','','','2026-06-04','rotos'],
-['77','MARCELA','Avd/Pescados 37, Alicante','633036317','BASURA','2026-05-29','normal'],
-['78','AKRA','C/Algas Marinas 3, Alicante','661637773','MEZCLA','2026-05-15','rotos'],
-['79','GRANJA TORRELLANO','','','','2026-05-24','rotos_granja'],
-['80','INGENIAR','C/Manuel Díaz Gálvez, Alicante','680253901','BASURA','2026-05-29','reparados'],
-['81','ARENA ALICANTE','Avd/Locutor Vicente Hipólito, Alicante','620689663','PODA','2026-05-29','rotos'],
-['82','FERROVIAL SERVITRIA','Ciudad de la Justicia, Alicante','642838136','MEZCLA','2026-06-04','normal'],
-['83','GRANJA TORRELLANO','','','','2026-05-24','rotos_granja'],
-['84','FAHUARAN','Burguer King, San Juan','603470497','BASURA','2026-06-04','reparados'],
-['85','JOSE','C/Ancores 22, El Campello','605763533','PODA','2026-05-22','rotos'],
-['86','QUISQUELLAREP','C/Rosa Chacel 2, Alicante','679842477','LIMPIO','2026-06-02','buenos'],
-['87','MERCADILLO MUCHAVISTA','Muchavista, El Campello','674374208','BASURA','2026-05-11','buenos'],
-['88','SK','Edif. Mediodía, C/Melva 3, Alicante','661808625','BASURA','2026-06-03','buenos'],
-['89','SK','Edif. Delfín, Avd/Costablanca 3, Alicante','671436198','MEZCLA','2026-05-25','normal'],
-['90','FISAMAR','C/Madrid 11 Parque, Coveta Fuma','658015295','BASURA','2026-06-03','buenos'],
-['91','SK','Edif. Texas, Avd/Países Escandinavos 5, Alicante','671436198','BASURA','2026-05-25','buenos'],
-['92','CUPOLA','Ptda. Raspeig 27, San Vicente','639278630','LIMPIO','2026-06-04','normal'],
-['93','FERROVIAL SERVITRIA','Ciudad de la Justicia, Alicante','642838136','MEZCLA','2026-06-04','buenos'],
-['94','GRANJA TORRELLANO','','','','2026-05-24','rotos_granja'],
-['95','VIALDA','C/General Prim 8, Alicante','653183415','MEZCLA','2026-06-02','aptos'],
-['96','CYTEM','Avd/Elche 164, Alicante','','LIMPIO','2026-06-03','aptos'],
-['97','ESCLAPES','Avd/Saturno Su Almacén, Alicante','677509044','MEZCLA','2026-04-28','aptos'],
-['98','INSULAR','C/Maestro Caballero 28, Alicante','661183621','MEZCLA','2026-06-02','reparados'],
-['99','NAVE GARVI','','','','2026-06-04','aptos'],
-['100','GRANJA TORRELLANO','','','','2026-05-24','rotos_granja'],
-['101','AKRA','C/San Bartolomé de Tirajana 45, Arenales','656692845','MEZCLA','2026-06-01','aptos'],
-['102','CYTEM','Avd/Elche 164, Alicante','','LIMPIO','2026-06-02','rotos'],
-['103','PARTICULAR','C/Concha Espina 29, Alicante','627202474','MEZCLA','2026-05-22','aptos'],
-['104','EDICAMP','Avd/Comtat del Fabraquer 158, San Juan','616107742','MEZCLA','2026-05-19','aptos'],
-['105','ELENA','Avd/Novelda 9, San Juan','625355213','MEZCLA','2026-05-19','aptos'],
-['106','NAVE GARVI','','','','2026-06-04','aptos'],
-['107','CARSAN','C/Roses 4 esq C/Tarragona 21, El Campello','646845528','MEZCLA','2026-06-02','aptos'],
-['108','CUPOLA','Edif. Río de Janeiro, Avd/Costablanca 107, Alicante','622460182','MEZCLA','2026-04-28','aptos'],
-['109','UTE CSPA','Plaza Toros, Alicante','655632840','BASURA','2026-05-29','aptos'],
-['110','SK','C/Riu Girona 8, Mutxamiel','645605530','MEZCLA','2026-05-28','aptos'],
-['111','SK','Avd/Alcalde Lorenzo Carbonell 39, Alicante','645605530','MEZCLA','2026-05-29','aptos'],
-['112','GRANJA TORRELLANO','','','','2026-05-24','rotos_granja'],
-['113','VIALDA','C/Heracles 40, Alicante','653183415','MEZCLA','2026-05-07','aptos'],
-['114','VIALDA','C/Poeta Zorrilla, Alicante','653183415','MEZCLA','2026-05-19','aptos'],
-['115','VIALDA','C/Doctor Just 57, Alicante','653183415','MEZCLA','2026-05-28','aptos'],
-['116','NAVE GARVI','','','','2026-06-04','aptos'],
-['117','NAVE GARVI','','','','2026-06-04','normal'],
-['118','OYRSA','C/Bernat Metge 3, El Campello','633872110','MEZCLA','2026-05-29','normal'],
-['119','GRANJA TORRELLANO','','','','2026-05-24','rotos_granja'],
-['120','DAVID NAVARRO','C/Gran Canaria, El Campello','665914792','MEZCLA','2026-05-13','normal'],
-['121','VENTANAS ALICANTE','C/Meteorito 11, Alicante','607303238','MEZCLA','2026-05-25','normal'],
-['122','FERROVIAL SERVITRIA','Ciudad de la Justicia, Alicante','642838136','MEZCLA','2026-06-04','normal'],
-['123','ID REFORMAS','C/Bellavista 4, San Juan','613857888','MEZCLA','2026-05-26','normal'],
-['124','CYTEM','Avd/Elche 164, Alicante','','BASURA','2026-06-03','normal'],
-['125','JUANJO','C/Río Tajo 12, San Vicente','615125242','MEZCLA','2026-05-05','normal'],
+['48','GRANJA TORRELLANO','','','','2026-08-02','rotos_granja'],
+['49','ESCLAPES','C/Formentera 2, El Campello','','MEZCLA','2026-07-31','normal'],
+['50','SK','Avd/Salamanca 9, 03005 Alicante','661808625','MEZCLA','2026-08-05','normal'],
+['51','GRANJA TORRELLANO','','','','2026-08-02','rotos_granja'],
+['52','FERROVIAL SERVITRIA','Ciudad de la Justicia, Alicante','642838136','BASURA','2026-08-05','reparados'],
+['53','GRANJA TORRELLANO','','','','2026-08-02','rotos'],
+['54','GRANJA TORRELLANO','','','','2026-08-02','rotos_granja'],
+['55','FRANCISCO DUMONT','C/Tramuntana 6, Alicante','619444853','','2019-07-05','normal'],
+['56','GRANJA TORRELLANO','','','','2026-08-02','rotos_granja'],
+['57','URB. CLUB DEL MAR','Avd/Benidorm 18, Alicante','658914721','MEZCLA','2026-07-30','reparados'],
+['58','ARENA ALICANTE','Camino Ciprés 60, Alicante','615782279','BASURA','2026-06-30','rotos'],
+['59','C/Francisco Montero Perez, Alicante','C/Francisco Montero Perez, Alicante','627600842','MEZCLA','2026-08-07','rotos'],
+['60','GRANJA TORRELLANO','','','','2026-08-02','rotos_granja'],
+['61','FRANQ CALLNET','Campo junto cement., San Vicente','686697753','','2019-08-28','normal'],
+['62','GRANJA TORRELLANO','','','','2026-08-02','rotos_granja'],
+['63','GRANJA TORRELLANO','','','','2026-08-02','rotos_granja'],
+['64','GRANJA TORRELLANO','','','','2026-08-02','rotos'],
+['65','NAVE GARVI','','','','2026-08-09','rotos'],
+['66','GRANJA TORRELLANO','','','','2026-08-02','rotos_granja'],
+['67','ARENA ALICANTE','C/Edil Marina Olcina, Alicante','615782279','BASURA','2026-08-02','rotos'],
+['68','GRANJA TORRELLANO','','','','2026-08-02','rotos_granja'],
+['69','GRANJA TORRELLANO','','','','2026-08-02','rotos_granja'],
+['70','GRANJA TORRELLANO','','','','2026-08-02','rotos_granja'],
+['71','NAVE GARVI','','','','2026-08-09','buenos'],
+['72','MERCADILLO MUCHAVISTA','Avd/Elda, San Juan','674374208','BASURA','2026-07-16','buenos'],
+['73','SICE3','Avenida Pintor Baeza 3, Alicante','635820470','MEZCLA','2026-08-06','buenos'],
+['74','IBRAHIM','C/3 de Abril 1970, San Vicente','641523857','LIMPIO','2026-07-22','buenos'],
+['75','C/Concha Espina 29, Alicante','C/Concha Espina 29, Alicante','627202474','MEZCLA','2026-08-05','buenos'],
+['76','CUPOLA','','608699955','BASURA','2026-07-16','rotos'],
+['77','ESCLAPES','Avenida Saturno 21, Alicante','677509044','MEZCLA','2026-06-30','normal'],
+['78','GRANJA TORRELLANO','','','','2026-08-02','rotos'],
+['79','GRANJA TORRELLANO','','','','2026-08-02','rotos_granja'],
+['80','NOVALIGEPRO','C/Poeta Quintana 2, Alicante','','MEZCLA','2026-07-20','reparados'],
+['81','NAVE GARVI','','','','2026-08-09','rotos'],
+['82','SERVITRIA','C/Pascual Ros Aguilar, Polg. Torrellano, Elche','600848705','MEZCLA','2026-08-03','normal'],
+['83','GRANJA TORRELLANO','','','','2026-08-02','rotos_granja'],
+['84','ID REFORMAS','C/Bellavista 4, San Juan Pueblo','613857888','MEZCLA','2026-07-28','reparados'],
+['85','NAVE GARVI','','','','2026-08-09','rotos'],
+['86','NAVE GARVI','','','','2026-08-09','buenos'],
+['87','CYTEM','Avd/Elche 164, Alicante','','ÁRIDO','2026-07-28','buenos'],
+['88','GIOP 2006','C/Río Jucar 4, Concesionario BYD','617355292','MEZCLA','2026-07-17','buenos'],
+['89','FERROVIAL SERVITRIA','Ciudad de la Justicia, Alicante','642838136','BASURA','2026-08-04','normal'],
+['90','NAVE GARVI','','','','2026-08-09','buenos'],
+['91','CYTEM','Avd/Elche 164, Alicante','','LIMPIO','2026-08-06','buenos'],
+['92','CYTEM','Avd/Elche 164, Alicante','613636794','LIMPIO','2026-08-04','normal'],
+['93','HOTEL JORGE I','C/San Francisco, El Campello','616918334','MEZCLA','2026-08-07','buenos'],
+['94','GRANJA TORRELLANO','','','','2026-08-02','rotos_granja'],
+['95','INSULAR','C/Maestro Caballero 28, Alicante','661183621','MEZCLA','2026-08-05','aptos'],
+['96','AKOX','Avd/Condomina 20, por la playa, Alicante','623541240','LIMPIO','2026-08-03','aptos'],
+['97','NAVE GARVI','','','','2026-08-09','aptos'],
+['98','NAVE GARVI','','','','2026-08-09','reparados'],
+['99','NAVE GARVI','','','','2026-08-09','aptos'],
+['100','GRANJA TORRELLANO','','','','2026-08-02','rotos_granja'],
+['101','CARSAN','C/Roses 4 esq C/Tarragona 21, El Campello','630197982','MEZCLA','2026-08-07','aptos'],
+['102','SK SANTA BARBARA','Avd/Costablanca 18, Alicante','666649403','MEZCLA','2026-07-30','rotos'],
+['103','DISCOVERY','Plaza Toros, Alicante','680534582','MEZCLA','2026-08-05','aptos'],
+['104','NOVALIGEPRO','C/Pintor Cabrera esq C/Federico Soto, Alicante','691136117','MEZCLA','2026-08-06','aptos'],
+['105','SK SANTA BARBARA','Avd/Costablanca 18, Alicante','666649403','MEZCLA','2026-07-27','aptos'],
+['106','NAVE GARVI','','','','2026-08-09','aptos'],
+['107','MARMOLES SAN JUAN','C/El Salt 1, San Juan','603920790','MEZCLA','2026-07-28','aptos'],
+['108','FERROVIAL SERVITRIA','Ciudad de la Justicia, Alicante','642838136','BASURA','2026-08-06','aptos'],
+['109','MARCELA','Avd/Los Pescados 37, Moralet','633036317','MEZCLA','2026-07-17','aptos'],
+['110','LACINE','Avd/Libertad 75, San Vicente','613219731','MEZCLA','2026-08-06','aptos'],
+['300','NAVE GARVI','','','','2026-08-09','normal'],
+['200','NAVE GARVI','','','','2026-08-09','rotos_granja'],
+['201','NAVE GARVI','','','','2026-08-09','normal'],
+['202','NAVE GARVI','','','','2026-08-09','rotos_granja'],
+['203','CP COSTA HISPANIA','Avenida Carabassí, Gran Alacant, Santa Pola','635460136','PODA','2026-08-04','normal'],
+['L100','NAVE GARVI','','','','2026-08-09','normal'],
+['400','NAVE GARVI','Gancho','','','2026-08-02','normal'],
+['111','SK','Urbanova Torre 1, Alicante','642522373','MEZCLA','2026-07-09','aptos'],
+['112','GRANJA TORRELLANO','','','','2026-08-02','rotos_granja'],
+['113','EDIFICA','C/Casiopea 10, Muchamiel','651581561','MEZCLA','2026-08-05','aptos'],
+['114','NAVE GARVI','','','','2026-08-09','aptos'],
+['115','TECMOSA','Avd/L\'Estacio 16, Centro Social, El Campello','689061023','MEZCLA','2026-07-24','aptos'],
+['116','CYTEM','Avd/Elche 164, Alicante','','LIMPIO','2026-07-28','aptos'],
+['117','NAVE GARVI','','','','2026-08-09','normal'],
+['118','VIALDA','C/Antonio Maura 15, Alicante','653183415','MEZCLA','2026-07-22','normal'],
+['119','GRANJA TORRELLANO','','','','2026-08-02','rotos_granja'],
+['120','CUPOLA','Partida Raspeig, San Vicente','639278650','MEZCLA','2026-07-09','normal'],
+['121','PLAY AND FLEX','Colegio Maristas, Alicante','647445538','MEZCLA','2026-08-03','normal'],
+['122','SAMUEL','C/Joaquin Arias esq C/Musico Vicente Spiteri, Alicante','697365486','MEZCLA','2026-08-04','normal'],
+['123','UTE CSPA','Plaza Toros, Alicante','655632840','BASURA','2026-08-05','normal'],
+['124','NAVE GARVI','','','','2026-08-09','normal'],
+['125','SICE3','Avd/Benito Perez Galdos 37, Alicante','667978089','MEZCLA','2026-08-06','normal'],
 ['126','ESCLAPES','Frente Alipark, Alicante','677486838','LIMPIO','2026-04-07','normal'],
-['127','NOVALIGEPRO','C/Del Altet, Torrellano','688388667','BASURA','2026-06-04','rotos'],
-['128','UTE CSPA','Plaza Toros, Alicante','655632840','BASURA','2026-06-04','normal'],
-['129','OSCAR TADEO','C/Casiopea 10, Muchamiel','651581561','MEZCLA','2026-06-01','normal'],
-['130','SK','Urbanova T1, Alicante','642549138','MEZCLA','2026-06-04','normal'],
-['131','NOVALIGEPRO','C/Poeta Quintana 2, Alicante','691136117','MEZCLA','2026-05-11','reparados'],
-['132','ESCLAPES','Colegio Salesianos, Alicante','677486838','LIMPIO','2026-05-26','reparados'],
-['133','EDGARDO','C/Del Peral 1, Alicante','679350431','MEZCLA','2026-06-01','normal'],
-['134','DESCON','Su Nave, Alicante','622068768','MEZCLA','2026-06-04','reparados'],
-['135','JOSE IVAN LONDOÑO','C/Club Fútbol Hércules, Alicante','680692542','MEZCLA','2026-06-01','reparados'],
-['136','NAVE GARVI','','','','2026-06-04','reparados'],
-['137','SK','La Perla, C/Montenegre 5, Coveta Fuma','600836319','MEZCLA','2026-06-03','reparados'],
-['138','SERVITRIA','C/Pascual Ros Aguilar, Elche','613456645','MEZCLA','2026-04-27','reparados'],
-['139','VIALDA','C/San Mateo 3, Alicante','653183415','MEZCLA','2026-05-14','reparados'],
-['200','GRANJA TORRELLANO','','','','2026-05-24','rotos_granja'],
-['201','ADAN','C/Torrent 42, Coveta Fuma','649081377','MEZCLA','2026-06-03','normal'],
-['202','GRANJA TORRELLANO','','','','2026-05-24','rotos_granja'],
-['203','EUROPE ENERGIA','C/Rioja 12, Alicante','674433013','MEZCLA','2026-05-26','normal'],
-['300','NAVE GARVI','','','','2026-06-02','normal'],
-['400','NAVE GARVI','Gancho','','','2026-06-02','normal'],
-['401','GRANJA TORRELLANO','','','','2026-05-24','rotos_granja'],
-['402','GRANJA TORRELLANO','','','','2026-05-24','rotos_granja'],
-['403','GRANJA TORRELLANO','','','','2026-05-24','rotos_granja'],
-['L100','NAVE GARVI','Lateral','','','2026-06-02','normal'],
+['127','NAVE GARVI','','','','2026-08-09','rotos'],
+['128','JOSE IVAN LONDOÑO','Avd/Calderon de la Barca 15, Muchamiel','642486024','MEZCLA','2026-08-07','normal'],
+['129','OYRSA','C/Bernat Metge 3, El Campello','833872110','MEZCLA','2026-07-16','normal'],
+['130','VIALDA','C/Wenceslao Fernandez Flores 3, Alicante','653183415','MEZCLA','2026-07-29','normal'],
+['131','SK','C/Maestro Barberi 2, Alicante','600836319','MEZCLA','2026-08-04','reparados'],
+['132','PEDRO','Plaza del Carmen 4, Alicante','670206517','MEZCLA','2026-08-04','reparados'],
+['133','SK','C/Deportista Ramon Mendizabal 28, Alicante','661808625','MEZCLA','2026-07-24','normal'],
+['134','MARIUS','Avd/Los Patos 27, Busot','633567688','MEZCLA','2026-08-05','reparados'],
+['135','PEDRO','C/Les Ancores 19, El Campello','670206517','BASURA','2026-08-07','reparados'],
+['136','NOVALIGEPRO','C/Virgen del Socorro 21, Alicante','656948871','MEZCLA','2026-08-06','reparados'],
+['137','SK','Edif/Texas, Avd/Paises Escandinavos 5, Alicante','642549138','MEZCLA','2026-08-04','reparados'],
+['138','NAVE GARVI','','','','2026-08-09','reparados'],
+['139','DESCON','','622068768','MEZCLA','2026-08-03','reparados'],
+['401','NAVE GARVI','','','MEZCLA','2026-08-02','rotos_granja'],
+['402','GRANJA TORRELLANO','','','','2026-08-02','rotos_granja'],
+['403','GRANJA TORRELLANO','','','','2026-08-02','rotos_granja'],
+['61R','NAVE GARVI','','','','2026-08-09','normal'],
 ];
 const INIT=RAW.map(([num,cliente,direccion,telefono,tipo,fecha,estadoExcel])=>
   ({num,cliente,direccion,telefono,tipo,fecha,estadoExcel,notas:'',fotos:[]}));
@@ -683,25 +737,26 @@ const INIT=RAW.map(([num,cliente,direccion,telefono,tipo,fecha,estadoExcel])=>
 // ─── ESTADO ───────────────────────────────────────────────────────
 const LSKEY='garvi_v17';
 let currentUser='', currentTab='contenedores', filterEstado='todos', searchQ='';
-let containers=[], albaranes=[], tareas=[], finanzas=[], facturas=[], clientes=[], cfg={};
+let containers=[], albaranes=[], tareas=[], finanzas=[], facturas=[], clientes=[], cfg={}, certificados=[], avisos=[];
+let calMonth=new Date().getMonth(), calYear=new Date().getFullYear(), calSelDay=todayISO();
 
 // ─── PRESUPUESTOS DATA ────────────────────────────────────────────
 const PRES_SIGN_B64="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";
 const PRES_LOGO_B64="iVBORw0KGgoAAAANSUhEUgAAAHgAAAB4CAIAAAC2BqGFAAAkZklEQVR42p19aaxd13Xe+vY55773yEfyUSTFQaRIDRYla6IiRXbRxh2CBIkRxL+COogRpGgLtEVatH8LWEBQNEiNOLVdyS3kFHZaR21i2AZa23WCNg0c2Rotx1Js2ZZp2aFIcXrviW+809lff5xpD2ufe1niknzv3nPv3Wfvtdf61reGDTz6T0VEACEFkOoPq78QVD+LNK90v5DNb95r9evtq+qf7jMhs/9Q2g8D+i5wX3UH4L2L/qtwhoDoA7v7aX5hOA/dW+h8GpoPYfVMXj9L51/3SyjOBc6HUyion6U7ZRRB/ZXeVDiDqO+CIMK7iBdDv6vgSsTr3N5IfbMILoYzJkRfCRHnzrxvh/5FdGYM8F6lCMS0g0msvz+SasoYzD39UVKbsmBHMJzQSiDY/OB9ELph0P9YBpODcAe0zzKeKACuOCtbEIx2DoNZFm+Ww8nqJi0XoRDNvAejlE7+g4+OpxIiYit5YTyb7l1ChGi0D9pt5u46UVVLq9yC4bjqDsFL9N+pzTjpLhDq39mtENpbqW4P3iIwEDIouotipF5Vwh9aWrOm1Sjb8TGcZWo3CTjqBo6IstVJneS2a8dwoI2ckf4XuWoW9QgZbwg6X9Fe7O0f0l+35m1MTQVDEwXJY1FPmJt+swVHCKhovWazgLpKYfhO1h/KRt8TrTKEv3fRrpvyndFtIRQ3CCitufC2A5IaEJo4x7PUPWFkvj9wBUgSS+NsfV9EJNJ13afB3QuxbnPvib5WZtpKJXckhELS32BErQiYUuziWgtXjFrtBgQIJvhj+iYu9SwpJF3FBH8k9f/h7oq1sCvucC4gk0OBdjuUcAAKLG0UFXzRZYdFWlwEQQzfGglBYNQdlRVOJtyJjgWVMwCwL7ma3DD8vJn634PfAHqvcrcKpQMkOoRASnToGmjAs66+kiUJxTOgeLCuz6qZBP5Cvf4IZhONwgRUiUugEnT7tcdRYTQDIFDPgjuqyA5D1Up0bRZdm9ZuDgTwCto0VysPF05wPk3Vvd80g9MWpIY1iFyn6HYjI9sKXjN6IIDn/kipqi24awJvopjEtx0kgCa77V4MYVm7Dzmnw5rY01S3oKG3WRjKBZy1B9RtSNeRQWC02aOV008gtCuUhM/TDAlwPQDC9bT0YcPfV+wFs2mslLqVUBMbpOQSsRlQdl9i8TuzF7ly8CFwsJlbLZGSc9YrSiaIDQbeX1o1BdI+r8uPtJ+Q3LKkcQUEKeERF2P0WjTPSWCkTRADQgRAtNXy7aIy1i61g8LOHJEerEUEZKmsq0/uqDNMRUoZTIiu1/3PMN0GgzNEl26AQqUkZpjNojRyFyFTIIANwY8MKQyXtwPTbwzwNH0KTR85NXwROCF9ch0IMPpwm3FUWGCvqo1On/tCP+gKTExIccyAd4nFc0nEVnb9LZGA3WSkn6A5ThpaZ/Ie4fJz+rTAFf0ZnmGwzYAEIEe/E4+YF2Qa57S3AVSQygNV1Dao72l4GLQPcEq7vZBE3z3rzxa5UEIv3P0Cxg5LeoMhqYFiBxtzslHafFX37bJbCFQrQ82BPowAR1HNmL5uytGvrMUXVYTmJoJXze959DQdldroWc5N56kEpmNqhQnxYsuUuswb54u8IBJG+oEijwTSOZXaRvlCQ6RhnD9jfdYQIjSKEaYbykJaFDqqwLGdDMxzSIboxFhi6XrmOTAncOWR8wVmJLmrAAUD9LktMxmDgFRCs7ZQOUI1XARXgUOJLSYjHHOHqlQCkNqv8xlbpGkA+qRt/5J5IdbEPm0+xWhW2tnnXsBRY5dcRjE1VXR2JZhcuHAm2YMDNDKLfbxOQPnH+5z0TKkaIetlw5AUdgjFpG0VO0WZ8ue7kcWgRHPJGMWXEw5dRY5QpbtbJIqQZsIMPmKmpxXxvehRdT5sRtq76CQa2jKwD/Mg8RpSBl10viaiU705QSTJbSCPZJIOi1Bb4wqgZwvB9XU8148MqZ+0UEH/XVA7LDoGUD7I8x78m4HLtjWkHWaYFKToJjdaBeiwKEwkcM2Mr0OBeS2CIvv+ZnUD5+R8RgaeMWSofpMeJfrYk1okEEDDFhXonHIvumAs9EGspv3wKMcD85Ay0Qx2MusGhoMLYpYOia9kBe+Q9CIhHmzCLBCtS0ZHfRAOaO2hZ2Z/SwJ6UsIAL+eEMtBTRGKaz/X2A3Xkm01GXMeceMjbSey0C/1EF9djDuaQaOPw7TvYz8VohhPxHvLJkJtFe7rCTXsfnuOd5LG9FSBMct1jRqIju7qN6rGaZPA1cHw7qmFJ9HIzIZqFz3wG25edcwQkcTcwe0+yx0WiEieJKKT4PoyP57R9HIfIENuEkFYVgD4OwU3Eh9BFSwO+ATFudCWCDkph2rmAInSzGZs5lsQJtIqmOhwlzwRVyRQNS8U9SX7dTczzXABS4aY5lxrswnJ9XzbL9Y/fR31O6okm0yNEkoVJbhN28tjOXLRhORNmxTuRc1pjCkVh7oKpQDgcehYv2hB6IE+82I6bp4h4ouHDjNlcvObMeMEBdqgLEqDaDgRB3RCMVHqCJwFryKznIGiz0i6/4/IxMF9MpUyx49vIXvJeuiwzX6LdrTQr2t7DDnWpnrgZUhqzyOr0qDAXc9Z/Mzej4Wob5jAOnFN/m2YTsV1wqPhRVUexMsFMzgypfIXE/ohAF2NOxn8jIEo2depWOC927zJ16MgtNI9PCYT5pJLuPLhJi3OQmUjr3Fkc82x5Es8DSkFtx0N3rB0kSPG96XFE3ClYx1VF84/9icY89oUxUcj5B0nfnWXyfezVKpyxPVH76464eDKSTpigagAV/sU18m1mcZo1bF2POq9jBtFIZ9vPwcpoKQ9zep4RWmPPWkSgjrqVnkM1wDMws5SkC8PRo8y92LyZxyWKykXm0CCdn9oVejAV4aXcxNr00lJJBIh5HCakQr83ScU01q4tyABML6kTzS/nYQ+ouaTQBx75aJzN/qQhfAS9MefIe4L3CJYK8/vsbvqHSdtfKnOeTIIJKqoSehGxp4vYckRJSm4eDD2vxM8hE4SZ1ZzJwc68jr6lARXUxF4PTkRE8m72lDT6MKWqca/hOZPwSyMCf9SpGaGiCqn4rmiTJho/k7GP6Fb3MV1ylZ72lpdgnw0k/Vo0InJBq7CbHwaLPjKPvLOuUBMou5iFY8Oh5CC4FXfVciCsPXXz+NDNHYIVbJRaOwsUqUlGP0W/89EA2gywsSLCDEMSuomNd96IHyGwXYEqIwNc7yEK+wotRdyqrG4eaCmHsPUHd37tYDG2LbTr8lsIoMt4gQBsOD7H0+8SwKhzEWSdoFA6KcRgLSLV+K0AUpkScWL0tTBYETLL8FsXH/6TtTPIKW5F3U3S0KhhcfWfZZn9wuEff/jYt8qys9gw1eq2ITWAMrHmH/74fW9ODgBUGFoRYZWpFKcGEoVMHt+9dGQ0CRyxbo+aJlQC8fSPk+pUT0rjYQCOsmGTPN4+ZXwXklpQkB1l4NRfyMdv3frbO4eujPfD2N4YrMwZZWApJxZvPHn82bs2brC3FMhAdqZYnA6FB1AXuii8ep4YhWU5GVlMTaU+Gj+o4b1gKnHshL02alZam0cK4PAwaEkVSqMNuoIAw5Ykg5BWWIl1p0Kd0ElrFSAkhDxrNz9y8qXf+OH7CAPPg9fKuZlWyCJCS9KI/d1Tz921e2NUlXTUSphVBTscSGrAscCWU0FrSZT9ZBKUAsWWEHHe3GAb47Bx1UtW4DpjDrNUw2nT4MrMya9sI5FGYFjzBm2oGTDGAVSmfh0dIdglYsBgOMaHsjc+dOi7Mk3jP6ZYoNYxrGoQySl+4+jrH8x+NB6hEw40kRLjcyoUGIFYoU3nz8EEqa4B6DCQDGIgBgLSiGSGxriZqw23AhGRzIgxAhEDNm+koRgyEzEiBmKqayiQ+mKIGGEmrP9F+xADyYxkIhnESP0MjMCIQa2+a2034keO/eW7lq6xRJLLnU1hkCXu2Xvt3x76ZrlN28aWgOrGAWagAdEOsnJFqr2cDmXk/hQ7NK3JRpTNsVifZq1ShBaNuEwhIWIwsVKWZGXBmtQONIUZlVaojajfV0KcYvpGK0DIevfQxz6OkGSQAUgCRibEsfHOx29/8QNv/PyERYin+/PxW0qCLGT8sdueP7azO0RVEy7V/9uTOh7doCOAdR7YbtkseLIUlrmo8U5gNOVXfsx9Ipak62oYAvL4ETl7EJOy2yu08tzbfHNTDJhJlxBgAv6AHXXi1bHD7a8hbGuB3BQaetxRtd4/e1IODqS0IiLDqfnFpbf+xfFXP3rpUcl5UxGuGtZM5Z/f9uov4uKwBKsKCEhm5Nur9pvXJPMomC79ZSx2S6wMQCaz8vOYs6mkdtMsf2T0N810h9aK3xshE/66feOfLW4eXMS0rNV0ZnhqWf799ZOvjg/nuRFagWkJcrcUhqxhcm0j4RbBurijmnu2KYmAw02SFOzHpLj+3fcfn2aNxzbdlScOvfq1rWMvbZ5ElkxaUTSHkFP81IG3P7zy2nhLWrOfZXJ9x/7+24e/PDpTFWQFZBJMZrPBtYUVdDXlUWCPbQcaLwVLIKbMli4s3inlROzUB7EUyieHyycuPvfB26dLOSqYaUXu3Cf/8vTa37943w27V4wRkzlOo+9rSFQQhd6mCkGRSuuXWvt7q8O7l37w0CGZlBTKVLBvZ/yJ48//3Pb7t+wSTLsZkYgS1YqMVvaanU/c9tzKcDysbLahMTKd8kuXF/6wfHhz6ZA2VIjJxeSS5Tpt1WzSDCd+2rn/7m+dr2kMYGAyZHn3r8m2Zc+bu+Z+uXJmucZZJARyds/4+OL2lzdvt/kSsgwmR1Y9CmQFsgxZUT9pqifbV/PwYbL6mup7sxx50Vw5gMlhMgEu2pUD49XHlncWcliKCErKmWLH7LH/Z/0kMkGtAdQcvxaeWinlidOvfMic3x135deZkddW5cOrD/51cRp5cxfGHXOBLDMmF5jaNEPNcaYz0a6KbpAUKsE0Wb1u9Q8GwFVZeWdn58H8naN7K+eXIjK1+On9W7t7Bs++cwJZJlkuyJv31ivf/Fx0n4nMu6Z6IJOscL60iC4wAJgNfjDec/f4wn0HLEwtVLbE4/tWvzG65c3dg2IIwO8l4vZloVjL0rxv5SdPHXqeu1ZMHW/Lclnd4e9cOvFV8zCKBcmKZjzOVGQ5TCYmQw2AkKhvrSVad2aczERTPWAMkLX49nx5sBhef2hp58ACbFPewIn8zP7rL9lD53ePIIOYCotVmqT6NWs/UMQ0cM9/SCMgBsr17a/GQGSbC1d2p+8trh3dA9tUJw/G9rFb1v74ndt37ELLXURRhtrJOlhsf+6OPz++vT2lAVB98NTyv7+19PHJ3xgP9pusgClQyUQ3zqwaTJPK3WcJWolmullW6ycYNzEXIhbZ9yb7Tgwv3rc8XczrkkQrGJT2fbeufnHjthvjJQBinKJRN20F/s9uXLXLU4AX9YP3qPNHgQv2QLFz7dF9O8sDWIoQJXEi313eO/7K+u0OLYyQlqKIld8988IvlX89toABhQDyjC9elSfWH744OIV8gCwXY6iPdq5gejvRauuBOFWysv51JyZAhrJ4flicLd++c1+FugCIFRyeDs/ecuPza6en0lqJ+XrFQMtZapMhEXa2avY/3hgtnbUX71uxdScuw3KCx5bWXuX+720drpxPJ7ekpmBY4gNHfvjvVl6abJMwMIRInsvlLf7OxVN/lj2EYgHZQExGJ6uLXc2+l7/RQ2W5OjoV5kYUDapm2VRcxqrsv7Y7fsCsnliuOBWQMp3Iuxc2uIf/d+04uly9oDPcTOqHSu6LxBE7Qrhr9l4d2seyKyf2Cm3NZBUl33to9XM3Tm2WFQLxkCqtHF+48Udn/vzg1rBs+uBkkLHlZ99afnL63ulgH/ICWU4Y73v1Kr8+CWp1dNRd0eHg4UpT5zW05hxv2pVye+2Rxa2DSyhZC7udyN9avv6aHGgEKqgKkPQkVt9rxBph87BoHkasEStiDQnaTqwvlMvFzvXH9+7sLWAJGLGCwzI6vn/0xfXTrJGU49GW5VN3fP3vTC6PJvXdGACQr1/FEzcevTY4USENQebCfxGvcHI+Tha5nlniSZIq49X8G5icmWWx57+Nzt3z9rP/aGF7/wBlA7MG2+VTt73wVzsHz++2c612QmwWgA2BYvHzB9989/KatQYgAJK0NcvOpmydZCblG9sHvnT9FEzGfOmZybn3XPvar5wco05n5WiEX10+/7+PH/v0xfvb7AqKcGp+7ejrv5b/aLgN1N00UGR8c4P/YfWO88UZ5FmFbYIGB3FefzIr1Sf+xSMdBGF/Jj2w3nydMcIcmd0tDj01fOjM5Rd/+aQ1BEVgMKHctrX99Olv/NL3f27XLiKThNV1Z69m3z6Yfe8f7DkvVpK0cWXKcvn87skv8ZQYgyxft0ee2rjn/vW/evAWKVnz5uUuf/uWV569cfyNnUPISQFL3Ll37SO3ftNuVKRFDYs2xvzjK/v/lzwo+UBMIcjcOHpFRhBakxX2z3NIk8L/NzXLXukUTCamQF5cKE4/uXH2lWs0puanSYym+Hvy9m+dfkVKK9Zqufh0eoU0M22nw1EpuzLcRfUYDTEaYbiLYfPD7i6GY8iuDMcUsQ2wzV7EPZ++fuvqyGaookEytebYcOdjp54vMKat9sHk9049f2Jne+pYeQM+dy375O7Dk8GBCh27SQpVDC/s8+B2ckGQGdXLR89W60rTPcBkkuUoimdx7++vHr+wSVMRXUYEMt7Bv9r73V85+gZTZDEYpsLYKUkXzbO9MYM6Fm0QEI5iMuQF86XPju7/0yvFtML2FiIyHJv388JvHv8Op5QJ//Hx1z9gfjKcNpNiJDPy/et8cu2utwankFWzbNTwY9d2BJg/582omR/Sn+jh5Re0c52LKWSw94/46H99e9/amEVeyTUsgG37iRMv37evIotnldKLiC0zlJJLlkkGycECYkSKrGV7iCa0DlBYVqQxTIEsf6c4+tTGva+uSm6afoJGJmP58Mq37t/z1t17rv6bQy9Pd9vgOXLD7bH9g6srfyL3Ic+R5UDW23RZ64MmQSsPb2kynHjcp8woRCIRtKcfS4WrDWgnUnx/vHRPeeme/baBQbDEynR87tD659ZvH9mBMYicNMerIMXavzs4f5KbV4eyPpT1sayPZWMq62PJjQwM2ohFYeS1neUv7N6BrIAxDeuHi+W+wfD648vbewdNSIbYa8uHj9x4/4G33j26MS5ROYGV9f3q5fy3d96zuXDY5AMxFZ6Lisiiu2aQYMNUCxMX3nVKPa7UFL/1S1jt15FQAMRuYt9bu/Y+e/X2ZcDUwj8tcWe+dWD/+Curp2oYJW7Fp+u3kSJLW5curu2+cqP49kbx8jv5X24Ur94ovrGaH17gHftYEpVA5kZe3Vr+wu5dyIt6CJW4IPvhdPnM+MIDK9bUbTlREmfs1plyezSt/GYCKHK+vs4nrp59ffAuFIOax3BAXCrRGC4kU+AIA9QRdeJFIrAWtxH2a18AATJmA4i8UL7r6bW1k3svnt4HaVIGRrv4J8vff+nY4c9cfkByC9ScX/txTYQBgHwJP/UV3EtbVmpBaKQsWdr38JsG63XuSHW1F7eFGCOSIeN6duTprXvPrb527giqzxDIZGpcej4D13f4mauHv57fjzxvGJVwKzOF54KqtWTqE02ger1f4TspfgPQOPeKFa1aWf/B3i/Kuc9eWn5nyNw0SaaA3eFHj778yP5LLEG3cMTrdAWBscXyZOHgdGFlunBwunBwOtg/HayUCweKPKdt8kXajk9AVQdWPYBMTI4ifzE7++lrR9aGrJWV2+sdYoDSylevDv7L5GEWS6hoOQUotxwM5svxFDU4q7aB1XJfesrW3Q4oMBV9PMxXPjU+96dX8tGk678ytmZlc/j0qW8czLc4FVphKbRCCi1IsRaWoBhKJhiIWWweC5ItCIpp2VWaU0fZkIrLNoUUS8+U5758eVDaGgh1bYTIzPC1dX58497VwbEaz9UuDfzMVYRNfTgLLCBMd8+Tib6xB9fJeNtohnCTPNHq90wMkdtLPPWxjfXbF7/z3qMitt6A4ykem17/6B0v/OufPEpjvC6nTgCl6Thtuyxx0k5GywslG9YNLvoOtJoxIgVo17Mjn9w8+8Daa48cFlvWeSYAM8jqNv/zteMvZ2eRNQx4SxLEzaL72j1Elab02wUoCTQBl5gQ+DZ5KkpvbamQyouxL5f3/sfVd25dunj3CibT+sXREB9a/OEv3P1WxaAq2ZT1bkXT77kpi6AcGI/GE7eBt3gJpS6XAoOskMK+xHs+c/3qqT1XDi6wrALbRiaW/+Pq4jPTh2RhsQpusKM9ocfUgk5wM5gxr91S7qMX9AQvHbGVuElL28WgsYpGJCetDPZ8YXTu7rc3fnNx8+BAyrK+thzKYexKUERBhZqr17FSclYsTGv2OitIJZEdqNdb8j3PjB989PLaB2+fZJlYEWPkW1flqc37NweHK/fEj6tS6QXJRDxTtPpnv0Gr+BYWUVNg+k1j2NXbMNVrps3rrwxjDpOPipVPjR/56qV8VEqFdKs3l0AppoSxMFZMKSiBEqh/EJRESVPCTIEJzVRgjamAGhsX32/oEOQEg4CYDFm2nt/69M69P9gQGMmNXN7mU6u3fTu/s2OOwuREBjHyRH29PxXUqnyq4Kuv5qH0LvLoUyjbSvyuO+7rJkNWIM8vD257cuu+l6+xi7SYeof60KzOx6xUcJMHKM5hGITTvRyGYsXa1k93ovW1C18FpjLk+QvZvZ+6cuTaDmn5Py8vfYEPSbFYBX9FjNMoPW5Ry759PjPLvaZJA8hNRm0pnfQZqoCavnvk8E0QMZmwQM6XyrOfWls9uffSHfubWbOUxjGjd3ZOnQpcpf7ReqxDp55RNyvKjIP0Yxql4nKFtAvPjB78mdW/OFpMPrn9wM7CIZPlgoxdbaVa6OGrMyfLkm0iuJr/Tq8yIQ9fU09favU43ET8uCICEQcOAZHlFCvF0ufH585e3vjZnS0YmZZinMurVKO2mgxtP3N0zX6zrnCdbRLwgpELIyogzGMHDJhLxvWFE/9p465TZuc7g7tapRFEjtRuP0oYzqNL0fFibT6yF3qvUEdQxyBtVnMP8+NX2FJLcZPm8CIQppCcIzn09OSxH13/3oTV+U0WgK23OVyHnK42EbE1Wc1WPRAQoYGxlAvZrbJURM2VPBUmpsqfl7/AI5lYmCUYI3CQRgjmOt0MxXugXzZAL0qr9GEW1IeStSuCtP/SR2NpZ3w5HQRA0pZip7SlTEdiS6EVsV7ZVnfwjYMz6kRr92d06XswYgaS5cgXfPoYEp1DJdaKLduipyrmSXWWvftCdHKWkz/oNo1S4BMdiWboK8AlmBDrYoTZ3UzmQTkzDVRMTV0oYUXKDr1A6bmGJKxpdzhETM339zdlqJLiYJp22fAPfBJPJBGWuAi1MpwA4cSlvp5KaHR0yD3BqbsCoqOgoNMscecmh6WiACYDDVEJsvXCP45tUDYF4qhRA08BAE2UOj56py0SrqNBnn/FmCSjdiyBe6RXf6pMW5bjes3oYoYhg0K6g1SAOhNpGk5dWnxmRJ2zT+OPOC41ZIoSgHtKAMIXZtLzjEhHLcmCwUF9ofR0qIxaY2F3VN105woi9kZPBT1SJcSpNfFnmKHcJngkz+5I49WuOb73XZSon0CyyYKTjB1oyP4OE4B+HmF8SACiLgf0Q1nU7zoKy8aaQek/Bkk1dSeDate+ZuUpHeW3I48GgESTP/Ga2zrtrrzM8phOQ9TuTeBHsCNwGQ4paDCIeDlJP3KjQexEcMtjbxGcAChxAZOaweypSiQ7tiDB9bC3TQw8DxsxNQ+PbA/y1DRGye2vRC046xU7eLPsRhOQOJ0pdYKLk8Po6iMEif3SNVqL7qPL8negVUAXIjiOdY5Yqj7lop/gKpjZZFVRWL63aQILpxYtznXGAHVBiwgZahrYJZYpUQ5polMq1Jwnpvjibi6UZqphvnKK/6RGHMXNibsECTbGMOxl6wLkTtv3UIRJA0RHXlOppAx2EBsKOuoLDb/mXT3SWD/RgqKsPDy0SmqAEi7L7YteqsEQQ5asMWkmuYf8zRiCL6jJzsnv9SxymvSGc+admriiLVZIA/idubXOeV3yNcNsFqgnMyK5w9XO0Uq/nlSmUoIA8L6LqViiHi4OG84FzfbmbG8Iv/yylccYVgcgU5z9wPgYbrVBL5V7oy+MTAQN4Sd8OMfspe2Fn2Q/I3EMSGQ2xZVVaaudXD14R1erSYMQhYEL4U8MZKkhCiTtStz4n/7fyI4Yt6NhdNhRhB/cVoQpjwCzxTvR9GdmE8kEAY/EARuco/mbfjH8sn1RlDXiOAmYOCJKugaDfac+Qdn+UA9jhOfFtNFThYJJyWtvMJ4zJy8acsrz6pwUdkE70GfrA5yX0viRxmpVhLN7TOethYtAUY0uExtL1VZsgA6iPUu/EVN0hEG8azkPIO4D0FDJE98XZZjFKWklPv/JMZjRET2a/hmNxqnszGQfTWr8SnBqmXti7P9HepB3+pHS1A6RokjpPTgrEYgj45NXlTeb+RZnjisoSdmjZkwAxSgh6aNJ3PSK88oVe+4GanoGZomd6qOl2tCz7W6QYArj96Rkk4hYQ8xFp/XAas3owwVdKSXTj4yYwPie8u7pGwYtriQeKeh6KzHqmIMVQEIBNV13Oh6avnymD87ugC01wMO+LuipRKFA4UGizgk9N9vT4BDuMU8hHgTDMy79hcy76IbrtkH1uKkjuYaeRqzpOKdeargWRk4zJdE93cU9pLoHVMgRHhwIZUOEoZ82dCJttzTE0bLAnfZ1qZlNbultaKHFjTTVOM9RkmhOOIdoEaaEW4So2Xp82pKojdWdrRZ0DIWERy/2nRTOmv1V61GCZhNeQfOc7b1JncQgewFvwCwnzoOd3f6+p01xL00KUbYsAgo/rEnr7absrxN67CLy8N1E2uJFCACRoQh6PsZVhZSIvulx1xKLDc4++o6R6qBWlTmj6hWJFW5DfWjnBnEo3dFtubIlw8m5mZLntlcm2149KY3fgwkSWCU8bWJWA9LEMX03D8iVwxGChl8IDl9t6avG8hmPORLXusRhAvQN02sI22zJOTtXquLJ9A9J9c3Zoum7QV6wP45nJtlu3Umht328OIpJMnaKRNMHZFG6JfWgeVKQeoogWy0fqHJoPgW79FGqNiJmUNsdr6h7hgRqgNnpMz8z7Qk71BFgT0YLNKtpHGae5SVhB//ZahbBmJg8Njlsjo+ek3I8mYEOHKkjeEWKKfEJYeqN55E6pBJ38zpE04+GhcmjLq7Vjrby0byaP8iUYYvwH92OCV1EquoGHJ1dRj2DQQFOVHjduM0IOZclFnGOqwY0risgtOKPgk7i9FZ3MAi89YUnUvkSCa7D7XXjlfFQn9x4+wZxVoZoX5Id12f0oTFqoKrJwmAkv2obuRSVozlgqYMoe7wiREG4GXQ+oshKb+yenMFKxorObRnUJSO4nZ7C7ZJ72iA8NFir3emairrjC1O1QdGPqqUP0MJ2mgCUZNTYunRyyx7ui/5cM8o88q9EL5BpbpxNoqjCCECzIKi4juDG4KjQHnJWtHR/nS1KlnuErZ9quiNSgj6hSr0TVsDZp71JaoYhvCM4/d9DZdK2JnP85EgKo0wPo5zBOQ/HO0cDMi9aAlfaOrw6+wQdN0CONFGnJ/lg9qEKiSAw+vRUojIc8Z3HxtADfezRVmyrS4Jbit/lnkNCcYuwEqXpc5wZh1kOsxs06XWw9BScvtwH/zv0eH0S05g+nKmBDZ9gjoiywAzTtyZJlgNd/2KkVZDoljs1iUxE9BkcSJyyhEjDpxmH3KkndPb5ZvP/4WzHGD2hId9hhXOqDGd4/qIffxgsKBUPNT5u3O+qM8M1i/0D9uXHmASZkDoIPAWQ4R1wL1H0U3c/VK/RP2YkhUujCE9ICVDL2WUkFD0WKsTyMzm+vmvMbFIwXExIev4R5HskEA8pQYdSeLGrKA4YHd+kNYwT/8TYQAe62cMqDwclGO/R00jOj66jEBhDarKZ1gNBY1YAEXxVeAjCPYEP/tmv0LeI5nwp7FqMN7y9XaeN+Pua7tHXekqqdlQY0/mrCBza8I6M4qLNtDauY9zdQORA00mQ6ZL+qYTb4eFcrX2WfzHmBWp0Y1bs7AFa6ijcOlTMB3ptlhJ3o29k0daCQ+ESg2PHQimLj+AIwim+P9MkPiMGvwwiDcRMSwuoaIFB+jQcAr496MgJrjrHtYcOBtlWkrBtzhvpA7WhEtXpN1G/peCgZybDhuE11Mg/tk0GVP3EjtWkU0gSG4Pq6A7/xFi4B0qRdcMgicgDVzzdt+gam81ZWIrrFYxIQT8JyAX8P0HUaXdHsF5lAAAAAElFTkSuQmCC";
 const CATALOG_PRES=[
-  {name:'Cont. 5m³ Esc. Selec.',price:200,iva:10},
-  {name:'Cont. 5m³ Esc. No Selec.',price:250,iva:10},
-  {name:'Cont. 5m³ Varios',price:260,iva:10},
-  {name:'Cont. 5m³ Poda',price:190,iva:10},
+  {name:'Cont. 5m³ Esc. Selec.',price:220,iva:10},
+  {name:'Cont. 5m³ Esc. No Selec.',price:280,iva:10},
+  {name:'Cont. 5m³ Varios',price:320,iva:10},
+  {name:'Cont. 5m³ Poda',price:220,iva:10},
   {name:'Cont. 5m³ Cartón',price:170,iva:10},
-  {name:'Cont. 5m³ Madera',price:200,iva:10},
+  {name:'Cont. 5m³ Madera',price:220,iva:10},
   {name:'Cont. 5m³ Metal',price:170,iva:10},
-  {name:'Cont. 9m³ Varios',price:390,iva:10},
-  {name:'Cont. 9m³ Poda',price:260,iva:10},
-  {name:'Cont. 9m³ Madera',price:260,iva:10},
-  {name:'Cont. 16m³ Varios',price:810,iva:10},
-  {name:'Cont. 16m³ Poda',price:440,iva:10},
-  {name:'Cont. 16m³ Madera',price:460,iva:10},
+  {name:'Cont. 9m³ Varios',price:490,iva:10},
+  {name:'Cont. 9m³ Poda',price:320,iva:10},
+  {name:'Cont. 9m³ Madera',price:320,iva:10},
+  {name:'Cont. 16m³ Varios',price:910,iva:10},
+  {name:'Cont. 16m³ Poda',price:540,iva:10},
+  {name:'Cont. 16m³ Madera',price:560,iva:10},
   {name:'Retirada Saca (1 unidad)',price:80,iva:10},
   {name:'Retirada Saca (2 o más unid.)',price:70,iva:10},
   {name:'Gestión Tasa Ayuntamiento',price:30,iva:21},
@@ -709,15 +764,29 @@ const CATALOG_PRES=[
 ];
 
 
+const DATA_VERSION=6; // subir cuando RAW/INIT cambie y deba refrescarse en navegadores ya inicializados
 function loadData(){
   const raw=localStorage.getItem(LSKEY);
-  if(raw){containers=JSON.parse(raw);}
-  else{containers=INIT.map(c=>({...c}));saveContainers();}
+  const storedVersion=parseInt(localStorage.getItem('garvi_data_version')||'1',10);
+  if(raw&&storedVersion>=DATA_VERSION){
+    containers=JSON.parse(raw);
+  } else {
+    const existing=raw?JSON.parse(raw):[];
+    const existingByNum={}; existing.forEach(c=>existingByNum[c.num]=c);
+    containers=INIT.map(c=>{
+      const old=existingByNum[c.num];
+      return old?{...c,estadoExcel:old.estadoExcel,notas:old.notas||'',fotos:old.fotos||[]}:{...c};
+    });
+    saveContainers();
+    localStorage.setItem('garvi_data_version',String(DATA_VERSION));
+  }
   albaranes=JSON.parse(localStorage.getItem('garvi_albaranes')||'[]');
   tareas=JSON.parse(localStorage.getItem('garvi_tareas')||'[]');
   finanzas=JSON.parse(localStorage.getItem('garvi_finanzas')||'[]');
   facturas=JSON.parse(localStorage.getItem('garvi_facturas')||'[]');
   cfg=JSON.parse(localStorage.getItem('garvi_cfg')||'{"apiKey":"","ultimaFact":0,"ultimaProf":0}');
+  certificados=JSON.parse(localStorage.getItem('garvi_certificados')||'[]');
+  avisos=JSON.parse(localStorage.getItem('garvi_avisos')||'[]');
   syncClientes();
 }
 function saveContainers(){localStorage.setItem(LSKEY,JSON.stringify(containers));}
@@ -726,6 +795,8 @@ function saveTareas(){localStorage.setItem('garvi_tareas',JSON.stringify(tareas)
 function saveFinanzas(){localStorage.setItem('garvi_finanzas',JSON.stringify(finanzas));}
 function saveFacturas(){localStorage.setItem('garvi_facturas',JSON.stringify(facturas));}
 function saveCfg(){localStorage.setItem('garvi_cfg',JSON.stringify(cfg));}
+function saveCertificados(){localStorage.setItem('garvi_certificados',JSON.stringify(certificados));}
+function saveAvisos(){localStorage.setItem('garvi_avisos',JSON.stringify(avisos));}
 
 function getClienteExtra(nombre){const m=JSON.parse(localStorage.getItem('garvi_clientes_extra')||'{}');return m[nombre]||{};}
 function saveClienteExtra(nombre,data){const m=JSON.parse(localStorage.getItem('garvi_clientes_extra')||'{}');m[nombre]={...(m[nombre]||{}),...data};localStorage.setItem('garvi_clientes_extra',JSON.stringify(m));}
@@ -761,10 +832,25 @@ function daysBadge(dias,fecha){
   return `<span class="days-badge ${cls}">${fmtFecha(fecha)}</span>`;
 }
 function fmtDate(iso){if(!iso) return '';const d=new Date(iso);return d.toLocaleDateString('es-ES',{day:'2-digit',month:'2-digit',year:'2-digit'});}
+// Fecha YYYY-MM-DD en hora LOCAL (toISOString() convierte a UTC y desplaza el día en husos horarios positivos como España)
+function localISO(y,m,d){
+  const dt=new Date(y,m,d);
+  return dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0');
+}
+function todayISO(){const n=new Date();return localISO(n.getFullYear(),n.getMonth(),n.getDate());}
+function addDaysISO(days){const n=new Date();n.setDate(n.getDate()+days);return localISO(n.getFullYear(),n.getMonth(),n.getDate());}
 function fmtMoney(n){return Number(n||0).toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2})+'€';}
 function fmtPresPrice(n){const v=Number(n||0);return v.toLocaleString('es-ES',{minimumFractionDigits:v%1===0?0:2,maximumFractionDigits:2})+'€';}
 function fmtPresDate(iso){if(!iso)return '—';const[y,m,d]=iso.split('-');return`${d}-${m}-${y}`;}
 function toastMsg(msg,ms=2200){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),ms);}
+// Vuelve a enfocar un input tras un re-render completo de sección (evita perder el foco al escribir)
+function reFocusInput(id,fn){
+  const prev=document.getElementById(id);
+  const pos=prev?prev.selectionStart:null;
+  fn();
+  const el=document.getElementById(id);
+  if(el){el.focus();if(pos!==null){try{el.setSelectionRange(pos,pos);}catch(e){}}}
+}
 
 // ─── AUTH ─────────────────────────────────────────────────────────
 const USERS={ivan:{pass:'74392853c',label:'Iván'},halem:{pass:'74369288f',label:'Halem'}};
@@ -777,25 +863,28 @@ function setSidebarUser(label){
 function handleLogin(){
   const u=(document.getElementById('li-user').value||'').toLowerCase().trim();
   const p=(document.getElementById('li-pass').value||'').trim();
+  const remember=document.getElementById('li-remember').checked;
   const usr=USERS[u];
   if(!usr||usr.pass!==p){document.getElementById('li-err').textContent='Usuario o contraseña incorrectos';return;}
-  sessionStorage.setItem('garvi_session',JSON.stringify({user:u,label:usr.label}));
+  const sessionData=JSON.stringify({user:u,label:usr.label});
+  if(remember) localStorage.setItem('garvi_session',sessionData);
+  else sessionStorage.setItem('garvi_session',sessionData);
   currentUser=usr.label;
   setSidebarUser(currentUser);
   document.getElementById('login-screen').style.animation='fadeIn .3s ease reverse';
   setTimeout(()=>{document.getElementById('login-screen').style.display='none';},300);
   loadData();
-  renderTab('contenedores');
+  renderTab('inicio');
   updateBadge();
 }
 function checkSession(){
-  const s=JSON.parse(sessionStorage.getItem('garvi_session')||'null');
-  if(s){currentUser=s.label;setSidebarUser(currentUser);loadData();renderTab('contenedores');updateBadge();}
+  const s=JSON.parse(localStorage.getItem('garvi_session')||sessionStorage.getItem('garvi_session')||'null');
+  if(s){currentUser=s.label;setSidebarUser(currentUser);loadData();renderTab('inicio');updateBadge();}
 }
-function logout(){sessionStorage.removeItem('garvi_session');location.reload();}
+function logout(){localStorage.removeItem('garvi_session');sessionStorage.removeItem('garvi_session');location.reload();}
 
 function updateBadge(){
-  const today=new Date().toISOString().slice(0,10);
+  const today=todayISO();
   const cnt=containers.filter(c=>c.cliente!=='NAVE GARVI'&&c.cliente!=='GRANJA TORRELLANO'&&daysSince(c.fecha)>=14).length;
   const b=document.getElementById('badge-ret');
   if(cnt>0){b.textContent=cnt;b.style.display='flex';}
@@ -808,9 +897,227 @@ function renderTab(tab){
   document.querySelectorAll('.tab-btn').forEach(b=>{b.classList.toggle('active',b.dataset.param===tab);});
   document.querySelectorAll('.section').forEach(s=>{s.classList.remove('active');});
   document.getElementById('sec-'+tab).classList.add('active');
-  const renders={contenedores:renderContenedores,albaranes:renderAlbaranes,facturas:renderFacturas,finanzas:renderFinanzas,clientes:renderClientes,tareas:renderTareas,presupuestos:renderPresupuestos};
+  const renders={inicio:renderInicio,contenedores:renderContenedores,albaranes:renderAlbaranes,facturas:renderFacturas,finanzas:renderFinanzas,clientes:renderClientes,tareas:renderTareas,presupuestos:renderPresupuestos,certificados:renderCertificados};
   if(renders[tab]) renders[tab]();
 }
+
+// ─── INICIO (CALENDARIO + AGENDA) ──────────────────────────────────
+const AVISO_CFG={
+  llevada:{label:'Llevada',color:'#1a3a8f'},
+  cambio:{label:'Cambio',color:'#d97706'},
+  retirada:{label:'Retirada',color:'#dc2626'},
+  permiso:{label:'Permiso',color:'#7c3aed'},
+  renovacion:{label:'Renovación Permiso',color:'#0891b2'},
+  tarea:{label:'Tarea',color:'#16a34a'},
+};
+function renderInicio(){
+  const sec=document.getElementById('sec-inicio');
+  sec.innerHTML=`
+    <div class="section-header">
+      <div class="section-title">Inicio</div>
+    </div>
+    <div class="inicio-layout">
+      <div class="card" style="padding:16px"><div id="cal-wrap"></div></div>
+      <div class="card" style="padding:16px;display:flex;flex-direction:column;gap:4px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <div style="font-size:13px;font-weight:700;color:var(--text2);text-transform:capitalize" id="agenda-title"></div>
+          <button class="btn btn-primary btn-sm" data-action="nuevo-aviso">+ Aviso</button>
+        </div>
+        <div id="agenda-list"></div>
+      </div>
+    </div>`;
+  renderCalendar();
+  renderAgenda();
+}
+function esPermisoActivo(a,dateStr){
+  if(a.tipo!=='permiso'&&a.tipo!=='renovacion') return false;
+  const fin=a.fechaFin||a.fecha;
+  return dateStr>=a.fecha&&dateStr<=fin;
+}
+// Avisos visibles ese día: en el último día de un permiso, se oculta el "Permiso" (queda solo la Retirada que lo representa)
+function avisosDelDia(dateStr){
+  return avisos.filter(a=>{
+    if((a.tipo==='permiso'||a.tipo==='renovacion')&&a.fechaFin&&a.fechaFin===dateStr) return false;
+    return a.fecha===dateStr||esPermisoActivo(a,dateStr);
+  });
+}
+function renderCalendar(){
+  const wrap=document.getElementById('cal-wrap'); if(!wrap) return;
+  const hoy=todayISO();
+  const first=new Date(calYear,calMonth,1);
+  const startOffset=(first.getDay()+6)%7;
+  const daysInMonth=new Date(calYear,calMonth+1,0).getDate();
+  const daysInPrevMonth=new Date(calYear,calMonth,0).getDate();
+  const cells=[];
+  for(let i=startOffset-1;i>=0;i--) cells.push({d:daysInPrevMonth-i,other:true,m:calMonth-1});
+  for(let d=1;d<=daysInMonth;d++) cells.push({d,other:false,m:calMonth});
+  while(cells.length%7!==0) cells.push({d:cells.length-startOffset-daysInMonth+1,other:true,m:calMonth+1});
+  const dow=['L','M','X','J','V','S','D'];
+  const monthLabel=first.toLocaleDateString('es-ES',{month:'long',year:'numeric'});
+  let html=`<div class="cal-head">
+    <button class="cal-nav-btn" data-action="cal-prev">‹</button>
+    <div class="cal-head-title">${monthLabel}</div>
+    <button class="cal-nav-btn" data-action="cal-next">›</button>
+  </div>
+  <div class="cal-grid">${dow.map(d=>`<div class="cal-dow">${d}</div>`).join('')}`;
+  cells.forEach(c=>{
+    const iso=localISO(calYear,c.m,c.d);
+    const dayAvisos=avisosDelDia(iso);
+    const tipos=[...new Set(dayAvisos.map(a=>a.tipo))];
+    const dots=tipos.slice(0,4).map(t=>`<span class="cal-dot" style="background:${(AVISO_CFG[t]||{}).color||'#999'}"></span>`).join('');
+    const cls=['cal-day'];
+    if(c.other) cls.push('other');
+    if(iso===hoy) cls.push('today');
+    if(iso===calSelDay) cls.push('selected');
+    if(dayAvisos.some(a=>a.tipo==='permiso'||a.tipo==='renovacion')) cls.push('permiso-activo');
+    html+=`<div class="${cls.join(' ')}" data-action="cal-sel-day" data-param="${iso}"><span>${c.d}</span><span class="cal-dots">${dots}</span></div>`;
+  });
+  html+=`</div>
+  <div class="cal-legend">${Object.entries(AVISO_CFG).map(([k,v])=>`<span><i style="background:${v.color}"></i>${v.label}</span>`).join('')}</div>`;
+  wrap.innerHTML=html;
+}
+function renderAgenda(){
+  const list=document.getElementById('agenda-list'); if(!list) return;
+  const title=document.getElementById('agenda-title');
+  const dayAvisos=avisosDelDia(calSelDay).sort((a,b)=>(a.creada||'').localeCompare(b.creada||''));
+  const dt=new Date(calSelDay+'T00:00:00');
+  title.textContent=dt.toLocaleDateString('es-ES',{weekday:'long',day:'numeric',month:'long'});
+  list.innerHTML=dayAvisos.length?dayAvisos.map(a=>{
+    const cfg=AVISO_CFG[a.tipo]||{label:a.tipo,color:'#999'};
+    const rango=a.fechaFin&&a.fechaFin!==a.fecha?`${fmtDate(a.fecha)} → ${fmtDate(a.fechaFin)}`:fmtDate(a.fecha);
+    return `<div class="agenda-item" style="border-left-color:${cfg.color}">
+      <div style="flex:1">
+        <span class="agenda-tipo-pill" style="background:${cfg.color}22;color:${cfg.color}">${cfg.label}</span>
+        <div class="agenda-nota">${a.nota||''}</div>
+        <div class="agenda-meta">${rango}${a.telefono?' · 📞 '+a.telefono:''}${a.pago?' · 💰 '+a.pago:''}</div>
+        ${a.direccion?`<div class="agenda-meta">📍 ${a.direccion} <a class="agenda-copy-link" href="${mapsLinkFor(a.direccion)}" target="_blank" rel="noopener">abrir en Maps</a></div>`:''}
+        ${a.infoAdicional?`<div class="agenda-meta">ℹ️ ${a.infoAdicional}</div>`:''}
+        <button class="btn btn-secondary btn-sm" style="margin-top:6px;padding:2px 9px;font-size:11px" data-action="copy-aviso" data-param="${a.id}">📋 Copiar aviso</button>
+      </div>
+      <button class="btn btn-danger btn-sm btn-icon" data-action="del-aviso" data-param="${a.id}">🗑</button>
+    </div>`;
+  }).join(''):'<div class="empty-state" style="padding:20px 0"><div class="icon">🗓</div>Sin avisos este día</div>';
+}
+function mapsLinkFor(direccion){
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(direccion+', Alicante, España')}`;
+}
+function buildAvisoCopyText(a){
+  const cfg=AVISO_CFG[a.tipo]||{label:a.tipo};
+  const parts=[cfg.label];
+  if(a.nota) parts.push(a.nota);
+  if(a.direccion) parts.push(a.direccion+'\n'+mapsLinkFor(a.direccion));
+  if(a.telefono) parts.push(a.telefono);
+  if(a.pago) parts.push(a.pago);
+  if(a.infoAdicional) parts.push(a.infoAdicional);
+  return parts.join('\n\n');
+}
+function copyToClipboard(text,msg){
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(()=>toastMsg(msg||'Copiado ✓')).catch(()=>fallbackCopy(text,msg));
+  } else fallbackCopy(text,msg);
+}
+function fallbackCopy(text,msg){
+  const ta=document.createElement('textarea'); ta.value=text; ta.style.position='fixed'; ta.style.opacity='0';
+  document.body.appendChild(ta); ta.focus(); ta.select();
+  try{document.execCommand('copy');toastMsg(msg||'Copiado ✓');}catch(e){toastMsg('No se pudo copiar');}
+  document.body.removeChild(ta);
+}
+function calChangeMonth(delta){
+  calMonth+=delta;
+  if(calMonth<0){calMonth=11;calYear--;}
+  if(calMonth>11){calMonth=0;calYear++;}
+  renderCalendar();
+}
+function calSelectDay(iso){calSelDay=iso;renderCalendar();renderAgenda();}
+function nuevoAvisoModal(){
+  document.getElementById('modal-body').innerHTML=`
+    <div class="modal-header"><span class="modal-title">Nuevo aviso</span><button class="btn btn-secondary btn-sm" data-action="close-modal">✕</button></div>
+    <div class="form-row"><label>Tipo</label>
+      <select id="av-tipo">${Object.entries(AVISO_CFG).map(([k,v])=>`<option value="${k}">${v.label}</option>`).join('')}</select>
+    </div>
+    <div id="av-fields"></div>
+    <button class="btn btn-primary btn-full" style="margin-top:10px" data-action="crear-aviso">Guardar aviso</button>`;
+  document.getElementById('av-tipo').addEventListener('change',renderAvisoFields);
+  renderAvisoFields();
+  document.getElementById('modal-overlay').classList.add('open');
+}
+function avisoMemGet(nota){
+  const mem=JSON.parse(localStorage.getItem('garvi_aviso_memoria')||'{}');
+  return mem[(nota||'').trim().toLowerCase()];
+}
+function avisoMemSet(nota,data){
+  if(!nota||!nota.trim()) return;
+  const mem=JSON.parse(localStorage.getItem('garvi_aviso_memoria')||'{}');
+  mem[nota.trim().toLowerCase()]=data;
+  localStorage.setItem('garvi_aviso_memoria',JSON.stringify(mem));
+}
+function renderAvisoFields(){
+  const tipo=document.getElementById('av-tipo').value;
+  const box=document.getElementById('av-fields');
+  const permisos=avisos.filter(a=>a.tipo==='permiso');
+  if(tipo==='renovacion'){
+    box.innerHTML=`
+      <div class="form-row"><label>Permiso a renovar</label>
+        <select id="av-permiso">${permisos.length?permisos.map(p=>`<option value="${p.id}">${p.nota||'Permiso'} (hasta ${fmtDate(p.fechaFin||p.fecha)})</option>`).join(''):'<option value="">Sin permisos creados</option>'}</select>
+      </div>
+      <div class="form-row"><label>Nueva fecha final</label><input id="av-fechafin" type="date" value="${calSelDay}"></div>`;
+    return;
+  }
+  const notasList=[...new Set(avisos.map(a=>a.nota).filter(Boolean))];
+  box.innerHTML=`
+    <datalist id="dl-avisos-notas">${notasList.map(n=>`<option value="${n}">`).join('')}</datalist>
+    <div class="form-row"><label>Cliente</label><input id="av-nota" list="dl-avisos-notas" placeholder="Nombre del cliente…"></div>
+    <div class="form-row"><label>Dirección</label><input id="av-direccion" placeholder="Dirección…"></div>
+    <div class="form-row cols2">
+      <div><label>Teléfono</label><input id="av-telefono" type="tel" placeholder="Teléfono de contacto…"></div>
+      <div><label>Pago</label><input id="av-pago" placeholder="Ej: Pendiente, Pagado, 50€…"></div>
+    </div>
+    ${tipo==='permiso'
+      ?`<div class="form-row cols2"><div><label>Fecha inicio</label><input id="av-fecha" type="date" value="${calSelDay}"></div><div><label>Fecha final</label><input id="av-fechafin" type="date" value="${calSelDay}"></div></div>`
+      :`<div class="form-row"><label>Fecha</label><input id="av-fecha" type="date" value="${calSelDay}"></div>`}
+    <div class="form-row"><label>Información adicional</label><textarea id="av-info" rows="2" placeholder="Cualquier otro detalle…"></textarea></div>`;
+  document.getElementById('av-nota').addEventListener('input',e=>{
+    const m=avisoMemGet(e.target.value);
+    if(m){
+      const telEl=document.getElementById('av-telefono'); if(telEl) telEl.value=m.telefono||'';
+      const pagoEl=document.getElementById('av-pago'); if(pagoEl) pagoEl.value=m.pago||'';
+      const dirEl=document.getElementById('av-direccion'); if(dirEl) dirEl.value=m.direccion||'';
+    }
+  });
+}
+function crearAviso(){
+  const tipo=document.getElementById('av-tipo').value;
+  if(tipo==='renovacion'){
+    const permId=(document.getElementById('av-permiso')||{}).value;
+    const nuevaFin=(document.getElementById('av-fechafin')||{}).value;
+    const perm=avisos.find(a=>a.id===permId);
+    if(!perm){toastMsg('Selecciona un permiso válido');return;}
+    if(!nuevaFin){toastMsg('Indica la nueva fecha final');return;}
+    perm.fechaFin=nuevaFin;
+    avisos.push({id:Date.now().toString(),tipo:'renovacion',fecha:todayISO(),fechaFin:nuevaFin,nota:'Renovación de: '+(perm.nota||'Permiso'),direccion:perm.direccion||'',telefono:perm.telefono||'',permisoId:perm.id,creada:new Date().toISOString()});
+    const retiradaLigada=avisos.find(a=>a.tipo==='retirada'&&a.autoFrom===perm.id);
+    if(retiradaLigada) retiradaLigada.fecha=nuevaFin;
+    else avisos.push({id:Date.now().toString()+'r',tipo:'retirada',fecha:nuevaFin,nota:'Retirada — fin de permiso: '+(perm.nota||''),direccion:perm.direccion||'',telefono:perm.telefono||'',pago:'',infoAdicional:'',autoFrom:perm.id,creada:new Date().toISOString()});
+    saveAvisos();closeModal();renderCalendar();renderAgenda();toastMsg('Permiso renovado ✓');
+    return;
+  }
+  const nota=(document.getElementById('av-nota')||{}).value||'';
+  const direccion=(document.getElementById('av-direccion')||{}).value||'';
+  const telefono=(document.getElementById('av-telefono')||{}).value||'';
+  const pago=(document.getElementById('av-pago')||{}).value||'';
+  const infoAdicional=(document.getElementById('av-info')||{}).value||'';
+  const fecha=(document.getElementById('av-fecha')||{}).value||calSelDay;
+  const fechaFin=(document.getElementById('av-fechafin')||{}).value||'';
+  if(tipo==='permiso'&&!nota){toastMsg('Indica el cliente del permiso');return;}
+  const nuevoId=Date.now().toString();
+  avisos.push({id:nuevoId,tipo,fecha,fechaFin:tipo==='permiso'?fechaFin:'',nota:nota.trim(),direccion:direccion.trim(),telefono:telefono.trim(),pago:pago.trim(),infoAdicional:infoAdicional.trim(),creada:new Date().toISOString()});
+  if(tipo==='permiso'&&fechaFin){
+    avisos.push({id:nuevoId+'r',tipo:'retirada',fecha:fechaFin,nota:'Retirada — fin de permiso: '+nota.trim(),direccion:direccion.trim(),telefono:telefono.trim(),pago:'',infoAdicional:'',autoFrom:nuevoId,creada:new Date().toISOString()});
+  }
+  avisoMemSet(nota,{telefono:telefono.trim(),pago:pago.trim(),direccion:direccion.trim()});
+  saveAvisos();closeModal();calSelDay=fecha;renderCalendar();renderAgenda();toastMsg('Aviso guardado ✓');
+}
+function delAviso(id){avisos=avisos.filter(a=>a.id!==id&&a.autoFrom!==id);saveAvisos();renderCalendar();renderAgenda();toastMsg('Eliminado');}
 
 // ─── CONTENEDORES ─────────────────────────────────────────────────
 const ESTADO_CFG=[
@@ -823,6 +1130,18 @@ const ESTADO_CFG=[
   {k:'rotos_granja',label:'Granja',bg:'#fef3c7',color:'#92400e'},
 ];
 let contView='todos'; // 'todos' | 'proximos' | 'retirar'
+function computeContFilt(){
+  const q=searchQ.toLowerCase();
+  let filt=containers.filter(c=>{
+    const matchQ=!q||c.num.toLowerCase().includes(q)||c.cliente.toLowerCase().includes(q)||(c.direccion||'').toLowerCase().includes(q)||(c.telefono||'').includes(q);
+    const matchE=filterEstado==='todos'||c.estadoExcel===filterEstado;
+    return matchQ&&matchE;
+  });
+  if(contView==='retirar') filt=filt.filter(c=>c.cliente!=='NAVE GARVI'&&c.cliente!=='GRANJA TORRELLANO'&&daysSince(c.fecha)>=14);
+  else if(contView==='proximos') filt=filt.filter(c=>c.cliente!=='NAVE GARVI'&&c.cliente!=='GRANJA TORRELLANO'&&daysSince(c.fecha)>=7&&daysSince(c.fecha)<14);
+  if(contView==='retirar'||contView==='proximos') filt=filt.slice().sort((a,b)=>daysSince(a.fecha)-daysSince(b.fecha));
+  return filt;
+}
 function renderContenedores(){
   const sec=document.getElementById('sec-contenedores');
   const counts={};
@@ -833,36 +1152,10 @@ function renderContenedores(){
   const granjaCount=containers.filter(c=>c.cliente==='GRANJA TORRELLANO').length;
   const retirar=containers.filter(c=>c.cliente!=='NAVE GARVI'&&c.cliente!=='GRANJA TORRELLANO'&&daysSince(c.fecha)>=14).length;
   const proximos=containers.filter(c=>c.cliente!=='NAVE GARVI'&&c.cliente!=='GRANJA TORRELLANO'&&daysSince(c.fecha)>=7&&daysSince(c.fecha)<14).length;
-  // Filter by state card + search
-  let filt=containers.filter(c=>{
-    const q=searchQ.toLowerCase();
-    const matchQ=!q||c.num.toLowerCase().includes(q)||c.cliente.toLowerCase().includes(q)||(c.direccion||'').toLowerCase().includes(q)||(c.telefono||'').includes(q);
-    const matchE=filterEstado==='todos'||c.estadoExcel===filterEstado;
-    return matchQ&&matchE;
-  });
-  // Sub-view filter
-  if(contView==='retirar') filt=filt.filter(c=>c.cliente!=='NAVE GARVI'&&c.cliente!=='GRANJA TORRELLANO'&&daysSince(c.fecha)>=14);
-  else if(contView==='proximos') filt=filt.filter(c=>c.cliente!=='NAVE GARVI'&&c.cliente!=='GRANJA TORRELLANO'&&daysSince(c.fecha)>=7&&daysSince(c.fecha)<14);
-  // Sort: retirar/proximos → ascending by days (fewer days first)
-  if(contView==='retirar'||contView==='proximos'){
-    filt=filt.slice().sort((a,b)=>daysSince(a.fecha)-daysSince(b.fecha));
-  }
   const stateCards=ESTADO_CFG.map(e=>`
     <div class="state-card ${filterEstado===e.k?'active':'inactive'}" style="background:${e.bg};color:${e.color}" data-action="filter-estado" data-param="${e.k}">
       ${e.label} <strong>${counts[e.k]}</strong>
     </div>`).join('');
-  const rows=filt.map(c=>{
-    const dias=daysSince(c.fecha);
-    const det=[c.direccion,c.tipo].filter(Boolean).join(' · ');
-    return `<div class="cont-row" data-action="open-cont" data-param="${c.num}">
-      <div class="cont-num s-${c.estadoExcel}">${c.num}</div>
-      <div class="cont-info">
-        <div class="cont-cliente">${c.cliente}</div>
-        ${det?`<div class="cont-detail">${det}</div>`:''}
-      </div>
-      ${daysBadge(dias,c.fecha)}
-    </div>`;
-  }).join('');
   sec.innerHTML=`
     <div class="section-header">
       <div class="dash-wrap" style="position:relative;overflow:hidden">
@@ -881,14 +1174,240 @@ function renderContenedores(){
         <button class="fact-toggle-btn ${contView==='proximos'?'active':''}" style="flex:1;padding:7px" data-action="cont-view" data-param="proximos">Próximos (${proximos})</button>
         <button class="fact-toggle-btn ${contView==='retirar'?'active':''}" style="flex:1;padding:7px;${retirar>0?'color:#f87171':''}" data-action="cont-view" data-param="retirar">Retirar (${retirar})</button>
       </div>
-      <div class="state-cards">${stateCards}</div>
+      <div class="state-cards" id="cont-state-cards">${stateCards}</div>
       <div class="search-row">
         <input class="search-input" id="cont-search" type="search" placeholder="Buscar nº, cliente, dirección…" value="${searchQ}">
+        <button class="btn btn-secondary btn-sm" data-action="pdf-contenedores">📄 Crear PDF</button>
         <button class="btn btn-secondary btn-sm" data-action="nuevo-cont">+ Nuevo</button>
       </div>
     </div>
-    <div id="cont-list">${rows||'<div class="empty-state"><div class="icon">📦</div>Sin resultados</div>'}</div>`;
-  document.getElementById('cont-search').addEventListener('input',e=>{searchQ=e.target.value;renderContenedores();});
+    <div class="cont-map-layout">
+      <div class="card" id="cont-map-card" style="padding:10px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <div style="font-size:12px;font-weight:700;color:var(--accent-blue);text-transform:uppercase;letter-spacing:.4px">📍 Mapa en tiempo real</div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <div id="cont-map-status" style="font-size:11px;color:var(--muted)"></div>
+            <button class="btn btn-secondary btn-sm" style="padding:3px 8px;font-size:11px" data-action="cont-map-retry" title="Reintentar direcciones no localizadas">🔄</button>
+          </div>
+        </div>
+        <div id="cont-map"></div>
+      </div>
+      <div class="card" id="cont-list-card" style="padding:8px">
+        <div id="cont-list"></div>
+      </div>
+    </div>`;
+  document.getElementById('cont-search').addEventListener('input',e=>{searchQ=e.target.value;updateContList();});
+  updateContList();
+  initContMap();
+}
+function updateContList(){
+  const listEl=document.getElementById('cont-list'); if(!listEl) return;
+  const rows=computeContFilt().map(c=>{
+    const dias=daysSince(c.fecha);
+    const det=[c.direccion,c.tipo].filter(Boolean).join(' · ');
+    return `<div class="cont-row" data-action="open-cont" data-param="${c.num}">
+      <div class="cont-num s-${c.estadoExcel}">${c.num}</div>
+      <div class="cont-info">
+        <div class="cont-cliente">${c.cliente}</div>
+        ${det?`<div class="cont-detail">${det}</div>`:''}
+      </div>
+      ${daysBadge(dias,c.fecha)}
+    </div>`;
+  }).join('');
+  listEl.innerHTML=rows||'<div class="empty-state"><div class="icon">📦</div>Sin resultados</div>';
+}
+function applyContFilter(){
+  document.querySelectorAll('#cont-state-cards .state-card').forEach(el=>{
+    const active=el.dataset.param===filterEstado;
+    el.classList.toggle('active',active);
+    el.classList.toggle('inactive',!active);
+  });
+  document.querySelectorAll('#sec-contenedores .fact-toggle-btn').forEach(el=>{
+    el.classList.toggle('active',el.dataset.param===contView);
+  });
+  updateContList();
+}
+function pdfContenedores(){
+  const rows=computeContFilt().map(c=>[c.num,c.cliente||'',c.direccion||'',c.tipo||'',fmtDate(c.fecha),daysSince(c.fecha)+'d']);
+  pdfListGenerico('Listado de Contenedores',['Nº','Cliente','Dirección','Tipo','Fecha','Días'],rows,'contenedores-garvi.pdf');
+}
+
+// ─── MAPA DE CONTENEDORES (Leaflet + OSM / satélite Esri, sin API key) ──
+function geoCacheGet(addr){
+  const cache=JSON.parse(localStorage.getItem('garvi_geocode_cache_v4')||'{}');
+  return cache[addr];
+}
+function geoCacheSet(addr,val){
+  const cache=JSON.parse(localStorage.getItem('garvi_geocode_cache_v4')||'{}');
+  cache[addr]=val;
+  localStorage.setItem('garvi_geocode_cache_v4',JSON.stringify(cache));
+}
+const CIUDAD_OFICIAL={
+  'San Vicente':'San Vicente del Raspeig',
+  'San Juan':'San Juan de Alicante',
+  'San Juan Pueblo':'San Juan de Alicante',
+  'El Campello':'El Campello',
+  'Muchamiel':'Muchamiel',
+  'Busot':'Busot',
+  'Torrellano':'Elche',
+  'Moralet':'Alicante',
+  'Gran Alacant':'Santa Pola',
+  'Elche':'Elche',
+  'Alicante':'Alicante',
+};
+function normalizeAddressForGeocode(raw){
+  return (raw||'')
+    .replace(/\bsu\s+nave\b/gi,'')
+    .replace(/\bnave\s*\S*/gi,'')
+    .replace(/\bgancho\b/gi,'')
+    .replace(/\bfrente\s+/gi,'')
+    .replace(/\bC\/\s*/gi,'Calle ')
+    .replace(/\bAvd\.?\/\s*/gi,'Avenida ')
+    .replace(/\bAv\.?\/\s*/gi,'Avenida ')
+    .replace(/\bAvda\.?\s*/gi,'Avenida ')
+    .replace(/\bPtda\.?\s*/gi,'Partida ')
+    .replace(/\b(Plg|Polg)\.?\/?\s*/gi,'Polígono ')
+    .replace(/\bUrb\.?\s*/gi,'Urbanización ')
+    .replace(/\bPza\.?\s*/gi,'Plaza ')
+    .replace(/,\s*,/g,',')
+    .replace(/\s{2,}/g,' ')
+    .trim().replace(/^,|,$/g,'').trim();
+}
+// Caja delimitadora aprox. de la comarca de Alicante (evita que "Calle X" encuentre una calle con el mismo nombre en un pueblo lejano de la provincia)
+const ALICANTE_VIEWBOX='viewbox=-0.65,38.45,-0.35,38.15&bounded=1';
+function geocodeAttempts(addr){
+  const base=normalizeAddressForGeocode(addr);
+  const parts=base.split(',').map(s=>s.trim()).filter(Boolean);
+  const attempts=[];
+  if(parts.length>=2){
+    const cityRaw=parts[parts.length-1];
+    const city=CIUDAD_OFICIAL[cityRaw]||cityRaw;
+    const street=parts.slice(0,-1).join(', ');
+    if(street) attempts.push({structured:true,street,city});
+  }
+  attempts.push({structured:false,q:base+', Alicante, España'});
+  const parts2=parts.length>2?parts.slice(0,2).join(', '):null;
+  if(parts2) attempts.push({structured:false,q:parts2+', Alicante, España'});
+  if(parts.length>=3) attempts.push({structured:false,q:parts.slice(-2).join(', ')+', Alicante, España'});
+  if(parts.length>0){
+    const soloCalle=parts[0].replace(/\balto\s+P?\d+\w*/gi,'').replace(/\bNº?\s*\d+/gi,'').trim();
+    if(soloCalle&&soloCalle!==parts[0]) attempts.push({structured:false,q:soloCalle+', Elche, Alicante, España'});
+  }
+  // Último recurso: si no se encuentra la calle exacta, situar al menos en el centro del municipio correcto
+  if(parts.length>=2){
+    const cityRaw=parts[parts.length-1];
+    const city=CIUDAD_OFICIAL[cityRaw]||cityRaw;
+    attempts.push({structured:false,q:city+', Alicante, España',aproximado:true});
+  } else {
+    attempts.push({structured:false,q:'Alicante, España',aproximado:true});
+  }
+  return attempts;
+}
+let geocodeQueueRunning=false;
+async function geocodeQueueProcess(addresses,onEach){
+  if(geocodeQueueRunning) return;
+  geocodeQueueRunning=true;
+  for(const addr of addresses){
+    if(geoCacheGet(addr)!==undefined){ onEach(); continue; }
+    let found=null;
+    console.log('%c[GEOCODE] buscando:','color:#1a3a8f;font-weight:bold',addr);
+    for(const attempt of geocodeAttempts(addr)){
+      try{
+        const url=attempt.structured
+          ?`https://nominatim.openstreetmap.org/search?format=json&limit=1&addressdetails=1&countrycodes=es&${ALICANTE_VIEWBOX}&country=España&city=${encodeURIComponent(attempt.city)}&street=${encodeURIComponent(attempt.street)}`
+          :`https://nominatim.openstreetmap.org/search?format=json&limit=1&addressdetails=1&countrycodes=es&${ALICANTE_VIEWBOX}&q=${encodeURIComponent(attempt.q)}`;
+        console.log('  → intento:',attempt.structured?`street="${attempt.street}" city="${attempt.city}"`:`q="${attempt.q}"`);
+        const res=await fetch(url);
+        console.log('    status HTTP:',res.status);
+        const data=await res.json();
+        if(data&&data[0]){
+          console.log('    ✓ encontrado:',data[0].display_name,'→',data[0].lat,data[0].lon,attempt.aproximado?'(APROXIMADO, no la calle exacta)':'');
+          found={lat:+data[0].lat,lon:+data[0].lon,aproximado:!!attempt.aproximado};
+          break;
+        } else {
+          console.log('    ✗ sin resultados');
+        }
+      }catch(e){ console.error('    ✗ error de red:',e); }
+      await new Promise(r=>setTimeout(r,700));
+    }
+    if(!found) console.warn('[GEOCODE] NO localizado tras todos los intentos:',addr);
+    geoCacheSet(addr,found);
+    onEach();
+    await new Promise(r=>setTimeout(r,700));
+  }
+  geocodeQueueRunning=false;
+}
+function recalcularUbicaciones(){
+  const cache=JSON.parse(localStorage.getItem('garvi_geocode_cache_v4')||'{}');
+  Object.keys(cache).forEach(k=>{if(cache[k]===null) delete cache[k];});
+  localStorage.setItem('garvi_geocode_cache_v4',JSON.stringify(cache));
+  toastMsg('Reintentando localizar direcciones…');
+  updateContMapMarkers();
+}
+let contMapInstance=null, contMapMarkers=[];
+const DIRECCIONES_FIJAS={
+  'NAVE GARVI':'Calle Rosa de los Vientos, Alicante',
+  'GRANJA TORRELLANO':'Torrellano, Elche',
+};
+// Direcciones confirmadas por el usuario que OpenStreetMap no tiene mapeadas en el sitio correcto:
+// mejor sin pin que un pin en el lugar equivocado.
+const SIN_GEOCODIFICAR=new Set(['Avd/Salamanca 9, 03005 Alicante']);
+function resolveAddress(c){
+  const addr=DIRECCIONES_FIJAS[c.cliente]||(c.direccion||'').trim();
+  return SIN_GEOCODIFICAR.has(addr)?'':addr;
+}
+function initContMap(){
+  const el=document.getElementById('cont-map');
+  if(!el||typeof L==='undefined') return;
+  if(contMapInstance){contMapInstance.remove();contMapInstance=null;}
+  contMapInstance=L.map('cont-map',{scrollWheelZoom:true}).setView([38.3452,-0.4810],11);
+  const calles=L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'});
+  const satelite=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:19,attribution:'Tiles © Esri'}).addTo(contMapInstance);
+  L.control.layers({'🛰️ Satélite':satelite,'🗺️ Calles':calles}).addTo(contMapInstance);
+  updateContMapMarkers();
+}
+function updateContMapMarkers(){
+  if(!contMapInstance) return;
+  contMapMarkers.forEach(m=>contMapInstance.removeLayer(m));
+  contMapMarkers=[];
+  const withDir=containers.filter(c=>resolveAddress(c));
+  const groups={};
+  withDir.forEach(c=>{
+    const addr=resolveAddress(c);
+    (groups[addr]=groups[addr]||[]).push(c);
+  });
+  Object.entries(groups).forEach(([addr,group])=>{
+    const cached=geoCacheGet(addr);
+    if(!cached||!cached.lat) return;
+    const count=group.length;
+    const aprox=cached.aproximado?' ⚠️':'';
+    const icon=L.divIcon({className:'',html:`<div class="cont-pin${cached.aproximado?' cont-pin-aprox':''}"><span>${count>1?count:'📦'}</span></div>`,iconSize:[36,36],iconAnchor:[18,36]});
+    const marker=L.marker([cached.lat,cached.lon],{icon}).addTo(contMapInstance);
+    if(count===1){
+      const c=group[0];
+      marker.bindTooltip(`#${c.num} · ${c.cliente}${aprox?' (ubicación aproximada)':''}`);
+      marker.on('click',()=>openContainerModal(c.num));
+    } else {
+      marker.bindTooltip(`${group[0].cliente} · ${count} contenedores${aprox?' (ubicación aproximada)':''}`);
+      marker.on('click',()=>{
+        searchQ=group[0].cliente;
+        const si=document.getElementById('cont-search'); if(si) si.value=searchQ;
+        updateContList();
+        const lc=document.getElementById('cont-list-card'); if(lc) lc.scrollIntoView({behavior:'smooth',block:'nearest'});
+        toastMsg(`Mostrando ${count} contenedores de ${group[0].cliente}`);
+      });
+    }
+    contMapMarkers.push(marker);
+  });
+  const statusEl=document.getElementById('cont-map-status');
+  const uniqAddrs=Object.keys(groups);
+  const pendientes=uniqAddrs.filter(a=>geoCacheGet(a)===undefined);
+  if(pendientes.length){
+    if(statusEl) statusEl.textContent=`Localizando direcciones… (${uniqAddrs.length-pendientes.length}/${uniqAddrs.length})`;
+    geocodeQueueProcess(pendientes,()=>{ if(currentTab==='contenedores') updateContMapMarkers(); });
+  } else if(statusEl){
+    statusEl.textContent=`${withDir.length} contenedor(es) en ${uniqAddrs.length} ubicaciones`;
+  }
 }
 
 // ─── MODAL CONTENEDOR ─────────────────────────────────────────────
@@ -965,7 +1484,7 @@ function nuevoContModal(){
     </div>
     <div class="form-row cols2">
       <div><label>Tipo</label><select id="nc-tipo">${['MEZCLA','BASURA','LIMPIO','PODA','ÁRIDO','ESPECIAL','ESCOMBRO'].map(t=>`<option>${t}</option>`).join('')}</select></div>
-      <div><label>Fecha</label><input id="nc-fecha" type="date" value="${new Date().toISOString().slice(0,10)}"></div>
+      <div><label>Fecha</label><input id="nc-fecha" type="date" value="${todayISO()}"></div>
     </div>
     <button class="btn btn-primary btn-full" style="margin-top:8px" data-action="crear-cont">Crear contenedor</button>`;
   document.getElementById('modal-overlay').classList.add('open');
@@ -993,7 +1512,7 @@ function drawGVLogo(doc,bx,by,sz){
 let albFilterQ='';
 function renderAlbaranes(){
   const sec=document.getElementById('sec-albaranes');
-  const hoy=new Date().toISOString().slice(0,10);
+  const hoy=todayISO();
   let list=[...albaranes].reverse().filter(a=>!albFilterQ||(a.cliente||'').toLowerCase().includes(albFilterQ.toLowerCase())||(a.num||'').includes(albFilterQ));
   const rows=list.map(a=>`
     <div class="albaran-ticket">
@@ -1013,12 +1532,15 @@ function renderAlbaranes(){
     <div class="section-header">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
         <div class="section-title">Albaranes</div>
-        <button class="btn btn-primary btn-sm" data-action="nuevo-albaran">+ Nuevo</button>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-secondary btn-sm" data-action="pdf-albaranes">📄 Crear PDF</button>
+          <button class="btn btn-primary btn-sm" data-action="nuevo-albaran">+ Nuevo</button>
+        </div>
       </div>
       <input class="search-input" id="alb-search" type="search" placeholder="Buscar…" value="${albFilterQ}">
     </div>
     ${rows||'<div class="empty-state"><div class="icon">📋</div>Sin albaranes</div>'}`;
-  document.getElementById('alb-search').addEventListener('input',e=>{albFilterQ=e.target.value;renderAlbaranes();});
+  document.getElementById('alb-search').addEventListener('input',e=>{albFilterQ=e.target.value;reFocusInput('alb-search',renderAlbaranes);});
 }
 function nuevoAlbaranModal(contNum){
   const c=contNum?getContainer(contNum):null;
@@ -1028,7 +1550,7 @@ function nuevoAlbaranModal(contNum){
     <div class="modal-header"><span class="modal-title">Nuevo albarán</span><button class="btn btn-secondary btn-sm" data-action="close-modal">✕</button></div>
     <div class="form-row cols2">
       <div><label>Número</label><input id="alb-num" value="${siguiente}"></div>
-      <div><label>Fecha</label><input id="alb-fecha" type="date" value="${new Date().toISOString().slice(0,10)}"></div>
+      <div><label>Fecha</label><input id="alb-fecha" type="date" value="${todayISO()}"></div>
     </div>
     <div class="form-row cols2">
       <div><label>Hora</label><input id="alb-hora" type="time" value="${new Date().toTimeString().slice(0,5)}"></div>
@@ -1056,6 +1578,11 @@ function nuevoAlbaranModal(contNum){
 function crearAlbaran(contNum){
   const alb={id:Date.now().toString(),num:document.getElementById('alb-num').value.trim(),fecha:document.getElementById('alb-fecha').value,hora:document.getElementById('alb-hora').value,precio:document.getElementById('alb-precio').value,cliente:document.getElementById('alb-cliente').value.trim(),contenedor:document.getElementById('alb-cont').value.trim(),telefono:document.getElementById('alb-tel').value.trim(),lugar:document.getElementById('alb-lugar').value.trim(),poblacion:document.getElementById('alb-poblacion').value.trim(),conductor:document.getElementById('alb-conductor').value.trim(),destinatario:document.getElementById('alb-destinatario').value.trim(),tipo:document.getElementById('alb-tipo').value,servicio:document.getElementById('alb-servicio').value,descripcion:document.getElementById('alb-desc').value.trim()};
   albaranes.push(alb);saveAlbaranes();closeModal();renderAlbaranes();toastMsg('Albarán creado ✓');
+}
+function pdfAlbaranes(){
+  const list=[...albaranes].reverse().filter(a=>!albFilterQ||(a.cliente||'').toLowerCase().includes(albFilterQ.toLowerCase())||(a.num||'').includes(albFilterQ));
+  const rows=list.map(a=>[a.num||'',a.cliente||'',fmtDate(a.fecha),a.tipo||'',a.contenedor||'']);
+  pdfListGenerico('Albaranes',['Nº','Cliente','Fecha','Tipo','Contenedor'],rows,'albaranes-garvi.pdf');
 }
 function pdfAlbaran(id){
   const a=albaranes.find(x=>x.id===id); if(!a) return;
@@ -1124,23 +1651,23 @@ let conceptoGrupo='5m³';
 
 const CONCEPTOS_GRUPOS={
   '5m³':[
-    {label:'Cont. 5m³ Esc. Selec.',    precio:200, iva:10},
-    {label:'Cont. 5m³ Esc. No Selec.', precio:250, iva:10},
-    {label:'Cont. 5m³ Varios',          precio:260, iva:10},
-    {label:'Cont. 5m³ Poda',            precio:190, iva:10},
+    {label:'Cont. 5m³ Esc. Selec.',    precio:220, iva:10},
+    {label:'Cont. 5m³ Esc. No Selec.', precio:280, iva:10},
+    {label:'Cont. 5m³ Varios',          precio:320, iva:10},
+    {label:'Cont. 5m³ Poda',            precio:220, iva:10},
     {label:'Cont. 5m³ Cartón',          precio:170, iva:10},
-    {label:'Cont. 5m³ Madera',          precio:200, iva:10},
+    {label:'Cont. 5m³ Madera',          precio:220, iva:10},
     {label:'Cont. 5m³ Metal',           precio:170, iva:10},
   ],
   '9m³':[
-    {label:'Cont. 9m³ Varios',  precio:390, iva:10},
-    {label:'Cont. 9m³ Poda',    precio:260, iva:10},
-    {label:'Cont. 9m³ Madera',  precio:260, iva:10},
+    {label:'Cont. 9m³ Varios',  precio:490, iva:10},
+    {label:'Cont. 9m³ Poda',    precio:320, iva:10},
+    {label:'Cont. 9m³ Madera',  precio:320, iva:10},
   ],
   '16m³':[
-    {label:'Cont. 16m³ Varios', precio:810, iva:10},
-    {label:'Cont. 16m³ Poda',   precio:440, iva:10},
-    {label:'Cont. 16m³ Madera', precio:460, iva:10},
+    {label:'Cont. 16m³ Varios', precio:910, iva:10},
+    {label:'Cont. 16m³ Poda',   precio:540, iva:10},
+    {label:'Cont. 16m³ Madera', precio:560, iva:10},
   ],
   'Otros':[
     {label:'Retirada Saca (1 ud.)',             precio:80,  iva:10},
@@ -1149,42 +1676,6 @@ const CONCEPTOS_GRUPOS={
     {label:'Certificado Gestión Residuos',      precio:60,  iva:21},
   ],
 };
-function renderFacturas(){
-  const sec=document.getElementById('sec-facturas');
-  const profList=facturas.filter(f=>f.tipo==='proforma');
-  const factList=facturas.filter(f=>f.tipo==='factura');
-  const totalFacturado=facturas.reduce((s,f)=>s+f.total,0);
-  const listaHtml=[...facturas].reverse().map(f=>`
-    <div class="factura-item" data-action="ver-factura" data-param="${f.id}">
-      <span class="fact-badge ${f.tipo==='proforma'?'fact-badge-p':'fact-badge-f'}">${f.num}</span>
-      <div class="fact-info">
-        <div class="fact-cliente">${f.cliente}</div>
-        <div class="fact-meta">${fmtDate(f.fecha)}${f.vencimiento?' · Vence: '+fmtDate(f.vencimiento):''}${f.tipo==='proforma'?' · Proforma':' · Factura'}</div>
-      </div>
-      <div>
-        <div class="fact-total">${fmtMoney(f.total)}</div>
-        <div style="display:flex;gap:4px;margin-top:4px;justify-content:flex-end">
-          <button class="btn btn-secondary btn-sm" data-action="pdf-factura" data-param="${f.id}" style="padding:3px 8px;font-size:11px">PDF</button>
-          ${f.email?`<a href="mailto:${f.email}?subject=${encodeURIComponent('Factura '+f.num+' - Garvi Recycling Systems')}&body=${encodeURIComponent('Adjuntamos '+f.num+'.\n\nGarvi Recycling Systems, S.L.U. · Tel: 687759465')}" class="btn btn-secondary btn-sm" style="padding:3px 8px;font-size:11px">✉</a>`:''}
-          ${f.telefono?`<a href="https://wa.me/34${f.telefono.replace(/\D/g,'')}" target="_blank" class="btn btn-secondary btn-sm" style="padding:3px 8px;font-size:11px">WA</a>`:''}
-          <button class="btn btn-danger btn-sm" data-action="del-factura" data-param="${f.id}" style="padding:3px 8px;font-size:11px">🗑</button>
-        </div>
-      </div>
-    </div>`).join('');
-  sec.innerHTML=`
-    <div class="section-header">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-        <div class="section-title">Facturación</div>
-        <button class="btn btn-primary btn-sm" data-action="nueva-factura">+ Nueva</button>
-      </div>
-      <div style="display:flex;gap:12px;font-size:13px;color:var(--muted);flex-wrap:wrap">
-        <span>📄 ${profList.length} proformas</span>
-        <span>🧾 ${factList.length} facturas</span>
-        <span style="margin-left:auto;color:var(--accent);font-weight:700;font-family:'DM Mono',monospace">${fmtMoney(totalFacturado)}</span>
-      </div>
-    </div>
-    ${listaHtml||'<div class="empty-state"><div class="icon">🧾</div>Sin facturas aún. Pulsa + Nueva para crear.</div>'}`;
-}
 function renderQBtns(){
   const wrap=document.getElementById('quick-btns-list');
   if(!wrap) return;
@@ -1195,12 +1686,15 @@ function renderQBtns(){
       <span class="qbtn-price">${fmtMoney(q.precio)} + IVA</span>
     </button>`).join('');
 }
+let factQ='';
 function renderFacturas(){
   const sec=document.getElementById('sec-facturas');
   const profList=facturas.filter(f=>f.tipo==='proforma');
   const factList=facturas.filter(f=>f.tipo==='factura');
   const totalFacturado=facturas.reduce((s,f)=>s+f.total,0);
-  const listaHtml=[...facturas].reverse().map(f=>`
+  const fq=factQ.toLowerCase();
+  const filtFacturas=facturas.filter(f=>!fq||(f.cliente||'').toLowerCase().includes(fq)||(f.num||'').toLowerCase().includes(fq));
+  const listaHtml=[...filtFacturas].reverse().map(f=>`
     <div class="factura-item" data-action="ver-factura" data-param="${f.id}">
       <span class="fact-badge ${f.tipo==='proforma'?'fact-badge-p':'fact-badge-f'}">${f.num}</span>
       <div class="fact-info">
@@ -1221,34 +1715,50 @@ function renderFacturas(){
     <div class="section-header">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
         <div class="section-title">Facturación</div>
-        <button class="btn btn-primary btn-sm" data-action="nueva-factura">+ Nueva</button>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-secondary btn-sm" data-action="pdf-facturas">📄 Crear PDF</button>
+          <button class="btn btn-primary btn-sm" data-action="nueva-factura">+ Nueva</button>
+        </div>
       </div>
-      <div style="display:flex;gap:12px;font-size:13px;color:var(--muted);flex-wrap:wrap">
+      <div style="display:flex;gap:12px;font-size:13px;color:var(--muted);flex-wrap:wrap;margin-bottom:10px">
         <span>📄 ${profList.length} proformas</span>
         <span>🧾 ${factList.length} facturas</span>
         <span style="margin-left:auto;color:var(--accent);font-weight:700;font-family:'DM Mono',monospace">${fmtMoney(totalFacturado)}</span>
       </div>
+      <input class="search-input" id="fact-search" type="search" placeholder="Buscar cliente o número…" value="${factQ}">
     </div>
     ${listaHtml||'<div class="empty-state"><div class="icon">🧾</div>Sin facturas aún. Pulsa + Nueva para crear.</div>'}`;
+  document.getElementById('fact-search').addEventListener('input',e=>{factQ=e.target.value;reFocusInput('fact-search',renderFacturas);});
+}
+function pdfFacturas(){
+  const fq=factQ.toLowerCase();
+  const rows=facturas.filter(f=>!fq||(f.cliente||'').toLowerCase().includes(fq)||(f.num||'').toLowerCase().includes(fq))
+    .map(f=>[f.num||'',f.cliente||'',f.tipo==='proforma'?'Proforma':'Factura',fmtDate(f.fecha),fmtMoney(f.total)]);
+  pdfListGenerico('Facturación',['Nº','Cliente','Tipo','Fecha','Total'],rows,'facturacion-garvi.pdf');
 }
 function nuevaFacturaModal(idEditar){
   editFactId=idEditar||null;
   let f=idEditar?facturas.find(x=>x.id===idEditar):null;
-  if(f){factMode=f.tipo;factLineas=f.lineas.map(l=>({...l}));}
+  const draft=loadFacturaDraft();
+  const useDraft=!!(draft&&draft.editId===(idEditar||null));
+  if(useDraft){factMode=draft.tipo;factLineas=(draft.lineas||[]).map(l=>({...l}));}
+  else if(f){factMode=f.tipo;factLineas=f.lineas.map(l=>({...l}));}
   else{factLineas=[];factMode='proforma';}
-  const hoy=new Date().toISOString().slice(0,10);
-  const vencDef=new Date(Date.now()+30*86400000).toISOString().slice(0,10);
+  const hoy=todayISO();
+  const vencDef=addDaysISO(30);
   const isProf=factMode==='proforma';
   const nextNum=isProf?'P-'+String((cfg.ultimaProf||0)+1).padStart(3,'0'):'F-'+String((cfg.ultimaFact||0)+1).padStart(3,'0');
   const clientesList=clientes.map(c=>`<option value="${c.nombre}">`).join('');
-  // Pre-fill from cliente autocomplete
-  const fCliente=f?f.cliente:'';
-  const fNif=f?f.nif||'':'';
-  const fDir=f?f.dir||'':'';
-  const fTel=f?f.telefono||'':'';
-  const fEmail=f?f.email||'':'';
-  const fVenc=f?f.vencimiento||vencDef:vencDef;
-  const fNotas=f?f.notas||'':'Pago a 30 días desde la fecha de emisión.';
+  // Pre-fill from borrador (si existe) o del registro guardado
+  const fCliente=useDraft?draft.cliente:(f?f.cliente:'');
+  const fNif=useDraft?draft.nif:(f?f.nif||'':'');
+  const fDir=useDraft?draft.dir:(f?f.dir||'':'');
+  const fTel=useDraft?draft.tel:(f?f.telefono||'':'');
+  const fEmail=useDraft?draft.email:(f?f.email||'':'');
+  const fVenc=useDraft?(draft.venc||vencDef):(f?f.vencimiento||vencDef:vencDef);
+  const fNotas=useDraft?draft.notas:(f?f.notas||'':'');
+  const fNum=useDraft&&draft.num?draft.num:(f?f.num:nextNum);
+  const fFecha=useDraft&&draft.fecha?draft.fecha:(f?f.fecha:hoy);
   document.getElementById('modal-body').innerHTML=`
     <div class="modal-header">
       <span class="modal-title">${idEditar?'Editar':'Nueva'} Proforma / Factura</span>
@@ -1259,8 +1769,8 @@ function nuevaFacturaModal(idEditar){
       <button class="fact-toggle-btn ${factMode==='factura'?'active':''}" data-action="fact-mode" data-param="factura">🧾 FACTURA</button>
     </div>
     <div class="form-row cols2">
-      <div><label>Número</label><input id="f-num" value="${f?f.num:nextNum}"></div>
-      <div><label>Fecha emisión</label><input id="f-fecha" type="date" value="${f?f.fecha:hoy}"></div>
+      <div><label>Número</label><input id="f-num" value="${fNum}"></div>
+      <div><label>Fecha emisión</label><input id="f-fecha" type="date" value="${fFecha}"></div>
     </div>
     <div class="form-row" id="f-venc-row" style="display:${factMode==='factura'?'grid':'none'}">
       <label>Fecha vencimiento</label><input id="f-venc" type="date" value="${fVenc}">
@@ -1296,7 +1806,7 @@ function nuevaFacturaModal(idEditar){
     </div>
     <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
       <button class="btn btn-primary" data-action="guardar-factura">${idEditar?'Actualizar':'Crear'}</button>
-      <button class="btn btn-secondary" data-action="pdf-factura-preview">📄 Vista PDF</button>
+      <button class="btn btn-secondary" data-action="pdf-factura-preview">📄 Crear PDF</button>
     </div>`;
   renderQBtns();
   renderLineas();
@@ -1312,18 +1822,19 @@ function nuevaFacturaModal(idEditar){
     }
   });
   document.getElementById('modal-overlay').classList.add('open');
+  if(useDraft) toastMsg('Borrador restaurado ✎');
 }
 function renderLineas(){
   const tbody=document.getElementById('lineas-body');
   if(!tbody) return;
   tbody.innerHTML=factLineas.map((l,i)=>{
     const sub=(l.qty||0)*(l.precio||0)*(1+(l.iva||21)/100);
-    return `<tr>
+    return `<tr data-idx="${i}">
       <td><input value="${l.desc||''}" data-action="edit-linea" data-field="desc" data-idx="${i}" style="min-width:90px;font-size:12px"></td>
       <td><input type="number" inputmode="decimal" value="${l.qty||1}" data-action="edit-linea" data-field="qty" data-idx="${i}" style="width:46px;font-size:12px"></td>
       <td><input type="number" inputmode="decimal" value="${l.precio||0}" data-action="edit-linea" data-field="precio" data-idx="${i}" style="width:65px;font-size:12px"></td>
       <td><input type="number" inputmode="decimal" value="${l.iva||21}" data-action="edit-linea" data-field="iva" data-idx="${i}" style="width:42px;font-size:12px"></td>
-      <td style="text-align:right;font-family:'DM Mono',monospace;font-size:12px;color:var(--accent);white-space:nowrap">${fmtMoney(sub)}</td>
+      <td class="linea-sub" style="text-align:right;font-family:'DM Mono',monospace;font-size:12px;color:var(--accent);white-space:nowrap">${fmtMoney(sub)}</td>
       <td><button class="btn btn-danger btn-sm btn-icon" data-action="del-linea" data-idx="${i}" style="width:28px;height:28px;font-size:12px">✕</button></td>
     </tr>`;}).join('');
   renderTotales();
@@ -1346,14 +1857,48 @@ function renderTotales(){
 function addConcepto(label,precio,iva){
   factLineas.push({desc:label,qty:1,precio:Number(precio),iva:Number(iva)});
   renderLineas();
+  saveFacturaDraft();
 }
-function addLinea(){factLineas.push({desc:'',qty:1,precio:0,iva:10});renderLineas();}
+function addLinea(){factLineas.push({desc:'',qty:1,precio:0,iva:10});renderLineas();saveFacturaDraft();}
+function saveFacturaDraft(){
+  if(!document.getElementById('f-cliente')) return;
+  const draft={
+    editId:editFactId||null,
+    tipo:factMode,
+    num:(document.getElementById('f-num')||{}).value||'',
+    fecha:(document.getElementById('f-fecha')||{}).value||'',
+    venc:(document.getElementById('f-venc')||{}).value||'',
+    cliente:(document.getElementById('f-cliente')||{}).value||'',
+    nif:(document.getElementById('f-nif')||{}).value||'',
+    dir:(document.getElementById('f-dir')||{}).value||'',
+    tel:(document.getElementById('f-tel')||{}).value||'',
+    email:(document.getElementById('f-email')||{}).value||'',
+    notas:(document.getElementById('f-notas')||{}).value||'',
+    lineas:factLineas,
+  };
+  localStorage.setItem('garvi_factura_draft',JSON.stringify(draft));
+}
+function loadFacturaDraft(){
+  try{
+    const d=JSON.parse(localStorage.getItem('garvi_factura_draft')||'null');
+    if(d&&d.notas==='Pago a 30 días desde la fecha de emisión.') d.notas='';
+    return d;
+  }catch(e){return null;}
+}
+function clearFacturaDraft(){localStorage.removeItem('garvi_factura_draft');}
 function editLinea(idx,field,val){
   if(field==='qty'||field==='precio'||field==='iva') factLineas[idx][field]=Number(val);
   else factLineas[idx][field]=val;
-  renderLineas();
+  const l=factLineas[idx];
+  const row=document.querySelector(`#lineas-body tr[data-idx="${idx}"]`);
+  if(row){
+    const sub=(l.qty||0)*(l.precio||0)*(1+(l.iva||21)/100);
+    const cell=row.querySelector('.linea-sub');
+    if(cell) cell.textContent=fmtMoney(sub);
+  }
+  renderTotales();
 }
-function delLinea(idx){factLineas.splice(idx,1);renderLineas();}
+function delLinea(idx){factLineas.splice(idx,1);renderLineas();saveFacturaDraft();}
 function guardarFactura(){
   if(!factLineas.length){toastMsg('Añade al menos una línea');return;}
   const cliente=(document.getElementById('f-cliente').value||'').trim();
@@ -1384,7 +1929,7 @@ function guardarFactura(){
     saveCfg();
     facturas.push({id:Date.now().toString(),...datos});
   }
-  saveFacturas();closeModal();renderFacturas();toastMsg('Factura guardada ✓');
+  saveFacturas();clearFacturaDraft();closeModal();renderFacturas();toastMsg('Factura guardada ✓');
 }
 function buildTmpFactura(){
   let base=0,ivaTotal=0;
@@ -1397,7 +1942,7 @@ function buildTmpFactura(){
     dir:(document.getElementById('f-dir')||{}).value||'',
     telefono:(document.getElementById('f-tel')||{}).value||'',
     email:(document.getElementById('f-email')||{}).value||'',
-    fecha:(document.getElementById('f-fecha')||{}).value||new Date().toISOString().slice(0,10),
+    fecha:(document.getElementById('f-fecha')||{}).value||todayISO(),
     vencimiento:(document.getElementById('f-venc')||{}).value||'',
     notas:(document.getElementById('f-notas')||{}).value||'',
     lineas:factLineas,base,iva:ivaTotal,total:base+ivaTotal,
@@ -1490,8 +2035,45 @@ function _doPdfFactura(f){
   doc.save(`${f.num||'documento'}.pdf`);
 }
 
+// ─── EXPORT PDF GENÉRICO (listas) ──────────────────────────────────
+function pdfListGenerico(titulo,headers,rows,filename){
+  if(!rows.length){toastMsg('No hay datos para exportar');return;}
+  const {jsPDF}=window.jspdf; const doc=new jsPDF({unit:'mm',format:'a4'});
+  const W=210;
+  doc.setFillColor(240,180,41); doc.rect(0,0,W,5,'F');
+  try{doc.addImage('data:image/png;base64,'+PRES_LOGO_B64,'PNG',10,8,16,16);}catch(e){}
+  doc.setTextColor(15,32,68); doc.setFontSize(11); doc.setFont('helvetica','bold');
+  doc.text('GARVI RECYCLING SYSTEMS, S.L.U.',29,15);
+  doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(74,96,128);
+  doc.text('Ptda.Torrellano alto P1, Nº76 · C.P.03320 Elche (Alicante) · CIF: B54970439',29,21);
+  doc.setTextColor(240,180,41); doc.setFontSize(16); doc.setFont('helvetica','bold');
+  doc.text(titulo.toUpperCase(),196,18,{align:'right'});
+  doc.setTextColor(74,96,128); doc.setFontSize(9); doc.setFont('helvetica','normal');
+  doc.text('Fecha: '+fmtDate(todayISO()),196,26,{align:'right'});
+  doc.setDrawColor(200,212,227); doc.line(14,32,196,32);
+  let cy=40;
+  const colW=182/headers.length;
+  const printHeader=()=>{
+    doc.setFillColor(15,32,68); doc.rect(14,cy-5,182,7,'F');
+    doc.setTextColor(255,255,255); doc.setFontSize(8); doc.setFont('helvetica','bold');
+    headers.forEach((h,i)=>doc.text(h,16+colW*i,cy));
+    cy+=7;
+  };
+  printHeader();
+  doc.setFont('helvetica','normal');
+  rows.forEach((r,idx)=>{
+    if(cy>270){doc.addPage();cy=20;printHeader();}
+    if(idx%2===0){doc.setFillColor(240,244,248);doc.rect(14,cy-4,182,7,'F');}
+    doc.setTextColor(15,32,68); doc.setFontSize(8);
+    r.forEach((v,i)=>doc.text(String(v??''),16+colW*i,cy,{maxWidth:colW-2}));
+    cy+=7;
+  });
+  doc.setFillColor(240,180,41); doc.rect(0,292,W,5,'F');
+  doc.save(filename);
+}
+
 // ─── FINANZAS ─────────────────────────────────────────────────────
-let finTab='ingresos';
+let finTab='ingresos', finQ='';
 function renderFinanzas(){
   const sec=document.getElementById('sec-finanzas');
   const ing=finanzas.filter(f=>f.tipo==='ingreso');
@@ -1499,7 +2081,9 @@ function renderFinanzas(){
   const totalIng=ing.reduce((s,f)=>s+f.importe,0);
   const totalGas=gas.reduce((s,f)=>s+f.importe,0);
   const bal=totalIng-totalGas;
-  const list=finanzas.filter(f=>f.tipo===finTab).reverse().map(f=>`
+  const q=finQ.toLowerCase();
+  const filtList=finanzas.filter(f=>f.tipo===finTab).filter(f=>!q||(f.concepto||'').toLowerCase().includes(q)||(f.categoria||'').toLowerCase().includes(q));
+  const list=[...filtList].reverse().map(f=>`
     <div class="card" style="display:flex;align-items:center;gap:12px">
       <div style="flex:1">
         <div style="font-weight:600;font-size:14px">${f.concepto}</div>
@@ -1512,7 +2096,10 @@ function renderFinanzas(){
     <div class="section-header">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
         <div class="section-title">Finanzas</div>
-        <button class="btn btn-primary btn-sm" data-action="nuevo-fin">+ Añadir</button>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-secondary btn-sm" data-action="pdf-finanzas">📄 Crear PDF</button>
+          <button class="btn btn-primary btn-sm" data-action="nuevo-fin">+ Añadir</button>
+        </div>
       </div>
       <div class="fin-summary">
         <div class="fin-sum-card"><div class="fin-sum-val" style="color:#4ade80">${fmtMoney(totalIng)}</div><div class="fin-sum-label">Ingresos</div></div>
@@ -1523,8 +2110,10 @@ function renderFinanzas(){
         <button class="fact-toggle-btn ${finTab==='ingreso'?'active':''}" data-action="fin-tab" data-param="ingreso">Ingresos</button>
         <button class="fact-toggle-btn ${finTab==='gasto'?'active':''}" data-action="fin-tab" data-param="gasto">Gastos</button>
       </div>
+      <input id="fin-search" placeholder="Buscar por concepto o categoría…" value="${finQ}" style="margin-top:10px">
     </div>
     ${list||'<div class="empty-state"><div class="icon">💰</div>Sin registros</div>'}`;
+  document.getElementById('fin-search').addEventListener('input',e=>{finQ=e.target.value;reFocusInput('fin-search',renderFinanzas);});
 }
 function nuevoFinModal(){
   document.getElementById('modal-body').innerHTML=`
@@ -1537,7 +2126,7 @@ function nuevoFinModal(){
     <div class="form-row"><label>Concepto</label><input id="fin-conc" placeholder="Descripción…"></div>
     <div class="form-row cols2">
       <div><label>Importe (€)</label><input id="fin-imp" type="number" step="0.01" min="0"></div>
-      <div><label>Fecha</label><input id="fin-fecha" type="date" value="${new Date().toISOString().slice(0,10)}"></div>
+      <div><label>Fecha</label><input id="fin-fecha" type="date" value="${todayISO()}"></div>
     </div>
     <div class="form-row"><label>Categoría</label><select id="fin-cat"><option>Servicio</option><option>Transporte</option><option>Combustible</option><option>Mantenimiento</option><option>Personal</option><option>Material</option><option>Otros</option></select></div>
     <button class="btn btn-primary btn-full" style="margin-top:8px" data-action="crear-fin">Guardar</button>`;
@@ -1549,6 +2138,12 @@ function crearFin(){
   if(!conc||imp<=0){toastMsg('Rellena todos los campos');return;}
   finanzas.push({id:Date.now().toString(),tipo:document.getElementById('fin-tipo').value,concepto:conc,importe:imp,fecha:document.getElementById('fin-fecha').value,categoria:document.getElementById('fin-cat').value});
   saveFinanzas();closeModal();renderFinanzas();toastMsg('Guardado ✓');
+}
+function pdfFinanzas(){
+  const q=finQ.toLowerCase();
+  const rows=finanzas.filter(f=>f.tipo===finTab).filter(f=>!q||(f.concepto||'').toLowerCase().includes(q)||(f.categoria||'').toLowerCase().includes(q))
+    .map(f=>[fmtDate(f.fecha),f.concepto||'',f.categoria||'',(f.tipo==='ingreso'?'+':'-')+fmtMoney(f.importe)]);
+  pdfListGenerico(finTab==='ingreso'?'Ingresos':'Gastos',['Fecha','Concepto','Categoría','Importe'],rows,'finanzas-garvi.pdf');
 }
 
 // ─── CLIENTES ─────────────────────────────────────────────────────
@@ -1570,11 +2165,12 @@ function renderClientes(){
     <div class="section-header">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
         <div class="section-title">Clientes (${clientes.length})</div>
+        <button class="btn btn-secondary btn-sm" data-action="pdf-clientes">📄 Crear PDF</button>
       </div>
       <input class="search-input" id="cl-search" type="search" placeholder="Buscar nombre o teléfono…" value="${clienteQ}">
     </div>
     ${rows||'<div class="empty-state"><div class="icon">👥</div>Sin clientes</div>'}`;
-  document.getElementById('cl-search').addEventListener('input',e=>{clienteQ=e.target.value;renderClientes();});
+  document.getElementById('cl-search').addEventListener('input',e=>{clienteQ=e.target.value;reFocusInput('cl-search',renderClientes);});
 }
 function verClienteModal(id){
   const c=clientes.find(x=>x.id===id); if(!c) return;
@@ -1593,14 +2189,22 @@ function verClienteModal(id){
     ${conts||'<div class="empty-state" style="padding:12px">Sin contenedores</div>'}`;
   document.getElementById('modal-overlay').classList.add('open');
 }
+function pdfClientes(){
+  const list=clientes.filter(c=>!clienteQ||(c.nombre||'').toLowerCase().includes(clienteQ.toLowerCase())||(c.telefono||'').includes(clienteQ));
+  const rows=list.map(c=>[c.nombre||'',c.telefono||'',c.dirFacturacion||c.direccion||'',String(c.contenedores.length)]);
+  pdfListGenerico('Clientes',['Nombre','Teléfono','Dirección','Contenedores'],rows,'clientes-garvi.pdf');
+}
 
 // ─── TAREAS ───────────────────────────────────────────────────────
-let tareasFilter='pendientes';
-let presItems=[],presDireccion='',presFecha=new Date().toISOString().slice(0,10),presPrices=[];
+let tareasFilter='pendientes', tareasQ='';
+let presItems=[],presDireccion='',presFecha=todayISO(),presPrices=[],presQ='';
 function renderTareas(){
   const sec=document.getElementById('sec-tareas');
   const pend=tareas.filter(t=>!t.done).length;
-  const list=tareas.filter(t=>tareasFilter==='pendientes'?!t.done:tareasFilter==='done'?t.done:true).reverse().map(t=>`
+  const tq=tareasQ.toLowerCase();
+  const list=tareas.filter(t=>tareasFilter==='pendientes'?!t.done:tareasFilter==='done'?t.done:true)
+    .filter(t=>!tq||(t.titulo||'').toLowerCase().includes(tq)||(t.contenedor||'').toLowerCase().includes(tq))
+    .reverse().map(t=>`
     <div class="tarea-item">
       <div class="tarea-check ${t.done?'done':''}" data-action="toggle-tarea" data-param="${t.id}">${t.done?'✓':''}</div>
       <div class="tarea-body">
@@ -1613,15 +2217,20 @@ function renderTareas(){
     <div class="section-header">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
         <div class="section-title">Tareas ${pend?`<span class="badge" style="position:static;display:inline-flex">${pend}</span>`:''}</div>
-        <button class="btn btn-primary btn-sm" data-action="nueva-tarea">+ Nueva</button>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-secondary btn-sm" data-action="pdf-tareas">📄 Crear PDF</button>
+          <button class="btn btn-primary btn-sm" data-action="nueva-tarea">+ Nueva</button>
+        </div>
       </div>
       <div class="fact-toggle" style="max-width:280px">
         <button class="fact-toggle-btn ${tareasFilter==='pendientes'?'active':''}" data-action="tareas-filter" data-param="pendientes">Pendientes</button>
         <button class="fact-toggle-btn ${tareasFilter==='done'?'active':''}" data-action="tareas-filter" data-param="done">Hechas</button>
         <button class="fact-toggle-btn ${tareasFilter==='todas'?'active':''}" data-action="tareas-filter" data-param="todas">Todas</button>
       </div>
+      <input class="search-input" id="tareas-search" type="search" placeholder="Buscar tarea o contenedor…" value="${tareasQ}" style="margin-top:8px">
     </div>
     ${list||'<div class="empty-state"><div class="icon">✅</div>Sin tareas</div>'}`;
+  document.getElementById('tareas-search').addEventListener('input',e=>{tareasQ=e.target.value;reFocusInput('tareas-search',renderTareas);});
 }
 function nuevaTareaModal(){
   document.getElementById('modal-body').innerHTML=`
@@ -1640,6 +2249,13 @@ function crearTarea(){
   if(!titulo){toastMsg('Escribe el título');return;}
   tareas.push({id:Date.now().toString(),titulo,prioridad:document.getElementById('t-prio').value,fecha:document.getElementById('t-fecha').value,contenedor:document.getElementById('t-cont').value.trim(),done:false,creada:new Date().toISOString()});
   saveTareas();closeModal();renderTareas();toastMsg('Tarea creada ✓');
+}
+function pdfTareas(){
+  const tq=tareasQ.toLowerCase();
+  const rows=tareas.filter(t=>tareasFilter==='pendientes'?!t.done:tareasFilter==='done'?t.done:true)
+    .filter(t=>!tq||(t.titulo||'').toLowerCase().includes(tq)||(t.contenedor||'').toLowerCase().includes(tq))
+    .map(t=>[t.titulo||'',t.prioridad||'Normal',t.fecha?fmtDate(t.fecha):'',t.contenedor||'',t.done?'Hecha':'Pendiente']);
+  pdfListGenerico('Tareas',['Título','Prioridad','Fecha','Contenedor','Estado'],rows,'tareas-garvi.pdf');
 }
 
 
@@ -1679,13 +2295,14 @@ function buildPresPreview(){
 function renderPresupuestos(){
   initPresPrices();
   const sec=document.getElementById('sec-presupuestos');
-  const catalogHtml=CATALOG_PRES.map((c,i)=>`
+  const pq=presQ.toLowerCase();
+  const catalogHtml=CATALOG_PRES.map((c,i)=>({c,i})).filter(({c})=>!pq||c.name.toLowerCase().includes(pq)).map(({c,i})=>`
     <div class="cat-row">
       <span class="cat-name">${c.name}</span>
       <input type="number" step="0.01" value="${presPrices[i]}" data-action="pres-price" data-idx="${i}" class="cat-price-inp">
       <span class="cat-iva">${c.iva}%</span>
       <button class="btn btn-sm" style="background:var(--accent-blue);color:#fff;padding:4px 9px" data-action="add-pres-item" data-param="${i}">Añadir</button>
-    </div>`).join('');
+    </div>`).join('')||'<div style="color:var(--muted);font-size:12px;padding:6px 0">Sin resultados</div>';
   const itemsHtml=presItems.length===0
     ?'<div style="color:var(--muted);font-size:12px;padding:8px 0">Sin conceptos añadidos.</div>'
     :`<ul class="pres-list">${presItems.map((it,i)=>`<li>
@@ -1707,6 +2324,7 @@ function renderPresupuestos(){
     <div class="pres-layout">
       <div class="card" style="padding:14px">
         <div style="font-size:12px;font-weight:700;color:var(--accent-blue);margin-bottom:10px;border-bottom:2px solid var(--accent-blue);padding-bottom:6px;text-transform:uppercase;letter-spacing:.4px">Tipos de residuo / Servicio</div>
+        <input class="search-input" id="pres-search" type="search" placeholder="Buscar tipo de residuo…" value="${presQ}" style="margin-bottom:8px">
         ${catalogHtml}
       </div>
       <div class="card" style="padding:14px;display:flex;flex-direction:column;gap:10px">
@@ -1738,6 +2356,7 @@ function renderPresupuestos(){
     const el=document.getElementById('pres-meta-fecha');
     if(el) el.textContent=fmtPresDate(presFecha);
   });
+  document.getElementById('pres-search').addEventListener('input',e=>{presQ=e.target.value;reFocusInput('pres-search',renderPresupuestos);});
 }
 
 function pdfPresupuesto(){
@@ -1817,6 +2436,200 @@ span[id]{display:inline}
   setTimeout(()=>{w.focus();w.print();},350);
 }
 
+// ─── CERTIFICADOS ─────────────────────────────────────────────────
+const MESES_ES=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+const CERT_TIPOS={
+  escombros:{label:'Escombros',residuo:'Mezclas de hormigón, ladrillos, tejas y materiales cerámicos, distintas de las especificadas en el código 170106',ler:'170107',destino:'SABOSPA S.L.'},
+  plastico:{label:'Plástico',residuo:'PLASTICO',ler:'200139',destino:'RECICLAJES VICTORTOLEDO S.L.'},
+};
+let certForm={tipo:'escombros',periodo:'',productor:'',obra:'',toneladas:'',fecha:todayISO()};
+let editCertId=null;
+let certQ='';
+function fechaCertTexto(iso){
+  const dt=iso?new Date(iso+'T00:00:00'):new Date();
+  return `${dt.getDate()} de ${MESES_ES[dt.getMonth()].toUpperCase()} de ${dt.getFullYear()}`;
+}
+function buildCertPreview(){
+  const f=certForm;
+  const ct=CERT_TIPOS[f.tipo]||CERT_TIPOS.escombros;
+  return `<div class="doc-preview">
+    <div class="doc-head">
+      <div style="display:flex;align-items:center;gap:12px">
+        <div class="doc-logo-box" style="background:#0f2044"><img src="icon-512.png" alt="GARVI" style="width:52px;height:52px"></div>
+        <div style="font-size:11px;color:#333;line-height:1.5">
+          <div style="font-weight:800;color:#1a2a6c;font-size:12.5px">GARVI RECYCLING SYSTEMS, S.L.U.</div>
+          <div>Ptda.Torrellano alto P1, Nº76</div>
+          <div>C.P.03320 Elche (Alicante)</div>
+          <div>Cif.B54970439</div>
+        </div>
+      </div>
+      <div class="doc-title-right"><h3>CERTIFICADO DE GESTIÓN DE RESIDUOS</h3></div>
+    </div>
+    <div class="doc-meta-line"><strong>Nº AUTORIZACIÓN:</strong> 664/T/RNP/CV</div>
+    <div class="doc-meta-line">3596/T08/CV – Transporte de residuos</div>
+    <div class="doc-meta-line"><strong>Cod. E3L (NIMA):</strong> 0300014535</div>
+    <hr class="divider" style="margin:10px 0">
+    <div class="doc-meta-line"><strong>PERIODO:</strong> <span id="cert-meta-periodo">${f.periodo||'________________'}</span></div>
+    <div class="doc-meta-line"><strong>PRODUCTOR:</strong> <span id="cert-meta-productor">${f.productor||'________________'}</span></div>
+    <div class="doc-meta-line"><strong>OBRA:</strong> <span id="cert-meta-obra">${f.obra||'________________'}</span></div>
+    <table class="cert-table">
+      <thead><tr><th>Tipo de residuo</th><th>Código LER</th><th>Toneladas</th><th>Destino / Gestor final</th></tr></thead>
+      <tbody><tr>
+        <td>${ct.residuo}</td>
+        <td>${ct.ler}</td>
+        <td id="cert-meta-toneladas">${f.toneladas||'—'}</td>
+        <td>${ct.destino}</td>
+      </tr></tbody>
+    </table>
+    <p style="margin-top:18px;font-size:12px;color:#333">Alicante, <span id="cert-meta-fecha">${fechaCertTexto(f.fecha)}</span></p>
+    <div class="doc-sign-wrap">
+      <div>
+        <img src="data:image/jpeg;base64,${PRES_SIGN_B64}" alt="Firma y sello">
+        <div class="doc-sign-name">D. Jose Antonio García Sebastián<br>Administrador de la empresa Garvi Recycling Systems, S.L.U.</div>
+      </div>
+    </div>
+  </div>`;
+}
+function renderCertificados(){
+  const sec=document.getElementById('sec-certificados');
+  const q=certQ.toLowerCase();
+  const listFiltered=certificados.filter(c=>!q||(c.productor||'').toLowerCase().includes(q)||(c.obra||'').toLowerCase().includes(q)||(c.periodo||'').toLowerCase().includes(q));
+  const listHtml=[...listFiltered].reverse().map(c=>`
+    <div class="factura-item" data-action="ver-certificado" data-param="${c.id}">
+      <div style="flex:1">
+        <div style="font-weight:700;font-size:13px">${c.productor||'—'} <span style="font-size:10px;font-weight:700;color:var(--accent-blue);background:var(--surface2);padding:1px 7px;border-radius:20px;margin-left:4px">${(CERT_TIPOS[c.tipo]||CERT_TIPOS.escombros).label}</span></div>
+        <div style="font-size:11px;color:var(--muted)">${c.obra||''} ${c.periodo?'· '+c.periodo:''}</div>
+      </div>
+      <div style="display:flex;gap:6px">
+        <button class="btn btn-secondary btn-sm" data-action="pdf-certificado" data-param="${c.id}" style="padding:3px 8px;font-size:11px">PDF</button>
+        <button class="btn btn-danger btn-sm" data-action="del-certificado" data-param="${c.id}" style="padding:3px 8px;font-size:11px">🗑</button>
+      </div>
+    </div>`).join('');
+  sec.innerHTML=`
+    <div class="section-header">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div class="section-title">Certificados${editCertId?' <span style="font-size:11px;font-weight:700;color:var(--accent-blue);background:var(--surface2);padding:2px 8px;border-radius:20px">editando</span>':''}</div>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-secondary btn-sm" data-action="nuevo-certificado">+ Nuevo</button>
+          <button class="btn btn-secondary btn-sm" data-action="cert-pdf">📄 Crear PDF</button>
+        </div>
+      </div>
+    </div>
+    <div class="pres-layout">
+      <div class="card" style="padding:14px;display:flex;flex-direction:column;gap:10px">
+        <div style="font-size:12px;font-weight:700;color:var(--accent-blue);border-bottom:2px solid var(--accent-blue);padding-bottom:6px;text-transform:uppercase;letter-spacing:.4px">Datos del certificado</div>
+        <div class="form-row"><label>Tipo de certificado</label>
+          <select id="cert-tipo">${Object.entries(CERT_TIPOS).map(([k,v])=>`<option value="${k}"${certForm.tipo===k?' selected':''}>${v.label}</option>`).join('')}</select>
+        </div>
+        <div class="form-row"><label>Periodo</label><input id="cert-periodo" value="${f_esc(certForm.periodo)}" placeholder="Ej: ABRIL 2026"></div>
+        <div class="form-row"><label>Productor</label><input id="cert-productor" value="${f_esc(certForm.productor)}" placeholder="Nombre del productor…"></div>
+        <div class="form-row"><label>Obra</label><input id="cert-obra" value="${f_esc(certForm.obra)}" placeholder="Dirección / nombre de la obra…"></div>
+        <div class="form-row cols2">
+          <div><label>Toneladas</label><input id="cert-toneladas" value="${f_esc(certForm.toneladas)}" placeholder="Ej: 4,5"></div>
+          <div><label>Fecha</label><input id="cert-fecha" type="date" value="${certForm.fecha}"></div>
+        </div>
+        <button class="btn btn-primary btn-sm" data-action="guardar-certificado" style="margin-top:6px">💾 Guardar en la app</button>
+        <hr class="divider">
+        <div style="font-size:12px;font-weight:700;color:var(--accent-blue);text-transform:uppercase;letter-spacing:.4px">Certificados guardados (${certificados.length})</div>
+        <input class="search-input" id="cert-search" type="search" placeholder="Buscar productor, obra o periodo…" value="${certQ}">
+        <div>${listHtml||'<div class="empty-state" style="padding:10px 0">Sin certificados guardados</div>'}</div>
+      </div>
+      <div class="card" style="padding:14px">
+        <div style="font-size:12px;font-weight:700;color:var(--accent-blue);margin-bottom:10px;border-bottom:2px solid var(--accent-blue);padding-bottom:6px;text-transform:uppercase;letter-spacing:.4px">Vista previa en tiempo real</div>
+        <div id="cert-doc-content">${buildCertPreview()}</div>
+      </div>
+    </div>`;
+  document.getElementById('cert-tipo').addEventListener('change',e=>{certForm.tipo=e.target.value;renderCertificados();});
+  ['periodo','productor','obra','toneladas'].forEach(field=>{
+    document.getElementById('cert-'+field).addEventListener('input',e=>{
+      certForm[field]=e.target.value;
+      const el=document.getElementById('cert-meta-'+field);
+      if(el) el.textContent=e.target.value||(field==='toneladas'?'—':'________________');
+    });
+  });
+  document.getElementById('cert-fecha').addEventListener('input',e=>{
+    certForm.fecha=e.target.value;
+    const el=document.getElementById('cert-meta-fecha');
+    if(el) el.textContent=fechaCertTexto(certForm.fecha);
+  });
+  document.getElementById('cert-search').addEventListener('input',e=>{certQ=e.target.value;reFocusInput('cert-search',renderCertificados);});
+}
+function f_esc(v){return (v||'').toString().replace(/"/g,'&quot;');}
+function guardarOActualizarCertificado(){
+  if(editCertId){
+    const c=certificados.find(x=>x.id===editCertId);
+    if(c) Object.assign(c,certForm);
+    else{certificados.push({id:editCertId,...certForm});}
+  } else {
+    editCertId=Date.now().toString();
+    certificados.push({id:editCertId,...certForm});
+  }
+  saveCertificados();
+}
+function guardarCertificado(){
+  if(!certForm.productor.trim()){toastMsg('Indica el productor');return;}
+  guardarOActualizarCertificado();
+  renderCertificados();toastMsg('Certificado guardado ✓');
+}
+function verCertificado(id){
+  const c=certificados.find(x=>x.id===id); if(!c) return;
+  editCertId=id;
+  certForm={tipo:c.tipo||'escombros',periodo:c.periodo||'',productor:c.productor||'',obra:c.obra||'',toneladas:c.toneladas||'',fecha:c.fecha||todayISO()};
+  renderCertificados();
+  toastMsg('Certificado cargado en el formulario — se actualizará al guardar/exportar');
+}
+function nuevoCertificado(){
+  editCertId=null;
+  certForm={tipo:'escombros',periodo:'',productor:'',obra:'',toneladas:'',fecha:todayISO()};
+  renderCertificados();
+}
+function delCertificado(id){certificados=certificados.filter(c=>c.id!==id);saveCertificados();if(editCertId===id) editCertId=null;renderCertificados();toastMsg('Eliminado');}
+function pdfCertificado(idOrNull){
+  const c=idOrNull?certificados.find(x=>x.id===idOrNull):certForm;
+  if(!c||!c.productor||!c.productor.trim()){toastMsg('Indica al menos el productor');return;}
+  if(!idOrNull){guardarOActualizarCertificado();renderCertificados();}
+  const ct=CERT_TIPOS[c.tipo]||CERT_TIPOS.escombros;
+  const {jsPDF}=window.jspdf; const doc=new jsPDF({unit:'mm',format:'a4'});
+  try{drawGVLogo(doc,14,10,20);}catch(e){}
+  doc.setTextColor(15,32,68); doc.setFontSize(10); doc.setFont('helvetica','bold');
+  doc.text('GARVI RECYCLING SYSTEMS, S.L.U.',40,16);
+  doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(74,96,128);
+  doc.text('Ptda.Torrellano alto P1, Nº76',40,21);
+  doc.text('C.P.03320 Elche (Alicante)',40,26);
+  doc.text('Cif.B54970439',40,31);
+  let cy=50;
+  doc.setTextColor(15,32,68); doc.setFontSize(18); doc.setFont('times','bold');
+  doc.text('CERTIFICADO DE GESTIÓN DE RESIDUOS',14,cy); cy+=14;
+  doc.setFont('helvetica','normal'); doc.setFontSize(10.5); doc.setTextColor(30,30,30);
+  doc.text('Nº AUTORIZACIÓN:  664/T/RNP/CV',14,cy); cy+=8;
+  doc.text('3596/T08/CV – Transporte de residuos',14,cy); cy+=8;
+  doc.text('Cod. E3L (NIMA): 0300014535',14,cy); cy+=12;
+  doc.text(`PERIODO: ${c.periodo||''}`,14,cy); cy+=8;
+  doc.text(`PRODUCTOR: ${c.productor||''}`,14,cy); cy+=8;
+  doc.text(`OBRA: ${c.obra||''}`,14,cy); cy+=14;
+  const cols=[{x:14,w:96,label:'TIPO DE RESIDUO'},{x:110,w:26,label:'CÓD. LER'},{x:136,w:24,label:'TONELADAS'},{x:160,w:36,label:'DESTINO/GESTOR'}];
+  doc.setFillColor(15,32,68); doc.rect(14,cy-5,182,8,'F');
+  doc.setTextColor(255,255,255); doc.setFontSize(7.5); doc.setFont('helvetica','bold');
+  cols.forEach(col=>doc.text(col.label,col.x+2,cy));
+  cy+=6;
+  const vals=[ct.residuo,ct.ler,String(c.toneladas||''),ct.destino];
+  doc.setTextColor(15,32,68); doc.setFont('helvetica','normal'); doc.setFontSize(8);
+  let maxLines=1;
+  const wrapped=cols.map((col,i)=>{const ls=doc.splitTextToSize(vals[i],col.w-4);maxLines=Math.max(maxLines,ls.length);return ls;});
+  cols.forEach((col,i)=>doc.text(wrapped[i],col.x+2,cy+3));
+  doc.setDrawColor(200,200,200);
+  doc.rect(14,cy-6,182,maxLines*4.5+6);
+  cy+=maxLines*4.5+18;
+  doc.setFontSize(10); doc.setTextColor(30,30,30);
+  doc.text(`Alicante, ${fechaCertTexto(c.fecha)}`,14,cy);
+  cy+=10;
+  try{doc.addImage('data:image/jpeg;base64,'+PRES_SIGN_B64,'JPEG',130,cy,50,35);}catch(e){}
+  doc.setFontSize(9);
+  doc.text('D. Jose Antonio García Sebastián',14,cy+40);
+  doc.text('Administrador de la empresa Garvi Recycling Systems, S.L.U.',14,cy+46);
+  doc.save(`certificado-${(c.obra||'garvi').toString().slice(0,25).replace(/[^a-z0-9]+/gi,'_')||'garvi'}.pdf`);
+}
+
 // ─── MODAL HELPERS ────────────────────────────────────────────────
 function closeModal(){document.getElementById('modal-overlay').classList.remove('open');}
 
@@ -1839,8 +2652,11 @@ document.addEventListener('input',e=>{
   if(e.target.dataset.action==='edit-linea'){
     const idx=+e.target.dataset.idx; const field=e.target.dataset.field;
     editLinea(idx,field,e.target.value);
+    saveFacturaDraft();
   } else if(e.target.dataset.action==='pres-price'){
     presPrices[+e.target.dataset.idx]=parseFloat(e.target.value)||0;
+  } else if(['f-num','f-fecha','f-venc','f-cliente','f-nif','f-dir','f-tel','f-email','f-notas'].includes(e.target.id)){
+    saveFacturaDraft();
   }
 });
 document.addEventListener('click',e=>{
@@ -1855,19 +2671,26 @@ document.addEventListener('click',e=>{
   else if(action==='crear-cont') crearContenedor();
   else if(action==='foto-cont') fotoInput(param);
   else if(action==='del-foto') delFoto(param,+btn.dataset.idx);
-  else if(action==='filter-estado'){filterEstado=param;renderContenedores();}
-  else if(action==='cont-view'){contView=param;renderContenedores();}
-  else if(action==='filter-retirar'){contView='retirar';filterEstado='todos';searchQ='';renderContenedores();}
+  else if(action==='filter-estado'){filterEstado=param;applyContFilter();}
+  else if(action==='cont-view'){contView=param;applyContFilter();}
+  else if(action==='filter-retirar'){contView='retirar';filterEstado='todos';searchQ='';const si=document.getElementById('cont-search');if(si)si.value='';applyContFilter();}
   else if(action==='close-modal') closeModal();
   else if(action==='nuevo-albaran') nuevoAlbaranModal();
   else if(action==='nuevo-albaran-from') {closeModal();renderTab('albaranes');setTimeout(()=>nuevoAlbaranModal(param),50);}
   else if(action==='crear-albaran') crearAlbaran(param);
   else if(action==='del-albaran'){albaranes=albaranes.filter(a=>a.id!==param);saveAlbaranes();renderAlbaranes();toastMsg('Eliminado');}
   else if(action==='pdf-albaran') pdfAlbaran(param);
+  else if(action==='pdf-albaranes') pdfAlbaranes();
+  else if(action==='pdf-contenedores') pdfContenedores();
+  else if(action==='cont-map-retry') recalcularUbicaciones();
+  else if(action==='pdf-finanzas') pdfFinanzas();
+  else if(action==='pdf-clientes') pdfClientes();
+  else if(action==='pdf-tareas') pdfTareas();
   else if(action==='nueva-factura') nuevaFacturaModal();
   else if(action==='ver-factura') nuevaFacturaModal(param);
   else if(action==='del-factura'){if(confirm('¿Eliminar?')){facturas=facturas.filter(f=>f.id!==param);saveFacturas();renderFacturas();toastMsg('Eliminado');}}
   else if(action==='pdf-factura') pdfFactura(param);
+  else if(action==='pdf-facturas') pdfFacturas();
   else if(action==='concepto-grupo'){conceptoGrupo=param;document.querySelectorAll('.qbtn-tab').forEach(b=>b.classList.toggle('active',b.dataset.param===param));renderQBtns();}
   else if(action==='nueva-factura-cl'){closeModal();setTimeout(()=>{renderTab('facturas');setTimeout(()=>{nuevaFacturaModal();setTimeout(()=>{const el=document.getElementById('f-cliente');if(el) el.value=param;},50);},50);},50);}
   else if(action==='fact-mode'){
@@ -1876,8 +2699,9 @@ document.addEventListener('click',e=>{
     const vr=document.getElementById('f-venc-row');
     const fn=document.getElementById('f-num');
     if(vr) vr.style.display=param==='factura'?'grid':'none';
-    if(fn&&!fn.value.startsWith('P-')&&!fn.value.startsWith('F-')) return;
+    if(fn&&!fn.value.startsWith('P-')&&!fn.value.startsWith('F-')){saveFacturaDraft();return;}
     if(fn) fn.value=(param==='proforma'?'P-':'F-')+String((param==='proforma'?cfg.ultimaProf||0:cfg.ultimaFact||0)+1).padStart(3,'0');
+    saveFacturaDraft();
   }
   else if(action==='add-concepto') addConcepto(btn.dataset.label,btn.dataset.precio,btn.dataset.iva);
   else if(action==='add-linea') addLinea();
@@ -1909,6 +2733,19 @@ document.addEventListener('click',e=>{
   else if(action==='pres-email') emailPresupuesto();
   else if(action==='guardar-cliente-extra'){const c=clientes.find(x=>x.id===param);if(c){saveClienteExtra(c.nombre,{dirFacturacion:(document.getElementById('cl-extra-dir')||{}).value||'',cif:(document.getElementById('cl-extra-cif')||{}).value||''});syncClientes();toastMsg('Datos de facturación guardados ✓');verClienteModal(param);}}
   else if(action==='logout') logout();
+  else if(action==='cal-prev') calChangeMonth(-1);
+  else if(action==='cal-next') calChangeMonth(1);
+  else if(action==='cal-sel-day') calSelectDay(param);
+  else if(action==='nuevo-aviso') nuevoAvisoModal();
+  else if(action==='crear-aviso') crearAviso();
+  else if(action==='del-aviso'){if(confirm('¿Eliminar aviso?')) delAviso(param);}
+  else if(action==='copy-aviso'){const a=avisos.find(x=>x.id===param);if(a) copyToClipboard(buildAvisoCopyText(a),'Aviso copiado ✓');}
+  else if(action==='guardar-certificado') guardarCertificado();
+  else if(action==='nuevo-certificado') nuevoCertificado();
+  else if(action==='ver-certificado') verCertificado(param);
+  else if(action==='del-certificado'){if(confirm('¿Eliminar certificado?')) delCertificado(param);}
+  else if(action==='pdf-certificado') pdfCertificado(param);
+  else if(action==='cert-pdf') pdfCertificado(null);
 });
 document.getElementById('li-pass').addEventListener('keydown',e=>{if(e.key==='Enter') handleLogin();});
 document.getElementById('li-user').addEventListener('keydown',e=>{if(e.key==='Enter') document.getElementById('li-pass').focus();});
