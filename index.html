@@ -482,6 +482,10 @@ label{
 .agenda-tipo-pill{display:inline-block;padding:2px 9px;border-radius:20px;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px}
 .agenda-cantidad{font-size:11px;font-weight:800;color:#fff;background:var(--accent-blue);border-radius:20px;padding:1px 7px;margin-left:5px}
 .agenda-section-title{font-size:11px;font-weight:800;color:var(--success);text-transform:uppercase;letter-spacing:.05em;margin:14px 0 6px;padding-top:10px;border-top:1px dashed var(--border)}
+.agenda-unidades{display:flex;gap:4px;flex-wrap:wrap;margin-top:2px}
+.agenda-unidad{width:22px;height:22px;border-radius:50%;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:10.5px;font-weight:800;color:var(--text2);cursor:pointer;flex-shrink:0;background:var(--surface)}
+.agenda-unidad:hover{border-color:var(--accent);color:var(--accent)}
+.agenda-unidad.done{background:var(--success);border-color:var(--success);color:#fff}
 .agenda-hora{font-size:11px;font-weight:700;color:var(--text2);margin-left:6px}
 .agenda-nota{font-size:13.5px;color:var(--text);font-weight:600;margin-top:1px}
 .agenda-meta{font-size:11.5px;color:var(--muted);margin-top:3px}
@@ -804,7 +808,16 @@ function loadData(){
   cfg=JSON.parse(localStorage.getItem('garvi_cfg')||'{"apiKey":"","ultimaFact":0,"ultimaProf":0}');
   certificados=JSON.parse(localStorage.getItem('garvi_certificados')||'[]');
   avisos=JSON.parse(localStorage.getItem('garvi_avisos')||'[]');
+  avisos.forEach(migrarAviso);
   syncClientes();
+}
+// Convierte el antiguo campo done/completadoEn (un solo tick) al nuevo array "completados" (una marca de tiempo por unidad hecha)
+function migrarAviso(a){
+  if(!Array.isArray(a.completados)){
+    a.completados=(a.done)?[a.completadoEn||new Date().toISOString()]:[];
+  }
+  if(!a.cantidad) a.cantidad=1;
+  return a;
 }
 function saveContainers(){localStorage.setItem(LSKEY,JSON.stringify(containers));}
 function saveAlbaranes(){localStorage.setItem('garvi_albaranes',JSON.stringify(albaranes));}
@@ -993,17 +1006,26 @@ function renderCalendar(){
   <div class="cal-legend">${Object.entries(AVISO_CFG).map(([k,v])=>`<span><i style="background:${v.color}"></i>${v.label}</span>`).join('')}</div>`;
   wrap.innerHTML=html;
 }
+function fmtHora(iso){return iso?new Date(iso).toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'}):'';}
 function renderAvisoCard(a){
   const cfg=AVISO_CFG[a.tipo]||{label:a.tipo,color:'#999'};
   const rango=a.fechaFin&&a.fechaFin!==a.fecha?`${fmtDate(a.fecha)} → ${fmtDate(a.fechaFin)}`:fmtDate(a.fecha);
-  const horaCompletado=a.completadoEn?new Date(a.completadoEn).toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'}):'';
-  return `<div class="agenda-item${a.done?' done':''}" style="border-left-color:${a.done?'var(--success)':cfg.color}">
-      <div class="tarea-check${a.done?' done':''}" data-action="toggle-aviso-done" data-param="${a.id}" title="Marcar completado">${a.done?'✓':''}</div>
+  const total=a.cantidad||1;
+  const completados=a.completados||[];
+  const hechos=completados.length;
+  const ticksHtml=total>1
+    ? `<div class="agenda-unidades">${Array.from({length:total},(_,i)=>
+        i<hechos
+          ? `<span class="agenda-unidad done" data-action="deshacer-unidad-idx" data-param="${a.id}" data-idx="${i}" title="Completado ${fmtHora(completados[i])} · clic para deshacer">✓</span>`
+          : `<span class="agenda-unidad" data-action="completar-unidad" data-param="${a.id}" title="Marcar este cambio como hecho">${i+1}</span>`
+      ).join('')}</div>`
+    : `<div class="tarea-check${hechos>0?' done':''}" data-action="${hechos>0?'deshacer-unidad-idx':'completar-unidad'}" data-param="${a.id}" data-idx="0" title="Marcar completado">${hechos>0?'✓':''}</div>`;
+  return `<div class="agenda-item" style="border-left-color:${cfg.color}">
+      ${ticksHtml}
       <div style="flex:1">
         <span class="agenda-tipo-pill" style="background:${cfg.color}22;color:${cfg.color}">${cfg.label}</span>
-        ${a.cantidad>1?`<span class="agenda-cantidad">+${a.cantidad-1}</span>`:''}
+        ${total>1?`<span class="agenda-cantidad">${hechos}/${total} hechos</span>`:''}
         ${a.hora?`<span class="agenda-hora">🕐 ${a.hora}</span>`:''}
-        ${a.done&&horaCompletado?`<span class="agenda-hora" style="color:var(--success)">✓ Completado ${horaCompletado}</span>`:''}
         <div class="agenda-nota">${a.nota||''}</div>
         <div class="agenda-meta">${rango}${a.telefono?' · 📞 '+a.telefono:''}${a.pago?' · 💰 '+a.pago:''}</div>
         ${a.direccion?`<div class="agenda-meta">📍 ${a.direccion} <a class="agenda-copy-link" href="${mapsLinkFor(a.direccion)}" target="_blank" rel="noopener">abrir en Maps</a></div>`:''}
@@ -1016,27 +1038,49 @@ function renderAvisoCard(a){
       <button class="btn btn-danger btn-sm btn-icon" data-action="del-aviso" data-param="${a.id}">🗑</button>
     </div>`;
 }
+function renderUnidadCompletada(entry){
+  const {a,idx,ts,total}=entry;
+  const cfg=AVISO_CFG[a.tipo]||{label:a.tipo,color:'#999'};
+  return `<div class="agenda-item done" style="border-left-color:var(--success)">
+      <div class="tarea-check done" data-action="deshacer-unidad-idx" data-param="${a.id}" data-idx="${idx}" title="Deshacer">✓</div>
+      <div style="flex:1">
+        <span class="agenda-tipo-pill" style="background:${cfg.color}22;color:${cfg.color}">${cfg.label}</span>
+        ${total>1?`<span class="agenda-cantidad">unidad ${idx+1}/${total}</span>`:''}
+        <span class="agenda-hora" style="color:var(--success)">✓ Completado ${fmtHora(ts)}</span>
+        <div class="agenda-nota">${a.nota||''}</div>
+        ${a.direccion?`<div class="agenda-meta">📍 ${a.direccion}</div>`:''}
+      </div>
+    </div>`;
+}
+function unidadesCompletadasDelDia(dateStr){
+  const entries=[];
+  avisosDelDia(dateStr).forEach(a=>{
+    (a.completados||[]).forEach((ts,idx)=>entries.push({a,idx,ts,total:a.cantidad||1}));
+  });
+  entries.sort((x,y)=>(x.ts||'').localeCompare(y.ts||''));
+  return entries;
+}
 function renderAgenda(){
   const list=document.getElementById('agenda-list'); if(!list) return;
   const title=document.getElementById('agenda-title');
   const todos=avisosDelDia(calSelDay);
-  const pendientes=todos.filter(a=>!a.done).sort((a,b)=>{
+  const pendientes=todos.filter(a=>(a.completados||[]).length<(a.cantidad||1)).sort((a,b)=>{
     if(a.hora&&b.hora) return a.hora.localeCompare(b.hora);
     if(a.hora&&!b.hora) return -1;
     if(!a.hora&&b.hora) return 1;
     return (a.creada||'').localeCompare(b.creada||'');
   });
-  const completados=todos.filter(a=>a.done).sort((a,b)=>(a.completadoEn||'').localeCompare(b.completadoEn||''));
+  const completadas=unidadesCompletadasDelDia(calSelDay);
   const dt=new Date(calSelDay+'T00:00:00');
   title.textContent=dt.toLocaleDateString('es-ES',{weekday:'long',day:'numeric',month:'long'});
   let html='';
-  if(!pendientes.length&&!completados.length){
+  if(!pendientes.length&&!completadas.length){
     html='<div class="empty-state" style="padding:20px 0"><div class="icon">🗓</div>Sin avisos este día</div>';
   } else {
     html+=pendientes.map(renderAvisoCard).join('')||'<div class="empty-state" style="padding:10px 0">Sin avisos pendientes</div>';
-    if(completados.length){
-      html+=`<div class="agenda-section-title">✅ Completados (${completados.length})</div>`;
-      html+=completados.map(renderAvisoCard).join('');
+    if(completadas.length){
+      html+=`<div class="agenda-section-title">✅ Completados (${completadas.length})</div>`;
+      html+=completadas.map(renderUnidadCompletada).join('');
     }
   }
   list.innerHTML=html;
@@ -1071,22 +1115,25 @@ function fallbackCopy(text,msg){
 function iniciarCopiaAviso(id){
   const a=avisos.find(x=>x.id===id); if(!a) return;
   const total=a.cantidad||1;
-  if(total<=1){ copyToClipboard(buildAvisoCopyText(a),'Aviso copiado ✓'); return; }
+  const restantes=total-(a.completados||[]).length;
+  if(restantes<=1){ copyToClipboard(buildAvisoCopyText(a,1),'Aviso copiado ✓'); return; }
   document.getElementById('modal-body').innerHTML=`
     <div class="modal-header"><span class="modal-title">Copiar aviso</span><button class="btn btn-secondary btn-sm" data-action="close-modal">✕</button></div>
-    <p style="font-size:13px;color:var(--text2);margin-bottom:10px">Quedan <strong>${total}</strong> cambios pendientes de ${a.nota||'este cliente'}. ¿Cuántos vas a copiar y enviar ahora?</p>
-    <div class="form-row"><label>Cantidad a copiar</label><input id="cp-cantidad" type="number" min="1" max="${total}" value="1"></div>
-    <button class="btn btn-primary btn-full" style="margin-top:8px" data-action="confirmar-copia-aviso" data-param="${a.id}">📋 Copiar y descontar</button>`;
+    <p style="font-size:13px;color:var(--text2);margin-bottom:10px">Quedan <strong>${restantes}</strong> cambios pendientes de ${a.nota||'este cliente'}. ¿Cuántos vas a copiar y enviar ahora?</p>
+    <div class="form-row"><label>Cantidad a copiar</label><input id="cp-cantidad" type="number" min="1" max="${restantes}" value="1"></div>
+    <button class="btn btn-primary btn-full" style="margin-top:8px" data-action="confirmar-copia-aviso" data-param="${a.id}">📋 Copiar y marcar hechos</button>`;
   document.getElementById('modal-overlay').classList.add('open');
 }
 function confirmarCopiaAviso(id){
   const a=avisos.find(x=>x.id===id); if(!a) return;
   const total=a.cantidad||1;
+  if(!Array.isArray(a.completados)) a.completados=[];
+  const restantes=total-a.completados.length;
   let n=parseInt((document.getElementById('cp-cantidad')||{}).value,10)||1;
-  n=Math.min(Math.max(n,1),total);
-  copyToClipboard(buildAvisoCopyText(a,n),`${n} de ${total} copiado(s) ✓`);
-  a.cantidad=total-n;
-  if(a.cantidad<=0){ a.cantidad=0; a.done=true; a.completadoEn=new Date().toISOString(); }
+  n=Math.min(Math.max(n,1),restantes);
+  copyToClipboard(buildAvisoCopyText(a,n),`${n} de ${restantes} copiado(s) ✓`);
+  const ahora=new Date().toISOString();
+  for(let i=0;i<n;i++) a.completados.push(ahora);
   saveAvisos();closeModal();renderAgenda();renderCalendar();
 }
 function calChangeMonth(delta){
@@ -1172,10 +1219,10 @@ function crearAviso(){
       editando.direccion=perm.direccion||''; editando.telefono=perm.telefono||'';
     } else {
       perm.fechaFin=nuevaFin;
-      avisos.push({id:Date.now().toString(),tipo:'renovacion',fecha:todayISO(),fechaFin:nuevaFin,nota:'Renovación de: '+(perm.nota||'Permiso'),direccion:perm.direccion||'',telefono:perm.telefono||'',permisoId:perm.id,creada:new Date().toISOString()});
+      avisos.push({id:Date.now().toString(),tipo:'renovacion',fecha:todayISO(),fechaFin:nuevaFin,cantidad:1,completados:[],nota:'Renovación de: '+(perm.nota||'Permiso'),direccion:perm.direccion||'',telefono:perm.telefono||'',permisoId:perm.id,creada:new Date().toISOString()});
       const retiradaLigada=avisos.find(a=>a.tipo==='retirada'&&a.autoFrom===perm.id);
       if(retiradaLigada) retiradaLigada.fecha=nuevaFin;
-      else avisos.push({id:Date.now().toString()+'r',tipo:'retirada',fecha:nuevaFin,nota:'Retirada — fin de permiso: '+(perm.nota||''),direccion:perm.direccion||'',telefono:perm.telefono||'',pago:'',infoAdicional:'',autoFrom:perm.id,creada:new Date().toISOString()});
+      else avisos.push({id:Date.now().toString()+'r',tipo:'retirada',fecha:nuevaFin,cantidad:1,completados:[],nota:'Retirada — fin de permiso: '+(perm.nota||''),direccion:perm.direccion||'',telefono:perm.telefono||'',pago:'',infoAdicional:'',autoFrom:perm.id,creada:new Date().toISOString()});
     }
     saveAvisos();closeModal();renderCalendar();renderAgenda();toastMsg('Permiso renovado ✓');
     return;
@@ -1193,12 +1240,12 @@ function crearAviso(){
   const datos={tipo,fecha,fechaFin:tipo==='permiso'?fechaFin:'',hora,cantidad,nota:nota.trim(),direccion:direccion.trim(),telefono:telefono.trim(),pago:pago.trim(),infoAdicional:infoAdicional.trim()};
   const targetId=editando?editando.id:Date.now().toString();
   if(editando) Object.assign(editando,datos);
-  else avisos.push({id:targetId,...datos,creada:new Date().toISOString()});
+  else avisos.push({id:targetId,...datos,completados:[],creada:new Date().toISOString()});
   // Sincroniza (o crea/quita) la retirada automática ligada al permiso
   const retiradaLigada=avisos.find(x=>x.tipo==='retirada'&&x.autoFrom===targetId);
   if(tipo==='permiso'&&fechaFin){
     if(retiradaLigada) Object.assign(retiradaLigada,{fecha:fechaFin,nota:'Retirada — fin de permiso: '+nota.trim(),direccion:direccion.trim(),telefono:telefono.trim()});
-    else avisos.push({id:targetId+'r',tipo:'retirada',fecha:fechaFin,nota:'Retirada — fin de permiso: '+nota.trim(),direccion:direccion.trim(),telefono:telefono.trim(),pago:'',infoAdicional:'',autoFrom:targetId,creada:new Date().toISOString()});
+    else avisos.push({id:targetId+'r',tipo:'retirada',fecha:fechaFin,cantidad:1,completados:[],nota:'Retirada — fin de permiso: '+nota.trim(),direccion:direccion.trim(),telefono:telefono.trim(),pago:'',infoAdicional:'',autoFrom:targetId,creada:new Date().toISOString()});
   } else if(retiradaLigada){
     avisos=avisos.filter(x=>x.id!==retiradaLigada.id);
   }
@@ -2767,7 +2814,7 @@ document.addEventListener('input',e=>{
 });
 document.addEventListener('click',e=>{
   const btn=e.target.closest('[data-action]'); if(!btn) return;
-  const {action,param}=btn.dataset;
+  const {action,param,idx}=btn.dataset;
   if(action==='login') handleLogin();
   else if(action==='tab') renderTab(param);
   else if(action==='open-cont') openContainerModal(param);
@@ -2847,7 +2894,17 @@ document.addEventListener('click',e=>{
   else if(action==='editar-aviso') nuevoAvisoModal(param);
   else if(action==='crear-aviso') crearAviso();
   else if(action==='del-aviso'){if(confirm('¿Eliminar aviso?')) delAviso(param);}
-  else if(action==='toggle-aviso-done'){const a=avisos.find(x=>x.id===param);if(a){a.done=!a.done;a.completadoEn=a.done?new Date().toISOString():'';saveAvisos();renderAgenda();renderCalendar();}}
+  else if(action==='completar-unidad'){
+    const a=avisos.find(x=>x.id===param);
+    if(a){
+      if(!Array.isArray(a.completados)) a.completados=[];
+      if(a.completados.length<(a.cantidad||1)){ a.completados.push(new Date().toISOString()); saveAvisos(); renderAgenda(); renderCalendar(); }
+    }
+  }
+  else if(action==='deshacer-unidad-idx'){
+    const a=avisos.find(x=>x.id===param);
+    if(a&&Array.isArray(a.completados)){ a.completados.splice(+idx,1); saveAvisos(); renderAgenda(); renderCalendar(); }
+  }
   else if(action==='copy-aviso') iniciarCopiaAviso(param);
   else if(action==='confirmar-copia-aviso') confirmarCopiaAviso(param);
   else if(action==='guardar-certificado') guardarCertificado();
