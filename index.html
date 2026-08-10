@@ -474,9 +474,13 @@ label{
 .cal-legend{display:flex;flex-wrap:wrap;gap:6px;margin-top:14px}
 .cal-legend span{display:flex;align-items:center;gap:5px;font-size:10.5px;font-weight:700;color:var(--text2);background:var(--surface2);padding:4px 9px 4px 7px;border-radius:20px}
 .cal-legend i{width:8px;height:8px;border-radius:50%;display:inline-block}
-.agenda-item{display:flex;gap:10px;align-items:flex-start;padding:11px 8px 11px 12px;border-bottom:1px solid var(--border2);border-left:4px solid transparent;border-radius:6px;margin-bottom:2px;background:var(--surface2)}
+.agenda-item{display:flex;gap:10px;align-items:flex-start;padding:11px 8px 11px 12px;border-bottom:1px solid var(--border2);border-left:4px solid transparent;border-radius:6px;margin-bottom:2px;background:var(--surface2);transition:background .15s}
 .agenda-item:last-child{margin-bottom:0}
+.agenda-item.done{background:#dcfce7}
+.agenda-item.done .agenda-nota{opacity:.55;text-decoration:line-through}
+.agenda-item .tarea-check{margin-top:2px}
 .agenda-tipo-pill{display:inline-block;padding:2px 9px;border-radius:20px;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px}
+.agenda-cantidad{font-size:11px;font-weight:800;color:#fff;background:var(--accent-blue);border-radius:20px;padding:1px 7px;margin-left:5px}
 .agenda-hora{font-size:11px;font-weight:700;color:var(--text2);margin-left:6px}
 .agenda-nota{font-size:13.5px;color:var(--text);font-weight:600;margin-top:1px}
 .agenda-meta{font-size:11.5px;color:var(--muted);margin-top:3px}
@@ -1002,9 +1006,11 @@ function renderAgenda(){
   list.innerHTML=dayAvisos.length?dayAvisos.map(a=>{
     const cfg=AVISO_CFG[a.tipo]||{label:a.tipo,color:'#999'};
     const rango=a.fechaFin&&a.fechaFin!==a.fecha?`${fmtDate(a.fecha)} → ${fmtDate(a.fechaFin)}`:fmtDate(a.fecha);
-    return `<div class="agenda-item" style="border-left-color:${cfg.color}">
+    return `<div class="agenda-item${a.done?' done':''}" style="border-left-color:${cfg.color}">
+      <div class="tarea-check${a.done?' done':''}" data-action="toggle-aviso-done" data-param="${a.id}" title="Marcar completado">${a.done?'✓':''}</div>
       <div style="flex:1">
         <span class="agenda-tipo-pill" style="background:${cfg.color}22;color:${cfg.color}">${cfg.label}</span>
+        ${a.cantidad>1?`<span class="agenda-cantidad">+${a.cantidad-1}</span>`:''}
         ${a.hora?`<span class="agenda-hora">🕐 ${a.hora}</span>`:''}
         <div class="agenda-nota">${a.nota||''}</div>
         <div class="agenda-meta">${rango}${a.telefono?' · 📞 '+a.telefono:''}${a.pago?' · 💰 '+a.pago:''}</div>
@@ -1024,7 +1030,9 @@ function mapsLinkFor(direccion){
 }
 function buildAvisoCopyText(a){
   const cfg=AVISO_CFG[a.tipo]||{label:a.tipo};
-  const parts=[a.hora?`${cfg.label} - ${a.hora}h`:cfg.label];
+  let primera=a.cantidad>1?`${cfg.label} +${a.cantidad-1}`:cfg.label;
+  if(a.hora) primera+=` - ${a.hora}h`;
+  const parts=[primera];
   if(a.nota) parts.push(a.nota);
   if(a.direccion) parts.push(a.direccion+'\n'+mapsLinkFor(a.direccion));
   if(a.telefono) parts.push(a.telefono);
@@ -1097,6 +1105,7 @@ function renderAvisoFields(editing){
       <div><label>Teléfono</label><input id="av-telefono" type="tel" placeholder="Teléfono de contacto…" value="${f_esc(a?a.telefono:'')}"></div>
       <div><label>Pago</label><input id="av-pago" placeholder="Ej: Pendiente, Pagado, 50€…" value="${f_esc(a?a.pago:'')}"></div>
     </div>
+    <div class="form-row"><label>Cantidad (si el mismo cliente pide varios en este sitio)</label><input id="av-cantidad" type="number" min="1" step="1" placeholder="1" value="${a&&a.cantidad>1?a.cantidad:''}"></div>
     ${tipo==='permiso'
       ?`<div class="form-row cols2"><div><label>Fecha inicio</label><input id="av-fecha" type="date" value="${a?a.fecha:calSelDay}"></div><div><label>Fecha final</label><input id="av-fechafin" type="date" value="${a?a.fechaFin||calSelDay:calSelDay}"></div></div>
         <div class="form-row"><label>Hora (opcional)</label><input id="av-hora" type="time" value="${a?a.hora||'':''}"></div>`
@@ -1141,8 +1150,9 @@ function crearAviso(){
   const fecha=(document.getElementById('av-fecha')||{}).value||calSelDay;
   const fechaFin=(document.getElementById('av-fechafin')||{}).value||'';
   const hora=(document.getElementById('av-hora')||{}).value||'';
+  const cantidad=Math.max(1,parseInt((document.getElementById('av-cantidad')||{}).value,10)||1);
   if(tipo==='permiso'&&!nota){toastMsg('Indica el cliente del permiso');return;}
-  const datos={tipo,fecha,fechaFin:tipo==='permiso'?fechaFin:'',hora,nota:nota.trim(),direccion:direccion.trim(),telefono:telefono.trim(),pago:pago.trim(),infoAdicional:infoAdicional.trim()};
+  const datos={tipo,fecha,fechaFin:tipo==='permiso'?fechaFin:'',hora,cantidad,nota:nota.trim(),direccion:direccion.trim(),telefono:telefono.trim(),pago:pago.trim(),infoAdicional:infoAdicional.trim()};
   const targetId=editando?editando.id:Date.now().toString();
   if(editando) Object.assign(editando,datos);
   else avisos.push({id:targetId,...datos,creada:new Date().toISOString()});
@@ -2799,6 +2809,7 @@ document.addEventListener('click',e=>{
   else if(action==='editar-aviso') nuevoAvisoModal(param);
   else if(action==='crear-aviso') crearAviso();
   else if(action==='del-aviso'){if(confirm('¿Eliminar aviso?')) delAviso(param);}
+  else if(action==='toggle-aviso-done'){const a=avisos.find(x=>x.id===param);if(a){a.done=!a.done;saveAvisos();renderAgenda();renderCalendar();}}
   else if(action==='copy-aviso'){const a=avisos.find(x=>x.id===param);if(a) copyToClipboard(buildAvisoCopyText(a),'Aviso copiado ✓');}
   else if(action==='guardar-certificado') guardarCertificado();
   else if(action==='nuevo-certificado') nuevoCertificado();
