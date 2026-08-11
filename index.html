@@ -777,7 +777,8 @@ const firebaseConfig={
   messagingSenderId:"990238414790",
   appId:"1:990238414790:web:165471490c6edba3a504c7"
 };
-let fbDb=null, fbReady=false, avisosUnsub=null, lastSyncStatus='off';
+let fbDb=null, fbReady=false, avisosUnsub=null, lastSyncStatus='off', datosLocalesCargados=false;
+function intentarMigrarYSuscribir(){ if(fbReady&&datosLocalesCargados) migrarYSuscribirTodo(); }
 function setSyncStatus(estado){
   // estado: 'off' | 'conectando' | 'on' | 'error'
   lastSyncStatus=estado;
@@ -802,6 +803,7 @@ function initFirebase(){
       fbReady=true;
       setSyncStatus('on');
       migrarAvisosLocalesAFirestore().then(suscribirAvisosFirestore);
+      intentarMigrarYSuscribir();
     }).catch(e=>{
       console.error('Firebase auth:',e);
       setSyncStatus('error');
@@ -849,6 +851,114 @@ function syncAviso(a){
 function syncBorrarAviso(id){
   if(!fbDb||!fbReady) return;
   fbDb.collection('avisos').doc(id).delete().catch(e=>console.error('Error borrando aviso en la nube:',e));
+}
+
+// ─── Sincronización genérica de colecciones (contenedores, albaranes, tareas, finanzas, facturas, certificados) ──
+// Crea las funciones sync*/borrar*/suscribir*/migrar* para una colección array-de-objetos con un campo id único.
+function crearSyncColeccion(nombre,idField){
+  const claveMigracion='garvi_'+nombre+'_migrados_v1';
+  let unsub=null;
+  function suscribir(arraySetter,migradorFn,onUpdate){
+    if(!fbDb) return;
+    if(unsub) unsub();
+    unsub=fbDb.collection(nombre).onSnapshot(snap=>{
+      const nuevos=[];
+      snap.forEach(doc=>nuevos.push(doc.data()));
+      if(migradorFn) nuevos.forEach(migradorFn);
+      arraySetter(nuevos);
+      onUpdate&&onUpdate();
+    },err=>{ console.error(nombre+' onSnapshot:',err); setSyncStatus('error'); });
+  }
+  function guardar(item){
+    if(!fbDb||!fbReady||!item||item[idField]===undefined) return;
+    fbDb.collection(nombre).doc(String(item[idField])).set(item).catch(e=>console.error('Error guardando en '+nombre+':',e));
+  }
+  function borrar(id){
+    if(!fbDb||!fbReady) return;
+    fbDb.collection(nombre).doc(String(id)).delete().catch(e=>console.error('Error borrando en '+nombre+':',e));
+  }
+  function migrarLocales(arrayActual,migradorFn){
+    if(!fbDb||!fbReady) return Promise.resolve();
+    if(localStorage.getItem(claveMigracion)) return Promise.resolve();
+    const locales=arrayActual||[];
+    if(!locales.length){ localStorage.setItem(claveMigracion,'1'); return Promise.resolve(); }
+    if(migradorFn) locales.forEach(migradorFn);
+    const escrituras=locales.filter(it=>it&&it[idField]!==undefined).map(it=>fbDb.collection(nombre).doc(String(it[idField])).set(it).catch(e=>console.error('Error subiendo a '+nombre+':',e)));
+    return Promise.all(escrituras).then(()=>{ localStorage.setItem(claveMigracion,'1'); return locales.length; });
+  }
+  return {suscribir,guardar,borrar,migrarLocales};
+}
+const syncContenedores=crearSyncColeccion('contenedores','num');
+// Las fotos (base64) no se sincronizan: pueden superar el límite de 1MB por documento de Firestore.
+// Se quedan solo en el dispositivo donde se tomaron.
+function guardarContenedorNube(c){ const {fotos,...resto}=c; syncContenedores.guardar(resto); }
+const syncAlbaranesCol=crearSyncColeccion('albaranes','id');
+const syncTareasCol=crearSyncColeccion('tareas','id');
+const syncFinanzasCol=crearSyncColeccion('finanzas','id');
+const syncFacturasCol=crearSyncColeccion('facturas','id');
+const syncCertificadosCol=crearSyncColeccion('certificados','id');
+// Documentos únicos compartidos: contadores de numeración (cfg) y datos extra de clientes (dirección fiscal/CIF)
+function syncCfg(){ if(fbDb&&fbReady) fbDb.collection('config').doc('cfg').set(cfg).catch(e=>console.error('Error guardando cfg en la nube:',e)); }
+function syncClienteExtra(){
+  if(!fbDb||!fbReady) return;
+  let m={}; try{ m=JSON.parse(localStorage.getItem('garvi_clientes_extra')||'{}'); }catch(e){}
+  fbDb.collection('config').doc('clientes_extra').set(m).catch(e=>console.error('Error guardando clientes_extra en la nube:',e));
+}
+function migrarCfg(){
+  if(!fbDb||!fbReady) return Promise.resolve();
+  const clave='garvi_cfg_migrado_v1';
+  if(localStorage.getItem(clave)) return Promise.resolve();
+  return fbDb.collection('config').doc('cfg').get().then(doc=>{
+    if(!doc.exists) return fbDb.collection('config').doc('cfg').set(cfg||{});
+  }).then(()=>localStorage.setItem(clave,'1')).catch(e=>console.error('Error migrando cfg:',e));
+}
+function migrarClientesExtra(){
+  if(!fbDb||!fbReady) return Promise.resolve();
+  const clave='garvi_clientes_extra_migrado_v1';
+  if(localStorage.getItem(clave)) return Promise.resolve();
+  let local={}; try{ local=JSON.parse(localStorage.getItem('garvi_clientes_extra')||'{}'); }catch(e){}
+  return fbDb.collection('config').doc('clientes_extra').get().then(doc=>{
+    const nube=doc.exists?doc.data():{};
+    return fbDb.collection('config').doc('clientes_extra').set({...nube,...local});
+  }).then(()=>localStorage.setItem(clave,'1')).catch(e=>console.error('Error migrando clientes_extra:',e));
+}
+function suscribirCfgYClientesExtra(){
+  if(!fbDb) return;
+  fbDb.collection('config').doc('cfg').onSnapshot(doc=>{
+    if(doc.exists){ cfg=doc.data(); saveCfg(); }
+  },err=>console.error('cfg onSnapshot:',err));
+  fbDb.collection('config').doc('clientes_extra').onSnapshot(doc=>{
+    if(doc.exists){
+      localStorage.setItem('garvi_clientes_extra',JSON.stringify(doc.data()));
+      syncClientes();
+      if(currentTab==='clientes') renderClientes();
+    }
+  },err=>console.error('clientes_extra onSnapshot:',err));
+}
+function migrarYSuscribirTodo(){
+  const total=[];
+  return Promise.all([
+    syncContenedores.migrarLocales(containers.map(c=>{const {fotos,...r}=c; return r;})).then(n=>n&&total.push(n+' contenedor(es)')),
+    syncAlbaranesCol.migrarLocales(albaranes).then(n=>n&&total.push(n+' albarán(es)')),
+    syncTareasCol.migrarLocales(tareas).then(n=>n&&total.push(n+' tarea(s)')),
+    syncFinanzasCol.migrarLocales(finanzas).then(n=>n&&total.push(n+' movimiento(s) de finanzas')),
+    syncFacturasCol.migrarLocales(facturas).then(n=>n&&total.push(n+' factura(s)/proforma(s)')),
+    syncCertificadosCol.migrarLocales(certificados).then(n=>n&&total.push(n+' certificado(s)')),
+    migrarCfg(),
+    migrarClientesExtra(),
+  ]).then(()=>{
+    if(total.length) toastMsg('Subido a la nube: '+total.join(', ')+' ✓',4000);
+    suscribirCfgYClientesExtra();
+    syncContenedores.suscribir(v=>{
+      const fotosByNum={}; containers.forEach(c=>{ if(c.fotos&&c.fotos.length) fotosByNum[c.num]=c.fotos; });
+      containers=v.map(c=>({...c,fotos:fotosByNum[c.num]||c.fotos||[]}));
+    },null,()=>{ saveContainers(); syncClientes(); if(currentTab==='contenedores'){renderContenedores();} });
+    syncAlbaranesCol.suscribir(v=>{albaranes=v;},null,()=>{ saveAlbaranes(); if(currentTab==='albaranes'){renderAlbaranes();} });
+    syncTareasCol.suscribir(v=>{tareas=v;},null,()=>{ saveTareas(); if(currentTab==='tareas'){renderTareas();} });
+    syncFinanzasCol.suscribir(v=>{finanzas=v;},null,()=>{ saveFinanzas(); if(currentTab==='finanzas'){renderFinanzas();} });
+    syncFacturasCol.suscribir(v=>{facturas=v;},null,()=>{ saveFacturas(); if(currentTab==='facturas'){renderFacturas();} });
+    syncCertificadosCol.suscribir(v=>{certificados=v;},null,()=>{ saveCertificados(); if(currentTab==='certificados'){renderCertificados();} });
+  });
 }
 
 // ─── PRESUPUESTOS DATA ────────────────────────────────────────────
@@ -900,6 +1010,8 @@ function loadData(){
   avisos=JSON.parse(localStorage.getItem('garvi_avisos')||'[]');
   avisos.forEach(migrarAviso);
   syncClientes();
+  datosLocalesCargados=true;
+  intentarMigrarYSuscribir();
 }
 // Convierte el antiguo campo done/completadoEn (un solo tick) al nuevo array "completados" (una marca de tiempo por unidad hecha)
 function migrarAviso(a){
@@ -919,7 +1031,7 @@ function saveCertificados(){localStorage.setItem('garvi_certificados',JSON.strin
 function saveAvisos(){localStorage.setItem('garvi_avisos',JSON.stringify(avisos));}
 
 function getClienteExtra(nombre){const m=JSON.parse(localStorage.getItem('garvi_clientes_extra')||'{}');return m[nombre]||{};}
-function saveClienteExtra(nombre,data){const m=JSON.parse(localStorage.getItem('garvi_clientes_extra')||'{}');m[nombre]={...(m[nombre]||{}),...data};localStorage.setItem('garvi_clientes_extra',JSON.stringify(m));}
+function saveClienteExtra(nombre,data){const m=JSON.parse(localStorage.getItem('garvi_clientes_extra')||'{}');m[nombre]={...(m[nombre]||{}),...data};localStorage.setItem('garvi_clientes_extra',JSON.stringify(m));syncClienteExtra();}
 function syncClientes(){
   const mapa={};
   containers.forEach(c=>{
@@ -1734,7 +1846,7 @@ function saveContainerModal(num){
   c.fecha=document.getElementById('m-fecha').value;
   c.estadoExcel=document.getElementById('m-estado').value;
   c.notas=document.getElementById('m-notas').value.trim();
-  saveContainers();syncClientes();closeModal();renderContenedores();toastMsg('Guardado ✓');updateBadge();
+  saveContainers();guardarContenedorNube(c);syncClientes();closeModal();renderContenedores();toastMsg('Guardado ✓');updateBadge();
 }
 
 function nuevoContModal(){
@@ -1760,8 +1872,9 @@ function crearContenedor(){
   const num=document.getElementById('nc-num').value.trim();
   if(!num){toastMsg('Introduce un número');return;}
   if(getContainer(num)){toastMsg('Ya existe ese número');return;}
-  containers.push({num,cliente:document.getElementById('nc-cliente').value.trim(),direccion:document.getElementById('nc-dir').value.trim(),telefono:document.getElementById('nc-tel').value.trim(),tipo:document.getElementById('nc-tipo').value,fecha:document.getElementById('nc-fecha').value,estadoExcel:document.getElementById('nc-estado').value,notas:'',fotos:[]});
-  saveContainers();syncClientes();closeModal();renderContenedores();toastMsg('Contenedor creado ✓');updateBadge();
+  const nuevoCont={num,cliente:document.getElementById('nc-cliente').value.trim(),direccion:document.getElementById('nc-dir').value.trim(),telefono:document.getElementById('nc-tel').value.trim(),tipo:document.getElementById('nc-tipo').value,fecha:document.getElementById('nc-fecha').value,estadoExcel:document.getElementById('nc-estado').value,notas:'',fotos:[]};
+  containers.push(nuevoCont);
+  saveContainers();guardarContenedorNube(nuevoCont);syncClientes();closeModal();renderContenedores();toastMsg('Contenedor creado ✓');updateBadge();
 }
 
 // ─── PDF LOGO HELPER ──────────────────────────────────────────────
@@ -1844,7 +1957,7 @@ function nuevoAlbaranModal(contNum){
 }
 function crearAlbaran(contNum){
   const alb={id:Date.now().toString(),num:document.getElementById('alb-num').value.trim(),fecha:document.getElementById('alb-fecha').value,hora:document.getElementById('alb-hora').value,precio:document.getElementById('alb-precio').value,cliente:document.getElementById('alb-cliente').value.trim(),contenedor:document.getElementById('alb-cont').value.trim(),telefono:document.getElementById('alb-tel').value.trim(),lugar:document.getElementById('alb-lugar').value.trim(),poblacion:document.getElementById('alb-poblacion').value.trim(),conductor:document.getElementById('alb-conductor').value.trim(),destinatario:document.getElementById('alb-destinatario').value.trim(),tipo:document.getElementById('alb-tipo').value,servicio:document.getElementById('alb-servicio').value,descripcion:document.getElementById('alb-desc').value.trim()};
-  albaranes.push(alb);saveAlbaranes();closeModal();renderAlbaranes();toastMsg('Albarán creado ✓');
+  albaranes.push(alb);saveAlbaranes();syncAlbaranesCol.guardar(alb);closeModal();renderAlbaranes();toastMsg('Albarán creado ✓');
 }
 function pdfAlbaranes(){
   const list=[...albaranes].reverse().filter(a=>!albFilterQ||(a.cliente||'').toLowerCase().includes(albFilterQ.toLowerCase())||(a.num||'').includes(albFilterQ));
@@ -2191,12 +2304,13 @@ function guardarFactura(){
   };
   if(editFactId){
     const f=facturas.find(x=>x.id===editFactId);
-    if(f) Object.assign(f,datos);
+    if(f){ Object.assign(f,datos); syncFacturasCol.guardar(f); }
   } else {
     if(isProf) cfg.ultimaProf=(cfg.ultimaProf||0)+1;
     else cfg.ultimaFact=(cfg.ultimaFact||0)+1;
-    saveCfg();
-    facturas.push({id:Date.now().toString(),...datos});
+    saveCfg(); syncCfg();
+    const nuevaFact={id:Date.now().toString(),...datos};
+    facturas.push(nuevaFact); syncFacturasCol.guardar(nuevaFact);
   }
   saveFacturas();clearFacturaDraft();closeModal();renderFacturas();toastMsg('Factura guardada ✓');
 }
@@ -2405,8 +2519,9 @@ function crearFin(){
   const conc=(document.getElementById('fin-conc').value||'').trim();
   const imp=parseFloat(document.getElementById('fin-imp').value)||0;
   if(!conc||imp<=0){toastMsg('Rellena todos los campos');return;}
-  finanzas.push({id:Date.now().toString(),tipo:document.getElementById('fin-tipo').value,concepto:conc,importe:imp,fecha:document.getElementById('fin-fecha').value,categoria:document.getElementById('fin-cat').value});
-  saveFinanzas();closeModal();renderFinanzas();toastMsg('Guardado ✓');
+  const nuevoFin={id:Date.now().toString(),tipo:document.getElementById('fin-tipo').value,concepto:conc,importe:imp,fecha:document.getElementById('fin-fecha').value,categoria:document.getElementById('fin-cat').value};
+  finanzas.push(nuevoFin);
+  saveFinanzas();syncFinanzasCol.guardar(nuevoFin);closeModal();renderFinanzas();toastMsg('Guardado ✓');
 }
 function pdfFinanzas(){
   const q=finQ.toLowerCase();
@@ -2516,8 +2631,9 @@ function nuevaTareaModal(){
 function crearTarea(){
   const titulo=(document.getElementById('t-titulo').value||'').trim();
   if(!titulo){toastMsg('Escribe el título');return;}
-  tareas.push({id:Date.now().toString(),titulo,prioridad:document.getElementById('t-prio').value,fecha:document.getElementById('t-fecha').value,contenedor:document.getElementById('t-cont').value.trim(),done:false,creada:new Date().toISOString()});
-  saveTareas();closeModal();renderTareas();toastMsg('Tarea creada ✓');
+  const nuevaTarea={id:Date.now().toString(),titulo,prioridad:document.getElementById('t-prio').value,fecha:document.getElementById('t-fecha').value,contenedor:document.getElementById('t-cont').value.trim(),done:false,creada:new Date().toISOString()};
+  tareas.push(nuevaTarea);
+  saveTareas();syncTareasCol.guardar(nuevaTarea);closeModal();renderTareas();toastMsg('Tarea creada ✓');
 }
 function pdfTareas(){
   const tq=tareasQ.toLowerCase();
@@ -2825,15 +2941,18 @@ function renderCertificados(){
 }
 function f_esc(v){return (v||'').toString().replace(/"/g,'&quot;');}
 function guardarOActualizarCertificado(){
+  let obj;
   if(editCertId){
     const c=certificados.find(x=>x.id===editCertId);
-    if(c) Object.assign(c,certForm);
-    else{certificados.push({id:editCertId,...certForm});}
+    if(c){ Object.assign(c,certForm); obj=c; }
+    else{ obj={id:editCertId,...certForm}; certificados.push(obj); }
   } else {
     editCertId=Date.now().toString();
-    certificados.push({id:editCertId,...certForm});
+    obj={id:editCertId,...certForm};
+    certificados.push(obj);
   }
   saveCertificados();
+  syncCertificadosCol.guardar(obj);
 }
 function guardarCertificado(){
   if(!certForm.productor.trim()){toastMsg('Indica el productor');return;}
@@ -2852,7 +2971,7 @@ function nuevoCertificado(){
   certForm={tipo:'escombros',periodo:'',productor:'',obra:'',toneladas:'',fecha:todayISO()};
   renderCertificados();
 }
-function delCertificado(id){certificados=certificados.filter(c=>c.id!==id);saveCertificados();if(editCertId===id) editCertId=null;renderCertificados();toastMsg('Eliminado');}
+function delCertificado(id){certificados=certificados.filter(c=>c.id!==id);saveCertificados();syncCertificadosCol.borrar(id);if(editCertId===id) editCertId=null;renderCertificados();toastMsg('Eliminado');}
 function pdfCertificado(idOrNull){
   const c=idOrNull?certificados.find(x=>x.id===idOrNull):certForm;
   if(!c||!c.productor||!c.productor.trim()){toastMsg('Indica al menos el productor');return;}
@@ -2935,7 +3054,7 @@ document.addEventListener('click',e=>{
   else if(action==='tab') renderTab(param);
   else if(action==='open-cont') openContainerModal(param);
   else if(action==='save-cont') saveContainerModal(param);
-  else if(action==='del-cont'){if(confirm('¿Eliminar contenedor '+param+'?')){containers=containers.filter(c=>c.num!==param);saveContainers();syncClientes();closeModal();renderContenedores();updateBadge();toastMsg('Eliminado');}}
+  else if(action==='del-cont'){if(confirm('¿Eliminar contenedor '+param+'?')){containers=containers.filter(c=>c.num!==param);saveContainers();syncContenedores.borrar(param);syncClientes();closeModal();renderContenedores();updateBadge();toastMsg('Eliminado');}}
   else if(action==='nuevo-cont') nuevoContModal();
   else if(action==='crear-cont') crearContenedor();
   else if(action==='foto-cont') fotoInput(param);
@@ -2947,7 +3066,7 @@ document.addEventListener('click',e=>{
   else if(action==='nuevo-albaran') nuevoAlbaranModal();
   else if(action==='nuevo-albaran-from') {closeModal();renderTab('albaranes');setTimeout(()=>nuevoAlbaranModal(param),50);}
   else if(action==='crear-albaran') crearAlbaran(param);
-  else if(action==='del-albaran'){albaranes=albaranes.filter(a=>a.id!==param);saveAlbaranes();renderAlbaranes();toastMsg('Eliminado');}
+  else if(action==='del-albaran'){albaranes=albaranes.filter(a=>a.id!==param);saveAlbaranes();syncAlbaranesCol.borrar(param);renderAlbaranes();toastMsg('Eliminado');}
   else if(action==='pdf-albaran') pdfAlbaran(param);
   else if(action==='pdf-albaranes') pdfAlbaranes();
   else if(action==='pdf-contenedores') pdfContenedores();
@@ -2958,7 +3077,7 @@ document.addEventListener('click',e=>{
   else if(action==='pdf-tareas') pdfTareas();
   else if(action==='nueva-factura') nuevaFacturaModal();
   else if(action==='ver-factura') nuevaFacturaModal(param);
-  else if(action==='del-factura'){if(confirm('¿Eliminar?')){facturas=facturas.filter(f=>f.id!==param);saveFacturas();renderFacturas();toastMsg('Eliminado');}}
+  else if(action==='del-factura'){if(confirm('¿Eliminar?')){facturas=facturas.filter(f=>f.id!==param);saveFacturas();syncFacturasCol.borrar(param);renderFacturas();toastMsg('Eliminado');}}
   else if(action==='pdf-factura') pdfFactura(param);
   else if(action==='pdf-facturas') pdfFacturas();
   else if(action==='concepto-grupo'){conceptoGrupo=param;document.querySelectorAll('.qbtn-tab').forEach(b=>b.classList.toggle('active',b.dataset.param===param));renderQBtns();}
@@ -2981,7 +3100,7 @@ document.addEventListener('click',e=>{
   else if(action==='nueva-factura-cl') {closeModal();}
   else if(action==='nuevo-fin') nuevoFinModal();
   else if(action==='crear-fin') crearFin();
-  else if(action==='del-fin'){finanzas=finanzas.filter(f=>f.id!==param);saveFinanzas();renderFinanzas();toastMsg('Eliminado');}
+  else if(action==='del-fin'){finanzas=finanzas.filter(f=>f.id!==param);saveFinanzas();syncFinanzasCol.borrar(param);renderFinanzas();toastMsg('Eliminado');}
   else if(action==='fin-tab'){finTab=param;renderFinanzas();}
   else if(action==='fin-modal-tab'){
     document.getElementById('fin-tipo').value=param;
@@ -2991,8 +3110,8 @@ document.addEventListener('click',e=>{
   else if(action==='ver-cliente') verClienteModal(param);
   else if(action==='nueva-tarea') nuevaTareaModal();
   else if(action==='crear-tarea') crearTarea();
-  else if(action==='del-tarea'){tareas=tareas.filter(t=>t.id!==param);saveTareas();renderTareas();toastMsg('Eliminado');}
-  else if(action==='toggle-tarea'){const t=tareas.find(x=>x.id===param);if(t){t.done=!t.done;saveTareas();renderTareas();}}
+  else if(action==='del-tarea'){tareas=tareas.filter(t=>t.id!==param);saveTareas();syncTareasCol.borrar(param);renderTareas();toastMsg('Eliminado');}
+  else if(action==='toggle-tarea'){const t=tareas.find(x=>x.id===param);if(t){t.done=!t.done;saveTareas();syncTareasCol.guardar(t);renderTareas();}}
   else if(action==='tareas-filter'){tareasFilter=param;renderTareas();}
   else if(action==='add-pres-item'){const i=+param;initPresPrices();presItems.push({name:CATALOG_PRES[i].name,price:presPrices[i]??CATALOG_PRES[i].price,iva:CATALOG_PRES[i].iva});renderPresupuestos();}
   else if(action==='del-pres-item'){presItems.splice(+param,1);renderPresupuestos();}
