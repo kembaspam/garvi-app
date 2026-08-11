@@ -801,7 +801,7 @@ function initFirebase(){
     firebase.auth().signInAnonymously().then(()=>{
       fbReady=true;
       setSyncStatus('on');
-      suscribirAvisosFirestore();
+      migrarAvisosLocalesAFirestore().then(suscribirAvisosFirestore);
     }).catch(e=>{
       console.error('Firebase auth:',e);
       setSyncStatus('error');
@@ -810,6 +810,21 @@ function initFirebase(){
     console.error('Firebase init:',e);
     setSyncStatus('error');
   }
+}
+// Sube (una sola vez por dispositivo) los avisos que ya hubiera guardados en local ANTES de empezar a sincronizar,
+// para fusionarlos con la nube en vez de que la suscripción los tape.
+function migrarAvisosLocalesAFirestore(){
+  if(!fbDb||!fbReady) return Promise.resolve();
+  if(localStorage.getItem('garvi_avisos_migrados_v1')) return Promise.resolve();
+  let locales=[];
+  try{ locales=JSON.parse(localStorage.getItem('garvi_avisos')||'[]'); }catch(e){}
+  if(!locales.length){ localStorage.setItem('garvi_avisos_migrados_v1','1'); return Promise.resolve(); }
+  locales.forEach(migrarAviso);
+  const escrituras=locales.map(a=>fbDb.collection('avisos').doc(a.id).set(a).catch(e=>console.error('Error subiendo aviso local:',e)));
+  return Promise.all(escrituras).then(()=>{
+    localStorage.setItem('garvi_avisos_migrados_v1','1');
+    toastMsg(`${locales.length} aviso(s) de este dispositivo subido(s) a la nube ✓`);
+  });
 }
 function suscribirAvisosFirestore(){
   if(!fbDb) return;
