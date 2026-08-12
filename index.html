@@ -1495,6 +1495,10 @@ const ESTADO_CFG=[
   {k:'rotos_granja',label:'Granja',bg:'#fef3c7',color:'#92400e'},
 ];
 let contView='todos'; // 'todos' | 'proximos' | 'retirar'
+function numKeyCont(num){
+  const m=String(num).match(/^(\d+)/);
+  return m?parseInt(m[1],10):Infinity;
+}
 function computeContFilt(){
   const q=searchQ.toLowerCase();
   let filt=containers.filter(c=>{
@@ -1505,6 +1509,7 @@ function computeContFilt(){
   if(contView==='retirar') filt=filt.filter(c=>c.cliente!=='NAVE GARVI'&&c.cliente!=='GRANJA TORRELLANO'&&daysSince(c.fecha)>=14);
   else if(contView==='proximos') filt=filt.filter(c=>c.cliente!=='NAVE GARVI'&&c.cliente!=='GRANJA TORRELLANO'&&daysSince(c.fecha)>=7&&daysSince(c.fecha)<14);
   if(contView==='retirar'||contView==='proximos') filt=filt.slice().sort((a,b)=>daysSince(a.fecha)-daysSince(b.fecha));
+  else filt=filt.slice().sort((a,b)=>numKeyCont(a.num)-numKeyCont(b.num)||String(a.num).localeCompare(String(b.num)));
   return filt;
 }
 function renderContenedores(){
@@ -1894,7 +1899,7 @@ function editarRapidoModal(){
     <div class="form-row">
       <label>Número de contenedor</label>
       <input id="er-num" list="dl-er-cont" placeholder="Escribe o elige el número…" autocomplete="off">
-      <datalist id="dl-er-cont">${containers.map(c=>`<option value="${c.num}">${c.cliente||''}</option>`).join('')}</datalist>
+      <datalist id="dl-er-cont">${containers.slice().sort((a,b)=>numKeyCont(a.num)-numKeyCont(b.num)||String(a.num).localeCompare(String(b.num))).map(c=>`<option value="${c.num}">${c.cliente||''}</option>`).join('')}</datalist>
     </div>
     <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
       <button class="btn btn-primary" style="flex:1" data-action="er-buscar">Continuar</button>
