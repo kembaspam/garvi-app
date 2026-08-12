@@ -444,6 +444,12 @@ label{
 .empty-state .icon{font-size:44px;margin-bottom:10px}
 .photo-thumb{width:64px;height:64px;object-fit:cover;border-radius:10px;border:2px solid var(--border)}
 .photos-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.hist-list{display:flex;flex-direction:column;gap:8px;max-height:60vh;overflow-y:auto}
+.hist-entry{display:flex;gap:10px;padding:8px 10px;border:1px solid var(--border);border-radius:10px;font-size:12.5px}
+.hist-entry.hist-actual{border-color:var(--accent);background:rgba(229,92,0,.06)}
+.hist-fecha{flex-shrink:0;width:74px;font-size:11px;font-weight:700;color:var(--muted)}
+.hist-entry.hist-actual .hist-fecha{color:var(--accent)}
+.hist-datos{flex:1;min-width:0;color:var(--text);line-height:1.5}
 .pill{display:inline-flex;align-items:center;gap:4px;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:600;background:var(--surface2);border:1px solid var(--border)}
 .toast{
   position:fixed;bottom:80px;left:50%;transform:translateX(-50%);
@@ -1052,6 +1058,20 @@ function syncClientes(){
 }
 
 function getContainer(num){return containers.find(c=>c.num===num);}
+// ─── HISTORIAL DE CAMBIOS DE UN CONTENEDOR ─────────────────────────
+const CAMPOS_HISTORIAL=['cliente','direccion','telefono','tipo','estadoExcel','aCuenta'];
+function snapshotContenedor(c){
+  const s={}; CAMPOS_HISTORIAL.forEach(f=>s[f]=c[f]||''); return s;
+}
+// Se llama ANTES de sobrescribir los campos de un contenedor con los nuevos valores.
+// Si algo cambió respecto al snapshot "antes", guarda una entrada en el historial con fecha/hora.
+function registrarHistorialContenedor(c,antes){
+  const cambio=CAMPOS_HISTORIAL.some(f=>(c[f]||'')!==antes[f]);
+  if(!cambio) return;
+  if(!Array.isArray(c.historial)) c.historial=[];
+  c.historial.unshift({fecha:new Date().toISOString(),...antes});
+  if(c.historial.length>20) c.historial.length=20;
+}
 function daysSince(fecha){
   if(!fecha) return 0;
   return Math.floor((Date.now()-new Date(fecha).getTime())/86400000);
@@ -1066,6 +1086,7 @@ function daysBadge(dias,fecha){
   return `<span class="days-badge ${cls}">${fmtFecha(fecha)}</span>`;
 }
 function fmtDate(iso){if(!iso) return '';const d=new Date(iso);return d.toLocaleDateString('es-ES',{day:'2-digit',month:'2-digit',year:'2-digit'});}
+function fmtDateHora(iso){if(!iso) return '';const d=new Date(iso);if(isNaN(d)) return '';return d.toLocaleDateString('es-ES',{day:'2-digit',month:'2-digit',year:'2-digit'})+' '+d.toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'});}
 // Fecha YYYY-MM-DD en hora LOCAL (toISOString() convierte a UTC y desplaza el día en husos horarios positivos como España)
 function localISO(y,m,d){
   const dt=new Date(y,m,d);
@@ -1843,6 +1864,7 @@ function openContainerModal(num){
       <button class="btn btn-primary" data-action="save-cont" data-param="${c.num}">Guardar</button>
       <button class="btn btn-secondary" data-action="foto-cont" data-param="${c.num}">📷 Foto</button>
       <button class="btn btn-secondary" data-action="nuevo-albaran-from" data-param="${c.num}">📋 Albarán</button>
+      <button class="btn btn-secondary" data-action="ver-historial-cont" data-param="${c.num}">🕘 Historial${c.historial&&c.historial.length?` (${c.historial.length})`:''}</button>
       ${c.telefono?`<a href="https://wa.me/34${c.telefono}" target="_blank" class="btn btn-secondary">💬 WA</a>`:''}
       <button class="btn btn-danger btn-sm" style="margin-left:auto" data-action="del-cont" data-param="${c.num}">🗑</button>
     </div>`;
@@ -1851,6 +1873,7 @@ function openContainerModal(num){
 function saveContainerModal(num){
   const c=getContainer(num);
   if(!c) return;
+  const antes=snapshotContenedor(c);
   c.cliente=document.getElementById('m-cliente').value.trim();
   c.direccion=document.getElementById('m-dir').value.trim();
   c.telefono=document.getElementById('m-tel').value.trim();
@@ -1858,9 +1881,42 @@ function saveContainerModal(num){
   c.fecha=document.getElementById('m-fecha').value;
   c.estadoExcel=document.getElementById('m-estado').value;
   c.aCuenta=document.getElementById('m-acuenta').value.trim();
+  registrarHistorialContenedor(c,antes);
   c.notas=document.getElementById('m-notas').value.trim();
   saveContainers();guardarContenedorNube(c);syncClientes();closeModal();renderContenedores();toastMsg('Guardado ✓');updateBadge();
 }
+function verHistorialContenedor(num){
+  const c=getContainer(num); if(!c) return;
+  const hist=c.historial||[];
+  const filaActual=`
+    <div class="hist-entry hist-actual">
+      <div class="hist-fecha">Actual</div>
+      <div class="hist-datos">
+        <div><strong>${c.cliente||'—'}</strong></div>
+        ${c.direccion?`<div>${c.direccion}</div>`:''}
+        ${c.telefono?`<div>📞 ${c.telefono}</div>`:''}
+        <div>${[c.tipo,estadoLabel(c.estadoExcel)].filter(Boolean).join(' · ')}</div>
+        ${c.aCuenta?`<div>💰 A cuenta: ${c.aCuenta}</div>`:''}
+      </div>
+    </div>`;
+  const filas=hist.map(h=>`
+    <div class="hist-entry">
+      <div class="hist-fecha">${fmtDateHora(h.fecha)}</div>
+      <div class="hist-datos">
+        <div><strong>${h.cliente||'—'}</strong></div>
+        ${h.direccion?`<div>${h.direccion}</div>`:''}
+        ${h.telefono?`<div>📞 ${h.telefono}</div>`:''}
+        <div>${[h.tipo,estadoLabel(h.estadoExcel)].filter(Boolean).join(' · ')}</div>
+        ${h.aCuenta?`<div>💰 A cuenta: ${h.aCuenta}</div>`:''}
+      </div>
+    </div>`).join('');
+  document.getElementById('modal-body').innerHTML=`
+    <div class="modal-header"><span class="modal-title">🕘 Historial · #${c.num}</span><button class="btn btn-secondary btn-sm" data-action="close-modal">✕</button></div>
+    <div class="hist-list">${filaActual}${filas||'<div class="empty-state" style="padding:16px 0"><div class="icon">🕘</div>Todavía no hay cambios registrados</div>'}</div>
+    <button class="btn btn-secondary btn-full" style="margin-top:12px" data-action="open-cont" data-param="${c.num}">← Volver</button>`;
+  document.getElementById('modal-overlay').classList.add('open');
+}
+function estadoLabel(k){const e=ESTADO_CFG.find(x=>x.k===k);return e?e.label:(k||'');}
 
 function nuevoContModal(){
   document.getElementById('modal-body').innerHTML=`
@@ -1952,6 +2008,7 @@ function editarRapidoForm(num,ocrInfo){
 }
 function erGuardar(num){
   const c=getContainer(num); if(!c) return;
+  const antes=snapshotContenedor(c);
   const cliente=document.getElementById('er-cliente').value.trim();
   if(cliente) c.cliente=cliente;
   c.direccion=document.getElementById('er-dir').value.trim();
@@ -1959,6 +2016,7 @@ function erGuardar(num){
   c.tipo=document.getElementById('er-tipo').value;
   c.aCuenta=document.getElementById('er-acuenta').value.trim();
   c.fecha=todayISO();
+  registrarHistorialContenedor(c,antes);
   saveContainers();guardarContenedorNube(c);syncClientes();closeModal();renderContenedores();toastMsg(`Contenedor #${c.num} actualizado ✓ (${fmtDate(c.fecha)})`);updateBadge();
 }
 // Carga perezosa de Tesseract.js (OCR) solo cuando se usa por primera vez
@@ -3259,6 +3317,7 @@ document.addEventListener('click',e=>{
   else if(action==='er-listo') erGuardar(param);
   else if(action==='er-foto-albaran') erFotoAlbaran(param);
   else if(action==='er-foto-albaran-buscar') erFotoAlbaranBuscar();
+  else if(action==='ver-historial-cont') verHistorialContenedor(param);
   else if(action==='del-foto') delFoto(param,+btn.dataset.idx);
   else if(action==='filter-estado'){filterEstado=param;applyContFilter();}
   else if(action==='cont-view'){contView=param;applyContFilter();}
