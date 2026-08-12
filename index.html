@@ -238,6 +238,7 @@ label{
 .cont-info{flex:1;min-width:0}
 .cont-cliente{font-weight:700;font-size:15px;color:#0f2044;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .cont-detail{font-size:12px;color:#6a84aa;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
+.cont-acuenta{font-size:11px;color:#b8860b;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
 .days-badge{font-size:12px;font-weight:600;padding:4px 10px;border-radius:20px;white-space:nowrap;flex-shrink:0}
 .days-ok{background:#dcfce7;color:#166534}
 .days-warn{background:#fef3c7;color:#92400e}
@@ -767,6 +768,7 @@ const LSKEY='garvi_v17';
 let currentUser='', currentTab='contenedores', filterEstado='todos', searchQ='';
 let containers=[], albaranes=[], tareas=[], finanzas=[], facturas=[], clientes=[], cfg={}, certificados=[], avisos=[];
 let calMonth=new Date().getMonth(), calYear=new Date().getFullYear(), calSelDay=todayISO();
+const TIPOS_RESIDUO=['MEZCLA','BASURA','LIMPIO','PODA','ÁRIDO','ESPECIAL','ESCOMBRO'];
 
 // ─── MODO ADMINISTRADOR (sincronización en la nube con Firebase) ──
 const firebaseConfig={
@@ -1541,6 +1543,7 @@ function renderContenedores(){
       <div class="search-row">
         <input class="search-input" id="cont-search" type="search" placeholder="Buscar nº, cliente, dirección…" value="${searchQ}">
         <button class="btn btn-secondary btn-sm" data-action="pdf-contenedores">📄 Crear PDF</button>
+        <button class="btn btn-secondary btn-sm" data-action="editar-rapido">✏️ Editar</button>
         <button class="btn btn-secondary btn-sm" data-action="nuevo-cont">+ Nuevo</button>
       </div>
     </div>
@@ -1574,6 +1577,7 @@ function updateContList(){
       <div class="cont-info">
         <div class="cont-cliente">${c.cliente}</div>
         ${det?`<div class="cont-detail">${det}</div>`:''}
+        ${c.aCuenta?`<div class="cont-acuenta">💰 A cuenta: ${c.aCuenta}</div>`:''}
       </div>
       ${daysBadge(dias,c.fecha)}
     </div>`;
@@ -1810,7 +1814,7 @@ function openContainerModal(num){
     <div class="form-row cols2">
       <div><label>Tipo residuo</label>
         <select id="m-tipo">
-          ${['MEZCLA','BASURA','LIMPIO','PODA','ÁRIDO','ESPECIAL','ESCOMBRO'].map(t=>`<option${c.tipo===t?' selected':''}>${t}</option>`).join('')}
+          ${TIPOS_RESIDUO.map(t=>`<option${c.tipo===t?' selected':''}>${t}</option>`).join('')}
         </select>
       </div>
       <div><label>Fecha última visita</label><input id="m-fecha" type="date" value="${c.fecha}">
@@ -1822,6 +1826,9 @@ function openContainerModal(num){
       <select id="m-estado">
         ${ESTADO_CFG.filter(e=>e.k!=='todos').map(e=>`<option value="${e.k}"${c.estadoExcel===e.k?' selected':''}>${e.label}</option>`).join('')}
       </select>
+    </div>
+    <div class="form-row">
+      <label>A cuenta (si tiene)</label><input id="m-acuenta" placeholder="ej: 50€ pendiente" value="${c.aCuenta||''}">
     </div>
     <div class="form-row">
       <label>Notas</label><textarea id="m-notas" rows="2">${c.notas||''}</textarea>
@@ -1845,6 +1852,7 @@ function saveContainerModal(num){
   c.tipo=document.getElementById('m-tipo').value;
   c.fecha=document.getElementById('m-fecha').value;
   c.estadoExcel=document.getElementById('m-estado').value;
+  c.aCuenta=document.getElementById('m-acuenta').value.trim();
   c.notas=document.getElementById('m-notas').value.trim();
   saveContainers();guardarContenedorNube(c);syncClientes();closeModal();renderContenedores();toastMsg('Guardado ✓');updateBadge();
 }
@@ -1862,7 +1870,7 @@ function nuevoContModal(){
       <div><label>Teléfono</label><input id="nc-tel" type="tel"></div>
     </div>
     <div class="form-row cols2">
-      <div><label>Tipo</label><select id="nc-tipo">${['MEZCLA','BASURA','LIMPIO','PODA','ÁRIDO','ESPECIAL','ESCOMBRO'].map(t=>`<option>${t}</option>`).join('')}</select></div>
+      <div><label>Tipo</label><select id="nc-tipo">${TIPOS_RESIDUO.map(t=>`<option>${t}</option>`).join('')}</select></div>
       <div><label>Fecha</label><input id="nc-fecha" type="date" value="${todayISO()}"></div>
     </div>
     <button class="btn btn-primary btn-full" style="margin-top:8px" data-action="crear-cont">Crear contenedor</button>`;
@@ -1872,9 +1880,192 @@ function crearContenedor(){
   const num=document.getElementById('nc-num').value.trim();
   if(!num){toastMsg('Introduce un número');return;}
   if(getContainer(num)){toastMsg('Ya existe ese número');return;}
-  const nuevoCont={num,cliente:document.getElementById('nc-cliente').value.trim(),direccion:document.getElementById('nc-dir').value.trim(),telefono:document.getElementById('nc-tel').value.trim(),tipo:document.getElementById('nc-tipo').value,fecha:document.getElementById('nc-fecha').value,estadoExcel:document.getElementById('nc-estado').value,notas:'',fotos:[]};
+  const nuevoCont={num,cliente:document.getElementById('nc-cliente').value.trim(),direccion:document.getElementById('nc-dir').value.trim(),telefono:document.getElementById('nc-tel').value.trim(),tipo:document.getElementById('nc-tipo').value,fecha:document.getElementById('nc-fecha').value,estadoExcel:document.getElementById('nc-estado').value,notas:'',aCuenta:'',fotos:[]};
   containers.push(nuevoCont);
   saveContainers();guardarContenedorNube(nuevoCont);syncClientes();closeModal();renderContenedores();toastMsg('Contenedor creado ✓');updateBadge();
+}
+
+// ─── EDICIÓN RÁPIDA DE CONTENEDOR (+ lectura de albarán por foto) ──
+let erOcrPendiente=null; // datos leídos por OCR aún sin aplicar a un nº de contenedor concreto
+function editarRapidoModal(){
+  erOcrPendiente=null;
+  document.getElementById('modal-body').innerHTML=`
+    <div class="modal-header"><span class="modal-title">✏️ Editar contenedor</span><button class="btn btn-secondary btn-sm" data-action="close-modal">✕</button></div>
+    <div class="form-row">
+      <label>Número de contenedor</label>
+      <input id="er-num" list="dl-er-cont" placeholder="Escribe o elige el número…" autocomplete="off">
+      <datalist id="dl-er-cont">${containers.map(c=>`<option value="${c.num}">${c.cliente||''}</option>`).join('')}</datalist>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
+      <button class="btn btn-primary" style="flex:1" data-action="er-buscar">Continuar</button>
+      <button class="btn btn-secondary" data-action="er-foto-albaran-buscar">📷 Leer albarán</button>
+    </div>
+    <div id="er-buscar-status" style="font-size:12px;color:var(--muted);margin-top:8px"></div>`;
+  document.getElementById('modal-overlay').classList.add('open');
+  const inp=document.getElementById('er-num');
+  inp.focus();
+  inp.addEventListener('keydown',e=>{ if(e.key==='Enter') erBuscar(); });
+}
+function erBuscar(){
+  const val=(document.getElementById('er-num')?.value||'').trim();
+  if(!val){toastMsg('Escribe un número de contenedor');return;}
+  let c=getContainer(val);
+  if(!c){
+    const cl=val.toLowerCase();
+    const candidatos=containers.filter(x=>(x.cliente||'').toLowerCase().includes(cl));
+    if(candidatos.length===1) c=candidatos[0];
+  }
+  if(!c){toastMsg('No se ha encontrado ese contenedor');return;}
+  editarRapidoForm(c.num,erOcrPendiente);
+  erOcrPendiente=null;
+}
+function editarRapidoForm(num,ocrInfo){
+  const c=getContainer(num); if(!c){toastMsg('Contenedor no encontrado');return;}
+  const o=ocrInfo||{};
+  const cliente=o.cliente||c.cliente||'';
+  const direccion=o.direccion||c.direccion||'';
+  const telefono=o.telefono||c.telefono||'';
+  const tipo=o.tipo||c.tipo||'MEZCLA';
+  const aCuenta=o.aCuenta||c.aCuenta||'';
+  document.getElementById('modal-body').innerHTML=`
+    <div class="modal-header"><span class="modal-title">✏️ Editar #${c.num}</span><button class="btn btn-secondary btn-sm" data-action="close-modal">✕</button></div>
+    ${ocrInfo?'<div style="font-size:12px;color:var(--accent);margin-bottom:6px">✓ Datos rellenados desde el albarán leído — revísalos antes de guardar</div>':''}
+    <div class="form-row"><label>Cliente</label><input id="er-cliente" value="${cliente}"></div>
+    <div class="form-row"><label>Calle / Ubicación</label><input id="er-dir" value="${direccion}"></div>
+    <div class="form-row cols2">
+      <div><label>Teléfono</label><input id="er-tel" type="tel" value="${telefono}"></div>
+      <div><label>Tipo residuo</label><select id="er-tipo">${TIPOS_RESIDUO.map(t=>`<option${tipo===t?' selected':''}>${t}</option>`).join('')}</select></div>
+    </div>
+    <div class="form-row"><label>A cuenta (si tiene)</label><input id="er-acuenta" placeholder="ej: 50€ pendiente" value="${aCuenta}"></div>
+    <div style="font-size:11px;color:var(--muted);margin-top:2px">Última visita: ${fmtDate(c.fecha)} · al pulsar Listo se actualizará a hoy</div>
+    <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+      <button class="btn btn-secondary" data-action="er-foto-albaran" data-param="${c.num}">📷 Leer albarán</button>
+      <button class="btn btn-primary" style="flex:1" data-action="er-listo" data-param="${c.num}">✅ Listo</button>
+    </div>
+    <div id="er-ocr-status" style="font-size:12px;color:var(--muted);margin-top:8px"></div>`;
+  document.getElementById('modal-overlay').classList.add('open');
+}
+function erGuardar(num){
+  const c=getContainer(num); if(!c) return;
+  const cliente=document.getElementById('er-cliente').value.trim();
+  if(cliente) c.cliente=cliente;
+  c.direccion=document.getElementById('er-dir').value.trim();
+  c.telefono=document.getElementById('er-tel').value.trim();
+  c.tipo=document.getElementById('er-tipo').value;
+  c.aCuenta=document.getElementById('er-acuenta').value.trim();
+  c.fecha=todayISO();
+  saveContainers();guardarContenedorNube(c);syncClientes();closeModal();renderContenedores();toastMsg(`Contenedor #${c.num} actualizado ✓ (${fmtDate(c.fecha)})`);updateBadge();
+}
+// Carga perezosa de Tesseract.js (OCR) solo cuando se usa por primera vez
+let tesseractLoadPromise=null;
+function loadTesseract(){
+  if(window.Tesseract) return Promise.resolve();
+  if(tesseractLoadPromise) return tesseractLoadPromise;
+  tesseractLoadPromise=new Promise((resolve,reject)=>{
+    const s=document.createElement('script');
+    s.src='https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/7.0.0/tesseract.min.js';
+    s.onload=()=>resolve();
+    s.onerror=()=>{tesseractLoadPromise=null;reject(new Error('No se pudo cargar el lector OCR'));};
+    document.head.appendChild(s);
+  });
+  return tesseractLoadPromise;
+}
+// Interpreta el texto reconocido de un albarán y extrae los campos que nos interesan.
+// Es una lectura "a mejor esfuerzo": el usuario siempre revisa/corrige los campos antes de guardar.
+function parseAlbaranOCR(texto){
+  const norm=s=>(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();
+  const lineas=(texto||'').split('\n').map(l=>l.trim()).filter(Boolean);
+  const info={};
+  const buscarCampo=(patrones)=>{
+    for(const l of lineas){
+      const nl=norm(l);
+      for(const p of patrones){
+        const idx=nl.indexOf(p);
+        if(idx!==-1){
+          const resto=l.slice(idx+p.length).replace(/^[\s:.\-–]+/,'').trim();
+          if(resto) return resto;
+        }
+      }
+    }
+    return '';
+  };
+  info.cliente=buscarCampo(['cliente','nombre','sr.','sra.','a nombre de']);
+  info.direccion=buscarCampo(['direccion','direcc','calle','ubicacion','lugar','domicilio']);
+  info.aCuenta=buscarCampo(['a cuenta','pendiente','saldo','resto a pagar','deuda']);
+  const numContM=(texto||'').match(/cont(?:enedor)?\.?\s*n?º?\.?\s*(\w+)/i);
+  if(numContM) info.numCont=numContM[1];
+  const telM=(texto||'').match(/\b(6\d{2}|7[1-9]\d|9\d{2})[\s.-]?\d{2}[\s.-]?\d{2}[\s.-]?\d{2}[\s.-]?\d{0,2}\b/);
+  if(telM) info.telefono=telM[0].replace(/[\s.-]/g,'');
+  const tNorm=norm(texto);
+  const tipoEncontrado=TIPOS_RESIDUO.find(t=>tNorm.includes(norm(t)));
+  if(tipoEncontrado) info.tipo=tipoEncontrado;
+  if(!info.cliente){
+    const candidata=lineas.find(l=>l.length>4 && !/\d{4,}/.test(l));
+    if(candidata) info.cliente=candidata;
+  }
+  return info;
+}
+// Foto de albarán estando ya sobre un contenedor concreto: rellena sus campos
+function erFotoAlbaran(num){
+  const inp=document.createElement('input'); inp.type='file'; inp.accept='image/*'; inp.capture='environment';
+  inp.onchange=async()=>{
+    const file=inp.files[0]; if(!file) return;
+    const statusEl=document.getElementById('er-ocr-status');
+    if(statusEl) statusEl.textContent='⏳ Cargando lector (puede tardar la primera vez)…';
+    try{
+      await loadTesseract();
+      if(statusEl) statusEl.textContent='🔎 Leyendo albarán…';
+      const {data}=await Tesseract.recognize(file,'spa');
+      const info=parseAlbaranOCR(data.text||'');
+      if(info.cliente) document.getElementById('er-cliente').value=info.cliente;
+      if(info.direccion) document.getElementById('er-dir').value=info.direccion;
+      if(info.telefono) document.getElementById('er-tel').value=info.telefono;
+      if(info.tipo) document.getElementById('er-tipo').value=info.tipo;
+      if(info.aCuenta) document.getElementById('er-acuenta').value=info.aCuenta;
+      if(statusEl) statusEl.textContent='✓ Datos rellenados desde el albarán — revísalos antes de pulsar Listo.';
+      toastMsg('Albarán leído — revisa los datos');
+    }catch(e){
+      console.error('Error OCR:',e);
+      if(statusEl) statusEl.textContent='✗ No se pudo leer el albarán, escribe los datos a mano.';
+      toastMsg('No se pudo leer la foto');
+    }
+  };
+  inp.click();
+}
+// Foto de albarán antes de elegir contenedor: intenta identificar cuál es a partir de lo leído
+function erFotoAlbaranBuscar(){
+  const inp=document.createElement('input'); inp.type='file'; inp.accept='image/*'; inp.capture='environment';
+  inp.onchange=async()=>{
+    const file=inp.files[0]; if(!file) return;
+    const statusEl=document.getElementById('er-buscar-status');
+    if(statusEl) statusEl.textContent='⏳ Cargando lector (puede tardar la primera vez)…';
+    try{
+      await loadTesseract();
+      if(statusEl) statusEl.textContent='🔎 Leyendo albarán…';
+      const {data}=await Tesseract.recognize(file,'spa');
+      const info=parseAlbaranOCR(data.text||'');
+      let match=null;
+      if(info.numCont) match=getContainer(info.numCont);
+      if(!match&&info.cliente){
+        const cl=info.cliente.toLowerCase();
+        const candidatos=containers.filter(c=>(c.cliente||'').toLowerCase().includes(cl)||cl.includes((c.cliente||'').toLowerCase()));
+        if(candidatos.length===1) match=candidatos[0];
+      }
+      if(match){
+        toastMsg(`Albarán identificado: contenedor #${match.num}`);
+        editarRapidoForm(match.num,info);
+      } else {
+        erOcrPendiente=info;
+        if(statusEl) statusEl.textContent='No se ha podido identificar el contenedor automáticamente. Escribe el número arriba y pulsa Continuar; los datos leídos se rellenarán igual.';
+        toastMsg('No identificado — escribe el número a mano');
+      }
+    }catch(e){
+      console.error('Error OCR:',e);
+      if(statusEl) statusEl.textContent='✗ No se pudo leer el albarán, escribe los datos a mano.';
+      toastMsg('No se pudo leer la foto');
+    }
+  };
+  inp.click();
 }
 
 // ─── PDF LOGO HELPER ──────────────────────────────────────────────
@@ -1948,7 +2139,7 @@ function nuevoAlbaranModal(contNum){
     </div>
     <div class="form-row"><label>Destinatario</label><input id="alb-destinatario"></div>
     <div class="form-row cols2">
-      <div><label>Tipo residuo</label><select id="alb-tipo">${['MEZCLA','BASURA','LIMPIO','PODA','ÁRIDO','ESPECIAL','ESCOMBRO'].map(t=>`<option${c&&c.tipo===t?' selected':''}>${t}</option>`).join('')}</select></div>
+      <div><label>Tipo residuo</label><select id="alb-tipo">${TIPOS_RESIDUO.map(t=>`<option${c&&c.tipo===t?' selected':''}>${t}</option>`).join('')}</select></div>
       <div><label>Servicio</label><select id="alb-servicio"><option>Recogida</option><option>Entrega</option><option>Intercambio</option><option>Limpieza</option></select></div>
     </div>
     <div class="form-row"><label>Observaciones</label><textarea id="alb-desc" rows="2"></textarea></div>
@@ -3058,6 +3249,11 @@ document.addEventListener('click',e=>{
   else if(action==='nuevo-cont') nuevoContModal();
   else if(action==='crear-cont') crearContenedor();
   else if(action==='foto-cont') fotoInput(param);
+  else if(action==='editar-rapido') editarRapidoModal();
+  else if(action==='er-buscar') erBuscar();
+  else if(action==='er-listo') erGuardar(param);
+  else if(action==='er-foto-albaran') erFotoAlbaran(param);
+  else if(action==='er-foto-albaran-buscar') erFotoAlbaranBuscar();
   else if(action==='del-foto') delFoto(param,+btn.dataset.idx);
   else if(action==='filter-estado'){filterEstado=param;applyContFilter();}
   else if(action==='cont-view'){contView=param;applyContFilter();}
