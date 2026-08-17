@@ -479,6 +479,10 @@ label{
 .cal-day.selected{background:var(--sidebar-bg);color:#fff;font-weight:800;box-shadow:0 2px 8px rgba(15,32,68,.3)}
 .cal-day.permiso-activo{background:rgba(124,58,237,.12)}
 .cal-day.selected.permiso-activo{background:var(--sidebar-bg)}
+.cal-day.dia-completo{background:rgba(22,163,74,.16);border-color:rgba(22,163,74,.55)}
+.cal-day.selected.dia-completo{background:var(--sidebar-bg)}
+.cal-day.dia-pendiente{background:rgba(220,38,38,.16);border-color:rgba(220,38,38,.55)}
+.cal-day.selected.dia-pendiente{background:var(--sidebar-bg)}
 .cal-dots{display:flex;gap:3px;position:absolute;bottom:4px}
 .cal-dot{width:6px;height:6px;border-radius:50%;box-shadow:0 0 0 1px rgba(255,255,255,.6)}
 .cal-legend{display:flex;flex-wrap:wrap;gap:6px;margin-top:14px}
@@ -1229,10 +1233,18 @@ function renderCalendar(){
     if(iso===hoy) cls.push('today');
     if(iso===calSelDay) cls.push('selected');
     if(dayAvisos.some(a=>a.tipo==='permiso'||a.tipo==='renovacion')) cls.push('permiso-activo');
+    if(dayAvisos.length){
+      const pendientesDia=dayAvisos.filter(a=>(a.completados||[]).length<(a.cantidad||1));
+      if(pendientesDia.length===0) cls.push('dia-completo');
+      else if(iso<hoy) cls.push('dia-pendiente');
+    }
     html+=`<div class="${cls.join(' ')}" data-action="cal-sel-day" data-param="${iso}"><span>${c.d}</span><span class="cal-dots">${dots}</span></div>`;
   });
   html+=`</div>
-  <div class="cal-legend">${Object.entries(AVISO_CFG).map(([k,v])=>`<span><i style="background:${v.color}"></i>${v.label}</span>`).join('')}</div>`;
+  <div class="cal-legend">${Object.entries(AVISO_CFG).map(([k,v])=>`<span><i style="background:${v.color}"></i>${v.label}</span>`).join('')}
+    <span><i style="background:#16a34a"></i>Día completado</span>
+    <span><i style="background:#dc2626"></i>Pendiente atrasado</span>
+  </div>`;
   wrap.innerHTML=html;
 }
 function fmtHora(iso){return iso?new Date(iso).toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'}):'';}
