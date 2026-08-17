@@ -1764,43 +1764,77 @@ function pdfContenedores(){
   doc.setFillColor(240,180,41); doc.rect(0,H-5,W,5,'F');
   doc.save(nombreListado()+'.pdf');
 }
-// Carga perezosa de SheetJS (exportar a Excel) solo la primera vez que se usa
-let xlsxLoadPromise=null;
-function loadXLSX(){
-  if(window.XLSX) return Promise.resolve();
-  if(xlsxLoadPromise) return xlsxLoadPromise;
-  xlsxLoadPromise=new Promise((resolve,reject)=>{
+// Carga perezosa de ExcelJS (exportar a Excel CON colores y negrita) solo la primera vez que se usa
+let exceljsLoadPromise=null;
+function loadExcelJS(){
+  if(window.ExcelJS) return Promise.resolve();
+  if(exceljsLoadPromise) return exceljsLoadPromise;
+  exceljsLoadPromise=new Promise((resolve,reject)=>{
     const s=document.createElement('script');
-    s.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+    s.src='https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js';
     s.onload=()=>resolve();
-    s.onerror=()=>{xlsxLoadPromise=null;reject(new Error('No se pudo cargar el exportador de Excel'));};
+    s.onerror=()=>{exceljsLoadPromise=null;reject(new Error('No se pudo cargar el exportador de Excel'));};
     document.head.appendChild(s);
   });
-  return xlsxLoadPromise;
+  return exceljsLoadPromise;
 }
-// Excel editable del listado de contenedores: mismas columnas y orden que el PDF.
+function hexToArgb(hex){ return 'FF'+hex.replace('#','').toUpperCase(); }
+// Excel editable del listado de contenedores: mismas columnas, orden y colores que el PDF
+// (celda del nº y de Estado coloreadas según el estado, cliente en negrita, Días en rojo/ámbar).
 async function excelContenedores(){
   const list=computeContFilt();
   if(!list.length){toastMsg('No hay datos para exportar');return;}
   toastMsg('Generando Excel…');
   try{
-    await loadXLSX();
-    const estadoLabel=k=>(ESTADO_CFG.find(e=>e.k===k)||{}).label||k||'';
-    const rows=list.map(c=>({
-      'Nº':c.num,
-      'Cliente':c.cliente||'',
-      'Dirección':c.direccion||'',
-      'Teléfono':c.telefono||'',
-      'Tipo':c.tipo||'',
-      'Fecha':fmtDate(c.fecha),
-      'Días':daysSince(c.fecha),
-      'Estado':estadoLabel(c.estadoExcel),
-    }));
-    const ws=XLSX.utils.json_to_sheet(rows);
-    ws['!cols']=[{wch:6},{wch:26},{wch:38},{wch:14},{wch:12},{wch:11},{wch:7},{wch:12}];
-    const wb=XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb,ws,'Contenedores');
-    XLSX.writeFile(wb,nombreListado()+'.xlsx');
+    await loadExcelJS();
+    const wb=new ExcelJS.Workbook();
+    wb.creator='GARVI Recycling Systems';
+    const ws=wb.addWorksheet('Contenedores');
+    ws.columns=[
+      {header:'Nº',key:'num',width:8},
+      {header:'Cliente',key:'cliente',width:28},
+      {header:'Dirección',key:'direccion',width:42},
+      {header:'Teléfono',key:'telefono',width:14},
+      {header:'Tipo',key:'tipo',width:12},
+      {header:'Fecha',key:'fecha',width:11},
+      {header:'Días',key:'dias',width:8},
+      {header:'Estado',key:'estado',width:14},
+    ];
+    const headerRow=ws.getRow(1);
+    headerRow.height=20;
+    headerRow.eachCell(cell=>{
+      cell.font={bold:true,size:11,color:{argb:'FFFFFFFF'}};
+      cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF0F2044'}};
+      cell.alignment={vertical:'middle'};
+    });
+    ws.views=[{state:'frozen',ySplit:1}];
+    list.forEach(c=>{
+      const est=ESTADO_CFG.find(e=>e.k===c.estadoExcel)||ESTADO_CFG[1];
+      const dias=daysSince(c.fecha);
+      const row=ws.addRow({num:c.num,cliente:c.cliente||'',direccion:c.direccion||'',telefono:c.telefono||'',tipo:c.tipo||'',fecha:fmtDate(c.fecha),dias,estado:est.label});
+      row.height=18;
+      row.eachCell(cell=>{ cell.font={size:11}; cell.alignment={vertical:'middle'}; });
+      const numCell=row.getCell(1);
+      numCell.font={bold:true,size:12,color:{argb:hexToArgb(est.color)}};
+      numCell.fill={type:'pattern',pattern:'solid',fgColor:{argb:hexToArgb(est.bg)}};
+      numCell.alignment={vertical:'middle',horizontal:'center'};
+      row.getCell(2).font={bold:true,size:11};
+      const estCell=row.getCell(8);
+      estCell.font={bold:true,size:11,color:{argb:hexToArgb(est.color)}};
+      estCell.fill={type:'pattern',pattern:'solid',fgColor:{argb:hexToArgb(est.bg)}};
+      const diasCell=row.getCell(7);
+      diasCell.alignment={horizontal:'center'};
+      if(dias>=14) diasCell.font={bold:true,size:11,color:{argb:'FF991B1B'}};
+      else if(dias>=11) diasCell.font={bold:true,size:11,color:{argb:'FF92400E'}};
+    });
+    ws.autoFilter={from:'A1',to:'H1'};
+    const buf=await wb.xlsx.writeBuffer();
+    const blob=new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url; a.download=nombreListado()+'.xlsx';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(()=>URL.revokeObjectURL(url),2000);
   }catch(e){
     console.error('Error exportando Excel:',e);
     toastMsg('No se pudo generar el Excel');
