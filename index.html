@@ -1137,6 +1137,12 @@ function localISO(y,m,d){
 }
 function todayISO(){const n=new Date();return localISO(n.getFullYear(),n.getMonth(),n.getDate());}
 function addDaysISO(days){const n=new Date();n.setDate(n.getDate()+days);return localISO(n.getFullYear(),n.getMonth(),n.getDate());}
+// Nombre por defecto de los listados exportados: "LISTADO DD-MM-AAAA" con la fecha de AYER,
+// porque la información que se exporta refleja la actualización del día anterior.
+function nombreListado(){
+  const [y,m,d]=addDaysISO(-1).split('-');
+  return `LISTADO ${d}-${m}-${y}`;
+}
 function fmtMoney(n){return Number(n||0).toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2})+'€';}
 function fmtPresPrice(n){const v=Number(n||0);return v.toLocaleString('es-ES',{minimumFractionDigits:v%1===0?0:2,maximumFractionDigits:2})+'€';}
 function fmtPresDate(iso){if(!iso)return '—';const[y,m,d]=iso.split('-');return`${d}-${m}-${y}`;}
@@ -1619,7 +1625,8 @@ function renderContenedores(){
       <div class="state-cards" id="cont-state-cards">${stateCards}</div>
       <div class="search-row">
         <input class="search-input" id="cont-search" type="search" placeholder="Buscar nº, cliente, dirección…" value="${searchQ}">
-        <button class="btn btn-secondary btn-sm" data-action="pdf-contenedores">📄 Crear PDF</button>
+        <button class="btn btn-secondary btn-sm" data-action="pdf-contenedores">📄 PDF</button>
+        <button class="btn btn-secondary btn-sm" data-action="excel-contenedores">📊 Excel</button>
         <button class="btn btn-secondary btn-sm" data-action="editar-rapido">✏️ Editar</button>
         <button class="btn btn-secondary btn-sm" data-action="nuevo-cont">+ Nuevo</button>
       </div>
@@ -1755,7 +1762,49 @@ function pdfContenedores(){
   doc.setFillColor(254,243,199); doc.rect(ML,cy-3.8,5.5,5.5,'F');
   doc.setTextColor(74,96,128); doc.text('Días 11-13 (alerta)',ML+8,cy);
   doc.setFillColor(240,180,41); doc.rect(0,H-5,W,5,'F');
-  doc.save('contenedores-garvi.pdf');
+  doc.save(nombreListado()+'.pdf');
+}
+// Carga perezosa de SheetJS (exportar a Excel) solo la primera vez que se usa
+let xlsxLoadPromise=null;
+function loadXLSX(){
+  if(window.XLSX) return Promise.resolve();
+  if(xlsxLoadPromise) return xlsxLoadPromise;
+  xlsxLoadPromise=new Promise((resolve,reject)=>{
+    const s=document.createElement('script');
+    s.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+    s.onload=()=>resolve();
+    s.onerror=()=>{xlsxLoadPromise=null;reject(new Error('No se pudo cargar el exportador de Excel'));};
+    document.head.appendChild(s);
+  });
+  return xlsxLoadPromise;
+}
+// Excel editable del listado de contenedores: mismas columnas y orden que el PDF.
+async function excelContenedores(){
+  const list=computeContFilt();
+  if(!list.length){toastMsg('No hay datos para exportar');return;}
+  toastMsg('Generando Excel…');
+  try{
+    await loadXLSX();
+    const estadoLabel=k=>(ESTADO_CFG.find(e=>e.k===k)||{}).label||k||'';
+    const rows=list.map(c=>({
+      'Nº':c.num,
+      'Cliente':c.cliente||'',
+      'Dirección':c.direccion||'',
+      'Teléfono':c.telefono||'',
+      'Tipo':c.tipo||'',
+      'Fecha':fmtDate(c.fecha),
+      'Días':daysSince(c.fecha),
+      'Estado':estadoLabel(c.estadoExcel),
+    }));
+    const ws=XLSX.utils.json_to_sheet(rows);
+    ws['!cols']=[{wch:6},{wch:26},{wch:38},{wch:14},{wch:12},{wch:11},{wch:7},{wch:12}];
+    const wb=XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb,ws,'Contenedores');
+    XLSX.writeFile(wb,nombreListado()+'.xlsx');
+  }catch(e){
+    console.error('Error exportando Excel:',e);
+    toastMsg('No se pudo generar el Excel');
+  }
 }
 
 // ─── MAPA DE CONTENEDORES (Leaflet + OSM / satélite Esri, sin API key) ──
@@ -3462,6 +3511,7 @@ document.addEventListener('click',e=>{
   else if(action==='pdf-albaran') pdfAlbaran(param);
   else if(action==='pdf-albaranes') pdfAlbaranes();
   else if(action==='pdf-contenedores') pdfContenedores();
+  else if(action==='excel-contenedores') excelContenedores();
   else if(action==='cont-map-retry') recalcularUbicaciones();
   else if(action==='cont-map-fullscreen') toggleMapFullscreen();
   else if(action==='pdf-finanzas') pdfFinanzas();
