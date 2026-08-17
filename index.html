@@ -633,7 +633,7 @@ const RAW=[
 ['7','NAVE GARVI','','','','2026-08-16','normal'],
 ['8','VIALDA','C/Wenceslao Fernández Flores, 3','653183415','MEZCLA','2026-08-14','reparados'],
 ['9','GRANJA TORRELLANO','','','','2026-08-16','rotos_granja'],
-['10','GRANJA TORRELLANO','','','','2026-08-16','rotos'],
+['10','GRANJA TORRELLANO','','','','2026-08-16','rotos_granja'],
 ['11','GRANJA TORRELLANO','','','','2026-08-16','rotos_granja'],
 ['12','GRANJA TORRELLANO','','','','2026-08-16','rotos_granja'],
 ['13','EMILIO','Avd/Alcalde Lorenzo Carbonell, 41','','PODA','2026-07-15','rotos'],
@@ -676,7 +676,7 @@ const RAW=[
 ['50','SK','Avd/Salamanca, 9','661808625','MEZCLA','2026-08-05','normal'],
 ['51','GRANJA TORRELLANO','','','','2026-08-16','rotos_granja'],
 ['52','C/Salvador Allende, 4','C/Salvador Allende, 4','614492341','LIMPIO','2026-08-13','reparados'],
-['53','GRANJA TORRELLANO','','','','2026-08-16','rotos'],
+['53','GRANJA TORRELLANO','','','','2026-08-16','rotos_granja'],
 ['54','GRANJA TORRELLANO','','','','2026-08-16','rotos_granja'],
 ['55','FRANCISCO DUMONT','C/Tramuntana, 6','619444853','','2019-07-05','normal'],
 ['56','GRANJA TORRELLANO','','','','2026-08-16','rotos_granja'],
@@ -687,7 +687,7 @@ const RAW=[
 ['61','FRANQ CALLNET','Campo junto cement., San Vicente','686697753','','2019-08-28','normal'],
 ['62','GRANJA TORRELLANO','','','','2026-08-16','rotos_granja'],
 ['63','GRANJA TORRELLANO','','','','2026-08-16','rotos_granja'],
-['64','GRANJA TORRELLANO','','','','2026-08-16','rotos'],
+['64','GRANJA TORRELLANO','','','','2026-08-16','rotos_granja'],
 ['65','NAVE GARVI','','','','2026-08-16','rotos'],
 ['66','GRANJA TORRELLANO','','','','2026-08-16','rotos_granja'],
 ['67','ARENA ALICANTE','C/Edil Marina Olcina','615782279','BASURA','2026-08-02','rotos'],
@@ -701,7 +701,7 @@ const RAW=[
 ['75','C/Concha Espina 29, Alicante','C/Concha Espina, 29','627202474','MEZCLA','2026-08-05','buenos'],
 ['76','CUPOLA','','608699955','BASURA','2026-07-16','rotos'],
 ['77','ESCLAPES','C/Saturno','677509044','MEZCLA','2026-06-30','normal'],
-['78','GRANJA TORRELLANO','','','','2026-08-16','rotos'],
+['78','GRANJA TORRELLANO','','','','2026-08-16','rotos_granja'],
 ['79','GRANJA TORRELLANO','','','','2026-08-16','rotos_granja'],
 ['80','CARSAN','Carrer de Mongolit, el Campello','630197982','MEZCLA','2026-08-12','reparados'],
 ['81','NAVE GARVI','','','','2026-08-16','rotos'],
@@ -905,8 +905,8 @@ function crearSyncColeccion(nombre,idField,migVersion){
   }
   return {suscribir,guardar,borrar,migrarLocales};
 }
-// migVersion 'v2': fuerza un re-envío único a la nube tras la actualización masiva de contenedores del 17/08/26
-const syncContenedores=crearSyncColeccion('contenedores','num','v2');
+// migVersion 'v3': fuerza un re-envío único a la nube tras corregir el estado de Granja Torrellano
+const syncContenedores=crearSyncColeccion('contenedores','num','v3');
 // Las fotos (base64) no se sincronizan: pueden superar el límite de 1MB por documento de Firestore.
 // Se quedan solo en el dispositivo donde se tomaron.
 function guardarContenedorNube(c){ const {fotos,...resto}=c; syncContenedores.guardar(resto); }
@@ -1022,6 +1022,16 @@ function loadData(){
     });
     saveContainers();
     localStorage.setItem('garvi_data_version',String(DATA_VERSION));
+  }
+  // Corrección puntual: algunos contenedores de GRANJA TORRELLANO habían quedado clasificados
+  // como "Rotos" (rojo) en vez de "Granja" (granate) por un dato antiguo incorrecto.
+  if(!localStorage.getItem('garvi_fix_granja_v1')){
+    let cambiado=false;
+    containers.forEach(c=>{
+      if(c.cliente==='GRANJA TORRELLANO'&&c.estadoExcel!=='rotos_granja'){ c.estadoExcel='rotos_granja'; cambiado=true; }
+    });
+    if(cambiado) saveContainers();
+    localStorage.setItem('garvi_fix_granja_v1','1');
   }
   albaranes=JSON.parse(localStorage.getItem('garvi_albaranes')||'[]');
   tareas=JSON.parse(localStorage.getItem('garvi_tareas')||'[]');
@@ -1554,7 +1564,7 @@ const ESTADO_CFG=[
   {k:'aptos',label:'Aptos',bg:'#d9f99d',color:'#365314'},
   {k:'reparados',label:'Reparados',bg:'#f3e8ff',color:'#6d28d9'},
   {k:'rotos',label:'Rotos',bg:'#fee2e2',color:'#991b1b'},
-  {k:'rotos_granja',label:'Granja',bg:'#fef3c7',color:'#92400e'},
+  {k:'rotos_granja',label:'Granja',bg:'#fbd3da',color:'#7a1230'}, // granate, bien distinto del rojo de "Rotos"
 ];
 let contView='todos'; // 'todos' | 'proximos' | 'retirar'
 function numKeyCont(num){
@@ -1690,56 +1700,60 @@ function pdfContenedores(){
   const headers=['Nº','Cliente','Dirección','Teléfono','Tipo','Fecha','Días'];
   // numW + colsW debe sumar "usable"
   const numW=14, colsW=[55,110,24,20,18,16];
-  let cy=40;
+  const rowH=8; // fila más alta para una letra más grande y legible
+  let cy=41;
   const printHeader=()=>{
-    doc.setFillColor(15,32,68); doc.rect(ML,cy-5,usable,7,'F');
-    doc.setTextColor(255,255,255); doc.setFontSize(8); doc.setFont('helvetica','bold');
+    doc.setFillColor(15,32,68); doc.rect(ML,cy-5.5,usable,rowH,'F');
+    doc.setTextColor(255,255,255); doc.setFontSize(9); doc.setFont('helvetica','bold');
     let x=ML+2;
     doc.text(headers[0],x,cy); x+=numW;
     headers.slice(1).forEach((h,i)=>{ doc.text(h,x+2,cy); x+=colsW[i]; });
-    cy+=7;
+    cy+=rowH;
   };
   printHeader();
-  doc.setFont('helvetica','normal');
   list.forEach(c=>{
-    if(cy>H-25){doc.addPage();cy=20;printHeader();}
+    if(cy>H-28){doc.addPage();cy=21;printHeader();}
     const est=ESTADO_CFG.find(e=>e.k===c.estadoExcel)||ESTADO_CFG[1];
     const [br,bg,bb]=hexToRgb(est.bg);
     const [tr,tg,tb]=hexToRgb(est.color);
-    doc.setFillColor(br,bg,bb); doc.rect(ML,cy-5,numW,7,'F');
-    doc.setFillColor(250,251,253); doc.rect(ML+numW,cy-5,usable-numW,7,'F');
-    doc.setTextColor(tr,tg,tb); doc.setFontSize(8); doc.setFont('helvetica','bold');
+    doc.setFillColor(br,bg,bb); doc.rect(ML,cy-5.5,numW,rowH,'F');
+    doc.setFillColor(250,251,253); doc.rect(ML+numW,cy-5.5,usable-numW,rowH,'F');
+    doc.setTextColor(tr,tg,tb); doc.setFontSize(9.5); doc.setFont('helvetica','bold');
     doc.text(String(c.num),ML+2,cy);
-    doc.setFont('helvetica','normal');
     const dias=daysSince(c.fecha);
     const vals=[c.cliente||'',c.direccion||'',c.telefono||'',c.tipo||'',fmtDate(c.fecha)];
     let x=ML+numW;
-    doc.setTextColor(15,32,68);
-    vals.forEach((v,i)=>{ doc.text(String(v),x+2,cy,{maxWidth:colsW[i]-3}); x+=colsW[i]; });
+    doc.setFontSize(9);
+    vals.forEach((v,i)=>{
+      doc.setFont('helvetica',i===0?'bold':'normal'); // cliente en negrita para que destaque
+      doc.setTextColor(15,32,68);
+      doc.text(String(v),x+2,cy,{maxWidth:colsW[i]-3});
+      x+=colsW[i];
+    });
     // columna Días: 14+ en rojo (retirar), 11-13 en ámbar (alerta), resto normal
     if(dias>=14){ doc.setTextColor(153,27,27); doc.setFont('helvetica','bold'); }
     else if(dias>=11){ doc.setTextColor(146,64,14); doc.setFont('helvetica','bold'); }
     else { doc.setTextColor(15,32,68); doc.setFont('helvetica','normal'); }
     doc.text(dias+'d',x+2,cy);
-    cy+=7;
+    cy+=rowH;
   });
   // leyenda de colores de estado
-  cy+=6;
-  if(cy>H-15){doc.addPage();cy=20;}
-  doc.setFontSize(8); doc.setFont('helvetica','bold'); doc.setTextColor(15,32,68);
-  doc.text('LEYENDA',ML,cy); cy+=6;
+  cy+=7;
+  if(cy>H-16){doc.addPage();cy=21;}
+  doc.setFontSize(9); doc.setFont('helvetica','bold'); doc.setTextColor(15,32,68);
+  doc.text('LEYENDA',ML,cy); cy+=6.5;
   doc.setFont('helvetica','normal');
   ESTADO_CFG.filter(e=>e.k!=='todos').forEach(e=>{
     const [r,g,b]=hexToRgb(e.bg);
-    doc.setFillColor(r,g,b); doc.rect(ML,cy-3.5,5,5,'F');
-    doc.setTextColor(74,96,128); doc.text(e.label,ML+7,cy);
-    cy+=6;
+    doc.setFillColor(r,g,b); doc.rect(ML,cy-3.8,5.5,5.5,'F');
+    doc.setTextColor(74,96,128); doc.text(e.label,ML+8,cy);
+    cy+=6.5;
   });
   cy+=2;
-  doc.setFillColor(254,226,226); doc.rect(ML,cy-3.5,5,5,'F');
-  doc.setTextColor(74,96,128); doc.text('Días ≥14 (retirar)',ML+7,cy); cy+=6;
-  doc.setFillColor(254,243,199); doc.rect(ML,cy-3.5,5,5,'F');
-  doc.setTextColor(74,96,128); doc.text('Días 11-13 (alerta)',ML+7,cy);
+  doc.setFillColor(254,226,226); doc.rect(ML,cy-3.8,5.5,5.5,'F');
+  doc.setTextColor(74,96,128); doc.text('Días ≥14 (retirar)',ML+8,cy); cy+=6.5;
+  doc.setFillColor(254,243,199); doc.rect(ML,cy-3.8,5.5,5.5,'F');
+  doc.setTextColor(74,96,128); doc.text('Días 11-13 (alerta)',ML+8,cy);
   doc.setFillColor(240,180,41); doc.rect(0,H-5,W,5,'F');
   doc.save('contenedores-garvi.pdf');
 }
