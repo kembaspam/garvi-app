@@ -1237,6 +1237,8 @@ function renderCalendar(){
       const pendientesDia=dayAvisos.filter(a=>(a.completados||[]).length<(a.cantidad||1));
       if(pendientesDia.length===0) cls.push('dia-completo');
       else if(iso<hoy) cls.push('dia-pendiente');
+    } else if(iso<hoy){
+      cls.push('dia-completo');
     }
     html+=`<div class="${cls.join(' ')}" data-action="cal-sel-day" data-param="${iso}"><span>${c.d}</span><span class="cal-dots">${dots}</span></div>`;
   });
