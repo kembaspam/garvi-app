@@ -556,6 +556,11 @@ label{
 </style>
 </head>
 <body>
+<!-- Datalists globales de autocompletado: se rellenan con refreshGlobalDatalists() y están
+     disponibles para cualquier input list="..." en cualquier sección, aunque estén fuera de ella -->
+<datalist id="dl-global-clientes"></datalist>
+<datalist id="dl-global-direcciones"></datalist>
+<datalist id="dl-global-telefonos"></datalist>
 <div id="login-screen">
   <div class="login-box">
     <div class="login-logo-wrap">
@@ -1039,13 +1044,13 @@ function migrarAviso(a){
   return a;
 }
 function saveContainers(){localStorage.setItem(LSKEY,JSON.stringify(containers));}
-function saveAlbaranes(){localStorage.setItem('garvi_albaranes',JSON.stringify(albaranes));}
+function saveAlbaranes(){localStorage.setItem('garvi_albaranes',JSON.stringify(albaranes));refreshGlobalDatalists();}
 function saveTareas(){localStorage.setItem('garvi_tareas',JSON.stringify(tareas));}
 function saveFinanzas(){localStorage.setItem('garvi_finanzas',JSON.stringify(finanzas));}
-function saveFacturas(){localStorage.setItem('garvi_facturas',JSON.stringify(facturas));}
+function saveFacturas(){localStorage.setItem('garvi_facturas',JSON.stringify(facturas));refreshGlobalDatalists();}
 function saveCfg(){localStorage.setItem('garvi_cfg',JSON.stringify(cfg));}
-function saveCertificados(){localStorage.setItem('garvi_certificados',JSON.stringify(certificados));}
-function saveAvisos(){localStorage.setItem('garvi_avisos',JSON.stringify(avisos));}
+function saveCertificados(){localStorage.setItem('garvi_certificados',JSON.stringify(certificados));refreshGlobalDatalists();}
+function saveAvisos(){localStorage.setItem('garvi_avisos',JSON.stringify(avisos));refreshGlobalDatalists();}
 
 function getClienteExtra(nombre){const m=JSON.parse(localStorage.getItem('garvi_clientes_extra')||'{}');return m[nombre]||{};}
 function saveClienteExtra(nombre,data){const m=JSON.parse(localStorage.getItem('garvi_clientes_extra')||'{}');m[nombre]={...(m[nombre]||{}),...data};localStorage.setItem('garvi_clientes_extra',JSON.stringify(m));syncClienteExtra();}
@@ -1064,6 +1069,25 @@ function syncClientes(){
   });
   clientes=Object.values(mapa).sort((a,b)=>a.nombre.localeCompare(b.nombre));
   localStorage.setItem('garvi_clientes_v1',JSON.stringify(clientes));
+  refreshGlobalDatalists();
+}
+// ─── AUTOCOMPLETADO GLOBAL ──────────────────────────────────────────
+// Recopila cliente/dirección/teléfono ya escritos en cualquier parte de la app (contenedores,
+// clientes, albaranes, facturas, avisos) para poder sugerirlos con autocompletar en cualquier
+// otro formulario (proformas, avisos, albaranes...) en cuanto se empiezan a escribir letras.
+function refreshGlobalDatalists(){
+  const nombres=new Set(), direcciones=new Set(), telefonos=new Set();
+  const add=(set,v)=>{ if(v&&String(v).trim()) set.add(String(v).trim()); };
+  containers.forEach(c=>{ if(c.cliente!=='NAVE GARVI'&&c.cliente!=='GRANJA TORRELLANO') add(nombres,c.cliente); add(direcciones,c.direccion); add(telefonos,c.telefono); });
+  clientes.forEach(c=>{ add(nombres,c.nombre); add(direcciones,c.direccion); add(telefonos,c.telefono); });
+  albaranes.forEach(a=>{ add(nombres,a.cliente); add(direcciones,a.lugar); add(telefonos,a.telefono); });
+  facturas.forEach(f=>{ add(nombres,f.cliente); add(direcciones,f.direccion); add(telefonos,f.telefono); });
+  avisos.forEach(a=>{ add(nombres,a.nota); add(direcciones,a.direccion); add(telefonos,a.telefono); });
+  certificados.forEach(c=>{ add(nombres,c.productor); add(direcciones,c.obra); });
+  const opts=set=>[...set].sort((a,b)=>a.localeCompare(b)).map(v=>`<option value="${v.replace(/"/g,'&quot;')}">`).join('');
+  const dlC=document.getElementById('dl-global-clientes'); if(dlC) dlC.innerHTML=opts(nombres);
+  const dlD=document.getElementById('dl-global-direcciones'); if(dlD) dlD.innerHTML=opts(direcciones);
+  const dlT=document.getElementById('dl-global-telefonos'); if(dlT) dlT.innerHTML=opts(telefonos);
 }
 
 function getContainer(num){return containers.find(c=>c.num===num);}
@@ -1429,13 +1453,11 @@ function renderAvisoFields(editing){
       <div class="form-row"><label>Nueva fecha final</label><input id="av-fechafin" type="date" value="${a?a.fechaFin||calSelDay:calSelDay}"></div>`;
     return;
   }
-  const notasList=[...new Set(avisos.map(x=>x.nota).filter(Boolean))];
   box.innerHTML=`
-    <datalist id="dl-avisos-notas">${notasList.map(n=>`<option value="${n}">`).join('')}</datalist>
-    <div class="form-row"><label>Cliente</label><input id="av-nota" list="dl-avisos-notas" placeholder="Nombre del cliente…" value="${f_esc(a?a.nota:'')}"></div>
-    <div class="form-row"><label>Dirección</label><input id="av-direccion" placeholder="Dirección…" value="${f_esc(a?a.direccion:'')}"></div>
+    <div class="form-row"><label>Cliente</label><input id="av-nota" list="dl-global-clientes" placeholder="Nombre del cliente…" value="${f_esc(a?a.nota:'')}"></div>
+    <div class="form-row"><label>Dirección</label><input id="av-direccion" list="dl-global-direcciones" placeholder="Dirección…" value="${f_esc(a?a.direccion:'')}"></div>
     <div class="form-row cols2">
-      <div><label>Teléfono</label><input id="av-telefono" type="tel" placeholder="Teléfono de contacto…" value="${f_esc(a?a.telefono:'')}"></div>
+      <div><label>Teléfono</label><input id="av-telefono" list="dl-global-telefonos" type="tel" placeholder="Teléfono de contacto…" value="${f_esc(a?a.telefono:'')}"></div>
       <div><label>Pago</label><input id="av-pago" placeholder="Ej: Pendiente, Pagado, 50€…" value="${f_esc(a?a.pago:'')}"></div>
     </div>
     <div class="form-row"><label>Cantidad (si el mismo cliente pide varios en este sitio)</label><input id="av-cantidad" type="number" min="1" step="1" placeholder="1" value="${a&&a.cantidad>1?a.cantidad:''}"></div>
@@ -1644,33 +1666,35 @@ function hexToRgb(hex){
   const n=parseInt(hex.replace('#',''),16);
   return [(n>>16)&255,(n>>8)&255,n&255];
 }
-// PDF de contenedores con estilo propio: ordenado por número y con la celda del número
-// coloreada según el estado (mismos colores que las tarjetas de estado en la app),
-// igual que el listado de referencia de la empresa.
+// PDF de contenedores con estilo propio: ordenado por número, en horizontal para que quepa
+// todo (incluido el teléfono) en una sola fila, con la celda del número coloreada según el
+// estado (mismos colores que las tarjetas de estado en la app) y los "Días" resaltados en
+// amarillo (11-13 días) o rojo (14+ días, a retirar) — igual que el listado de referencia.
 function pdfContenedores(){
   const list=computeContFilt();
   if(!list.length){toastMsg('No hay datos para exportar');return;}
-  const {jsPDF}=window.jspdf; const doc=new jsPDF({unit:'mm',format:'a4'});
-  const W=210;
+  const {jsPDF}=window.jspdf; const doc=new jsPDF({unit:'mm',format:'a4',orientation:'landscape'});
+  const W=297, H=210, ML=12, MR=12, usable=W-ML-MR;
   doc.setFillColor(240,180,41); doc.rect(0,0,W,5,'F');
-  try{doc.addImage('data:image/png;base64,'+PRES_LOGO_B64,'PNG',10,8,16,16);}catch(e){}
+  try{doc.addImage('data:image/png;base64,'+PRES_LOGO_B64,'PNG',ML-2,8,16,16);}catch(e){}
   doc.setTextColor(15,32,68); doc.setFontSize(11); doc.setFont('helvetica','bold');
-  doc.text('GARVI RECYCLING SYSTEMS, S.L.U.',29,15);
+  doc.text('GARVI RECYCLING SYSTEMS, S.L.U.',ML+15,15);
   doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(74,96,128);
-  doc.text('Ptda.Torrellano alto P1, Nº76 · C.P.03320 Elche (Alicante) · CIF: B54970439',29,21);
+  doc.text('Ptda.Torrellano alto P1, Nº76 · C.P.03320 Elche (Alicante) · CIF: B54970439',ML+15,21);
   doc.setTextColor(240,180,41); doc.setFontSize(16); doc.setFont('helvetica','bold');
-  doc.text('LISTADO DE CONTENEDORES',196,18,{align:'right'});
+  doc.text('LISTADO DE CONTENEDORES',W-MR,18,{align:'right'});
   doc.setTextColor(74,96,128); doc.setFontSize(9); doc.setFont('helvetica','normal');
-  doc.text('Fecha: '+fmtDate(todayISO()),196,26,{align:'right'});
-  doc.setDrawColor(200,212,227); doc.line(14,32,196,32);
+  doc.text('Fecha: '+fmtDate(todayISO()),W-MR,26,{align:'right'});
+  doc.setDrawColor(200,212,227); doc.line(ML,32,W-MR,32);
 
-  const headers=['Nº','Cliente','Dirección','Tipo','Fecha','Días'];
-  const numW=14, colsW=[62,58,18,16,14]; // resto de columnas tras el nº (Cliente/Dirección/Tipo/Fecha/Días); suma+numW=182
+  const headers=['Nº','Cliente','Dirección','Teléfono','Tipo','Fecha','Días'];
+  // numW + colsW debe sumar "usable"
+  const numW=14, colsW=[55,110,24,20,18,16];
   let cy=40;
   const printHeader=()=>{
-    doc.setFillColor(15,32,68); doc.rect(14,cy-5,182,7,'F');
+    doc.setFillColor(15,32,68); doc.rect(ML,cy-5,usable,7,'F');
     doc.setTextColor(255,255,255); doc.setFontSize(8); doc.setFont('helvetica','bold');
-    let x=14+2;
+    let x=ML+2;
     doc.text(headers[0],x,cy); x+=numW;
     headers.slice(1).forEach((h,i)=>{ doc.text(h,x+2,cy); x+=colsW[i]; });
     cy+=7;
@@ -1678,33 +1702,45 @@ function pdfContenedores(){
   printHeader();
   doc.setFont('helvetica','normal');
   list.forEach(c=>{
-    if(cy>270){doc.addPage();cy=20;printHeader();}
+    if(cy>H-25){doc.addPage();cy=20;printHeader();}
     const est=ESTADO_CFG.find(e=>e.k===c.estadoExcel)||ESTADO_CFG[1];
     const [br,bg,bb]=hexToRgb(est.bg);
     const [tr,tg,tb]=hexToRgb(est.color);
-    doc.setFillColor(br,bg,bb); doc.rect(14,cy-5,numW,7,'F');
-    doc.setFillColor(250,251,253); doc.rect(14+numW,cy-5,182-numW,7,'F');
+    doc.setFillColor(br,bg,bb); doc.rect(ML,cy-5,numW,7,'F');
+    doc.setFillColor(250,251,253); doc.rect(ML+numW,cy-5,usable-numW,7,'F');
     doc.setTextColor(tr,tg,tb); doc.setFontSize(8); doc.setFont('helvetica','bold');
-    doc.text(String(c.num),14+2,cy);
-    doc.setTextColor(15,32,68); doc.setFont('helvetica','normal');
-    const vals=[c.cliente||'',c.direccion||'',c.tipo||'',fmtDate(c.fecha),daysSince(c.fecha)+'d'];
-    let x=14+numW;
+    doc.text(String(c.num),ML+2,cy);
+    doc.setFont('helvetica','normal');
+    const dias=daysSince(c.fecha);
+    const vals=[c.cliente||'',c.direccion||'',c.telefono||'',c.tipo||'',fmtDate(c.fecha)];
+    let x=ML+numW;
+    doc.setTextColor(15,32,68);
     vals.forEach((v,i)=>{ doc.text(String(v),x+2,cy,{maxWidth:colsW[i]-3}); x+=colsW[i]; });
+    // columna Días: 14+ en rojo (retirar), 11-13 en ámbar (alerta), resto normal
+    if(dias>=14){ doc.setTextColor(153,27,27); doc.setFont('helvetica','bold'); }
+    else if(dias>=11){ doc.setTextColor(146,64,14); doc.setFont('helvetica','bold'); }
+    else { doc.setTextColor(15,32,68); doc.setFont('helvetica','normal'); }
+    doc.text(dias+'d',x+2,cy);
     cy+=7;
   });
   // leyenda de colores de estado
   cy+=6;
-  if(cy>275){doc.addPage();cy=20;}
+  if(cy>H-15){doc.addPage();cy=20;}
   doc.setFontSize(8); doc.setFont('helvetica','bold'); doc.setTextColor(15,32,68);
-  doc.text('LEYENDA',14,cy); cy+=6;
+  doc.text('LEYENDA',ML,cy); cy+=6;
   doc.setFont('helvetica','normal');
   ESTADO_CFG.filter(e=>e.k!=='todos').forEach(e=>{
     const [r,g,b]=hexToRgb(e.bg);
-    doc.setFillColor(r,g,b); doc.rect(14,cy-3.5,5,5,'F');
-    doc.setTextColor(74,96,128); doc.text(e.label,21,cy);
+    doc.setFillColor(r,g,b); doc.rect(ML,cy-3.5,5,5,'F');
+    doc.setTextColor(74,96,128); doc.text(e.label,ML+7,cy);
     cy+=6;
   });
-  doc.setFillColor(240,180,41); doc.rect(0,292,W,5,'F');
+  cy+=2;
+  doc.setFillColor(254,226,226); doc.rect(ML,cy-3.5,5,5,'F');
+  doc.setTextColor(74,96,128); doc.text('Días ≥14 (retirar)',ML+7,cy); cy+=6;
+  doc.setFillColor(254,243,199); doc.rect(ML,cy-3.5,5,5,'F');
+  doc.setTextColor(74,96,128); doc.text('Días 11-13 (alerta)',ML+7,cy);
+  doc.setFillColor(240,180,41); doc.rect(0,H-5,W,5,'F');
   doc.save('contenedores-garvi.pdf');
 }
 
@@ -1913,11 +1949,11 @@ function openContainerModal(num){
       <button class="btn btn-secondary btn-sm" data-action="close-modal">✕</button>
     </div>
     <div class="form-row">
-      <label>Cliente</label><input id="m-cliente" value="${c.cliente}">
+      <label>Cliente</label><input id="m-cliente" list="dl-global-clientes" value="${c.cliente}">
     </div>
     <div class="form-row cols2">
-      <div><label>Dirección</label><input id="m-dir" value="${c.direccion||''}"></div>
-      <div><label>Teléfono</label><input id="m-tel" value="${c.telefono||''}" type="tel">${c.telefono?`<a href="tel:${c.telefono}" style="font-size:12px;color:var(--accent);margin-top:4px;display:block">📞 Llamar</a>`:''}</div>
+      <div><label>Dirección</label><input id="m-dir" list="dl-global-direcciones" value="${c.direccion||''}"></div>
+      <div><label>Teléfono</label><input id="m-tel" list="dl-global-telefonos" value="${c.telefono||''}" type="tel">${c.telefono?`<a href="tel:${c.telefono}" style="font-size:12px;color:var(--accent);margin-top:4px;display:block">📞 Llamar</a>`:''}</div>
     </div>
     <div class="form-row cols2">
       <div><label>Tipo residuo</label>
@@ -2007,10 +2043,10 @@ function nuevoContModal(){
       <div><label>Número / ID</label><input id="nc-num" placeholder="ej: 250, L200…"></div>
       <div><label>Estado</label><select id="nc-estado">${ESTADO_CFG.filter(e=>e.k!=='todos').map(e=>`<option value="${e.k}">${e.label}</option>`).join('')}</select></div>
     </div>
-    <div class="form-row"><label>Cliente</label><input id="nc-cliente"></div>
+    <div class="form-row"><label>Cliente</label><input id="nc-cliente" list="dl-global-clientes"></div>
     <div class="form-row cols2">
-      <div><label>Dirección</label><input id="nc-dir"></div>
-      <div><label>Teléfono</label><input id="nc-tel" type="tel"></div>
+      <div><label>Dirección</label><input id="nc-dir" list="dl-global-direcciones"></div>
+      <div><label>Teléfono</label><input id="nc-tel" list="dl-global-telefonos" type="tel"></div>
     </div>
     <div class="form-row cols2">
       <div><label>Tipo</label><select id="nc-tipo">${TIPOS_RESIDUO.map(t=>`<option>${t}</option>`).join('')}</select></div>
@@ -2073,10 +2109,10 @@ function editarRapidoForm(num,ocrInfo){
   document.getElementById('modal-body').innerHTML=`
     <div class="modal-header"><span class="modal-title">✏️ Editar #${c.num}</span><button class="btn btn-secondary btn-sm" data-action="close-modal">✕</button></div>
     ${ocrInfo?'<div style="font-size:12px;color:var(--accent);margin-bottom:6px">✓ Datos rellenados desde el albarán leído — revísalos antes de guardar</div>':''}
-    <div class="form-row"><label>Cliente</label><input id="er-cliente" value="${cliente}"></div>
-    <div class="form-row"><label>Calle / Ubicación</label><input id="er-dir" value="${direccion}"></div>
+    <div class="form-row"><label>Cliente</label><input id="er-cliente" list="dl-global-clientes" value="${cliente}"></div>
+    <div class="form-row"><label>Calle / Ubicación</label><input id="er-dir" list="dl-global-direcciones" value="${direccion}"></div>
     <div class="form-row cols2">
-      <div><label>Teléfono</label><input id="er-tel" type="tel" value="${telefono}"></div>
+      <div><label>Teléfono</label><input id="er-tel" list="dl-global-telefonos" type="tel" value="${telefono}"></div>
       <div><label>Tipo residuo</label><select id="er-tipo">${TIPOS_RESIDUO.map(t=>`<option${tipo===t?' selected':''}>${t}</option>`).join('')}</select></div>
     </div>
     <div class="form-row"><label>A cuenta (si tiene)</label><input id="er-acuenta" placeholder="ej: 50€ pendiente" value="${aCuenta}"></div>
@@ -2272,12 +2308,12 @@ function nuevoAlbaranModal(contNum){
       <div><label>Hora</label><input id="alb-hora" type="time" value="${new Date().toTimeString().slice(0,5)}"></div>
       <div><label>Precio</label><input id="alb-precio" type="number" step="0.01" placeholder="0.00"></div>
     </div>
-    <div class="form-row"><label>Cliente / Cargador</label><input id="alb-cliente" value="${c?c.cliente:''}"></div>
+    <div class="form-row"><label>Cliente / Cargador</label><input id="alb-cliente" list="dl-global-clientes" value="${c?c.cliente:''}"></div>
     <div class="form-row cols2">
       <div><label>Contenedor llevada nº</label><input id="alb-cont" value="${contNum||''}"></div>
-      <div><label>Teléfono</label><input id="alb-tel" type="tel" value="${c?c.telefono||'':''}"></div>
+      <div><label>Teléfono</label><input id="alb-tel" list="dl-global-telefonos" type="tel" value="${c?c.telefono||'':''}"></div>
     </div>
-    <div class="form-row"><label>Lugar / Dirección obra</label><input id="alb-lugar" value="${c?c.direccion||'':''}"></div>
+    <div class="form-row"><label>Lugar / Dirección obra</label><input id="alb-lugar" list="dl-global-direcciones" value="${c?c.direccion||'':''}"></div>
     <div class="form-row cols2">
       <div><label>Población</label><input id="alb-poblacion" placeholder="Alicante…"></div>
       <div><label>Conductor</label><input id="alb-conductor"></div>
@@ -2499,8 +2535,8 @@ function nuevaFacturaModal(idEditar){
       <div><label>NIF / CIF</label><input id="f-nif" placeholder="B-XXXXXXXX" value="${fNif}"></div>
     </div>
     <div class="form-row cols2">
-      <div><label>Dirección</label><input id="f-dir" placeholder="Calle, número, ciudad…" value="${fDir}"></div>
-      <div><label>Teléfono</label><input id="f-tel" type="tel" inputmode="tel" value="${fTel}">${fTel?`<a href="tel:${fTel}" style="font-size:11px;color:var(--accent);margin-top:3px;display:block">📞 ${fTel}</a>`:''}</div>
+      <div><label>Dirección</label><input id="f-dir" list="dl-global-direcciones" placeholder="Calle, número, ciudad…" value="${fDir}"></div>
+      <div><label>Teléfono</label><input id="f-tel" list="dl-global-telefonos" type="tel" inputmode="tel" value="${fTel}">${fTel?`<a href="tel:${fTel}" style="font-size:11px;color:var(--accent);margin-top:3px;display:block">📞 ${fTel}</a>`:''}</div>
     </div>
     <div class="form-row"><label>Email</label><input id="f-email" type="email" inputmode="email" placeholder="cliente@email.com" value="${fEmail}"></div>
     <hr class="divider" style="margin:10px 0 12px">
@@ -3243,8 +3279,8 @@ function renderCertificados(){
           <select id="cert-tipo">${Object.entries(CERT_TIPOS).map(([k,v])=>`<option value="${k}"${certForm.tipo===k?' selected':''}>${v.label}</option>`).join('')}</select>
         </div>
         <div class="form-row"><label>Periodo</label><input id="cert-periodo" value="${f_esc(certForm.periodo)}" placeholder="Ej: ABRIL 2026"></div>
-        <div class="form-row"><label>Productor</label><input id="cert-productor" value="${f_esc(certForm.productor)}" placeholder="Nombre del productor…"></div>
-        <div class="form-row"><label>Obra</label><input id="cert-obra" value="${f_esc(certForm.obra)}" placeholder="Dirección / nombre de la obra…"></div>
+        <div class="form-row"><label>Productor</label><input id="cert-productor" list="dl-global-clientes" value="${f_esc(certForm.productor)}" placeholder="Nombre del productor…"></div>
+        <div class="form-row"><label>Obra</label><input id="cert-obra" list="dl-global-direcciones" value="${f_esc(certForm.obra)}" placeholder="Dirección / nombre de la obra…"></div>
         <div class="form-row cols2">
           <div><label>Toneladas</label><input id="cert-toneladas" value="${f_esc(certForm.toneladas)}" placeholder="Ej: 4,5"></div>
           <div><label>Fecha</label><input id="cert-fecha" type="date" value="${certForm.fecha}"></div>
