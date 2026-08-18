@@ -783,7 +783,7 @@ const LSKEY='garvi_v17';
 let currentUser='', currentTab='contenedores', filterEstado='todos', searchQ='';
 let containers=[], albaranes=[], tareas=[], finanzas=[], facturas=[], clientes=[], cfg={}, certificados=[], avisos=[];
 let calMonth=new Date().getMonth(), calYear=new Date().getFullYear(), calSelDay=todayISO();
-const TIPOS_RESIDUO=['MEZCLA','BASURA','LIMPIO','PODA','ÁRIDO','ESPECIAL','ESCOMBRO'];
+const TIPOS_RESIDUO=['MEZCLA','BASURA','LIMPIO','PODA','ÁRIDO','ESPECIAL','ESCOMBRO','CARGA RÁPIDA'];
 
 // ─── MODO ADMINISTRADOR (sincronización en la nube con Firebase) ──
 const firebaseConfig={
@@ -1218,6 +1218,7 @@ function renderTab(tab){
 const AVISO_CFG={
   llevada:{label:'Llevada',color:'#1a3a8f'},
   cambio:{label:'Cambio',color:'#d97706'},
+  carga_rapida:{label:'Carga Rápida',color:'#db2777'},
   retirada:{label:'Retirada',color:'#dc2626'},
   permiso:{label:'Permiso',color:'#7c3aed'},
   renovacion:{label:'Renovación Permiso',color:'#0891b2'},
