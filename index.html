@@ -543,7 +543,7 @@ label{
 #cont-map{height:560px;border-radius:10px;overflow:hidden;background:var(--surface2)}
 #cont-list-card{max-height:560px;overflow-y:auto}
 @media(max-width:767px){#cont-map{height:400px}#cont-list-card{max-height:400px}}
-#cont-map-card.map-fullscreen{position:fixed;inset:0;z-index:5500;border-radius:0;margin:0;padding:10px;display:flex;flex-direction:column;background:var(--surface)}
+#cont-map-card.map-fullscreen{position:fixed;top:0;left:0;right:0;bottom:0;width:100vw;height:100vh;z-index:5500;border-radius:0;margin:0;padding:10px;display:flex;flex-direction:column;background:var(--surface)}
 #cont-map-card.map-fullscreen #cont-map{flex:1;height:auto;border-radius:0}
 .cont-pin{width:36px;height:36px;border-radius:50% 50% 50% 0;background:var(--accent);border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.5);transform:rotate(-45deg);display:flex;align-items:center;justify-content:center}
 .cont-pin span{transform:rotate(45deg);color:#0f2044;font-weight:800;font-size:13px;line-height:1}
@@ -1114,6 +1114,15 @@ function registrarHistorialContenedor(c,antes){
   if(!Array.isArray(c.historial)) c.historial=[];
   c.historial.unshift({fecha:new Date().toISOString(),...antes});
   if(c.historial.length>20) c.historial.length=20;
+}
+const CLIENTES_ESPECIALES=['NAVE GARVI','GRANJA TORRELLANO'];
+// Si un contenedor se puso HOY MISMO en Nave Garvi o Granja Torrellano (ha vuelto a base),
+// ese dato prevalece: no se puede reasignar a otro cliente/dirección el mismo día (evita que
+// una edición posterior —del mismo u otro dispositivo— lo "saque" de nave/granja por error).
+function prevaleceEspecialHoy(c,nuevoCliente){
+  const actual=(c.cliente||'').trim().toUpperCase();
+  const nuevo=(nuevoCliente||'').trim().toUpperCase();
+  return CLIENTES_ESPECIALES.includes(actual)&&c.fecha===todayISO()&&!!nuevo&&!CLIENTES_ESPECIALES.includes(nuevo);
 }
 function daysSince(fecha){
   if(!fecha) return 0;
@@ -1953,8 +1962,26 @@ function recalcularUbicaciones(){
   toastMsg('Reintentando localizar direcciones…');
   updateContMapMarkers();
 }
+let mapFullscreenOrigParent=null, mapFullscreenOrigNext=null;
 function toggleMapFullscreen(){
   const card=document.getElementById('cont-map-card'); if(!card) return;
+  const entrando=!card.classList.contains('map-fullscreen');
+  if(entrando){
+    // Sacamos la tarjeta del grid de dos columnas y la colgamos directamente de <body>:
+    // así "position:fixed" no puede heredar ningún tamaño/posición raro del grid/scroll padre
+    // (causa de que se viera "flotando en medio" al hacer scroll, tanto en móvil como en PC).
+    mapFullscreenOrigParent=card.parentNode;
+    mapFullscreenOrigNext=card.nextSibling;
+    document.body.appendChild(card);
+    document.body.style.overflow='hidden';
+  } else {
+    document.body.style.overflow='';
+    if(mapFullscreenOrigParent){
+      if(mapFullscreenOrigNext&&mapFullscreenOrigNext.parentNode===mapFullscreenOrigParent) mapFullscreenOrigParent.insertBefore(card,mapFullscreenOrigNext);
+      else mapFullscreenOrigParent.appendChild(card);
+    }
+    mapFullscreenOrigParent=null; mapFullscreenOrigNext=null;
+  }
   card.classList.toggle('map-fullscreen');
   const btn=document.querySelector('[data-action="cont-map-fullscreen"]');
   if(btn) btn.textContent=card.classList.contains('map-fullscreen')?'✕':'⛶';
@@ -2088,8 +2115,14 @@ function openContainerModal(num){
 function saveContainerModal(num){
   const c=getContainer(num);
   if(!c) return;
+  const nuevoCliente=document.getElementById('m-cliente').value.trim();
+  if(prevaleceEspecialHoy(c,nuevoCliente)){
+    toastMsg(`Hoy ya se puso en ${c.cliente} — prevalece, no se puede reasignar a otro cliente el mismo día`,4500);
+    closeModal();
+    return;
+  }
   const antes=snapshotContenedor(c);
-  c.cliente=document.getElementById('m-cliente').value.trim();
+  c.cliente=nuevoCliente;
   c.direccion=document.getElementById('m-dir').value.trim();
   c.telefono=document.getElementById('m-tel').value.trim();
   c.tipo=document.getElementById('m-tipo').value;
@@ -2223,8 +2256,13 @@ function editarRapidoForm(num,ocrInfo){
 }
 function erGuardar(num){
   const c=getContainer(num); if(!c) return;
-  const antes=snapshotContenedor(c);
   const cliente=document.getElementById('er-cliente').value.trim();
+  if(prevaleceEspecialHoy(c,cliente)){
+    toastMsg(`Hoy ya se puso en ${c.cliente} — prevalece, no se puede reasignar a otro cliente el mismo día`,4500);
+    closeModal();
+    return;
+  }
+  const antes=snapshotContenedor(c);
   if(cliente) c.cliente=cliente;
   c.direccion=document.getElementById('er-dir').value.trim();
   c.telefono=document.getElementById('er-tel').value.trim();
@@ -3504,7 +3542,8 @@ function fotoInput(num){
 function delFoto(num,idx){const c=getContainer(num);if(!c) return;c.fotos.splice(idx,1);saveContainers();openContainerModal(num);}
 
 // ─── EVENTOS ──────────────────────────────────────────────────────
-document.getElementById('modal-overlay').addEventListener('click',e=>{if(e.target===document.getElementById('modal-overlay')) closeModal();});
+// Antes se cerraba el modal con un solo toque fuera de él (fácil de tocar sin querer y perder
+// lo que se estaba editando en un contenedor). Ahora solo se cierra con el botón ✕ o al guardar.
 document.addEventListener('input',e=>{
   if(e.target.dataset.action==='edit-linea'){
     const idx=+e.target.dataset.idx; const field=e.target.dataset.field;
