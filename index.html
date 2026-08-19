@@ -2213,6 +2213,7 @@ function editarRapidoModal(){
     <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
       <button class="btn btn-primary" style="flex:1" data-action="er-buscar">Continuar</button>
       <button class="btn btn-secondary" data-action="er-foto-albaran-buscar">📷 Leer albarán</button>
+      <button class="btn btn-secondary btn-sm" data-action="gemini-key" title="Ver/cambiar la clave de la API de Gemini">🔑</button>
     </div>
     <div id="er-buscar-status" style="font-size:12px;color:var(--muted);margin-top:8px"></div>`;
   document.getElementById('modal-overlay').classList.add('open');
@@ -2254,6 +2255,7 @@ function editarRapidoForm(num,ocrInfo){
     <div style="font-size:11px;color:var(--muted);margin-top:2px">Última visita: ${fmtDate(c.fecha)} · al pulsar Listo se actualizará a hoy</div>
     <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
       <button class="btn btn-secondary" data-action="er-foto-albaran" data-param="${c.num}">📷 Leer albarán</button>
+      <button class="btn btn-secondary btn-sm" data-action="gemini-key" title="Ver/cambiar la clave de la API de Gemini">🔑</button>
       <button class="btn btn-primary" style="flex:1" data-action="er-listo" data-param="${c.num}">✅ Listo</button>
     </div>
     <div id="er-ocr-status" style="font-size:12px;color:var(--muted);margin-top:8px"></div>`;
@@ -2442,6 +2444,100 @@ async function ocrMejorRotacion(file,onIntento){
     URL.revokeObjectURL(url);
   }
 }
+
+// ─── LECTURA DE ALBARANES CON GEMINI 1.5 FLASH (IA con visión, gratis) ─────
+// Lee la foto directamente con un modelo de IA (Gemini, de Google), que interpreta letra
+// manuscrita muchísimo mejor que un OCR clásico como Tesseract. La capa gratuita de Google AI
+// Studio permite hasta 1.500 fotos al día sin coste. Hace falta una clave de API (se pide la
+// primera vez con pedirGeminiApiKey) que se guarda SOLO en este dispositivo (localStorage) —
+// nunca se sube al código ni a la nube.
+function getGeminiApiKey(){ return (localStorage.getItem('garvi_gemini_api_key')||'').trim(); }
+function setGeminiApiKey(k){ localStorage.setItem('garvi_gemini_api_key',(k||'').trim()); }
+function pedirGeminiApiKey(){
+  const k=window.prompt(
+    'Pega aquí tu clave gratuita de la API de Gemini (se consigue en aistudio.google.com → "Get API key").\n\n'+
+    'Se guarda solo en este dispositivo — no se sube a ningún sitio ni se comparte.',
+    getGeminiApiKey()
+  );
+  if(k===null) return ''; // cancelado
+  setGeminiApiKey(k);
+  return getGeminiApiKey();
+}
+function fileToBase64(file){
+  return new Promise((resolve,reject)=>{
+    const reader=new FileReader();
+    reader.onload=()=>resolve(String(reader.result).split(',')[1]||'');
+    reader.onerror=()=>reject(new Error('No se pudo leer el archivo'));
+    reader.readAsDataURL(file);
+  });
+}
+const GEMINI_PROMPT_ALBARAN=`Analiza este albarán de transporte de contenedores con texto manuscrito y extrae los datos en formato JSON con la siguiente estructura:
+{
+  "numero_ticket": "string (ej. 7478)",
+  "llevada": "string",
+  "retirada": "string",
+  "fecha": "string",
+  "cliente": "string",
+  "lugar": "string",
+  "poblacion": "string",
+  "conductor": "string",
+  "observaciones": "string",
+  "dni": "string",
+  "hora": "string"
+}`;
+async function leerAlbaranConGemini(file){
+  const apiKey=getGeminiApiKey();
+  if(!apiKey) throw new Error('Sin clave de Gemini configurada');
+  const base64=await fileToBase64(file);
+  const url=`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${encodeURIComponent(apiKey)}`;
+  const body={
+    contents:[{parts:[
+      {text:GEMINI_PROMPT_ALBARAN},
+      {inline_data:{mime_type:file.type||'image/jpeg',data:base64}}
+    ]}],
+    generationConfig:{response_mime_type:'application/json'}
+  };
+  const res=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  if(res.status===400||res.status===403) setGeminiApiKey(''); // clave probablemente inválida: se pedirá de nuevo
+  if(!res.ok){
+    const errTxt=await res.text().catch(()=>'');
+    throw new Error(`Gemini respondió ${res.status}${errTxt?': '+errTxt.slice(0,180):''}`);
+  }
+  const data=await res.json();
+  const textoJson=data&&data.candidates&&data.candidates[0]&&data.candidates[0].content&&data.candidates[0].content.parts&&data.candidates[0].content.parts[0]&&data.candidates[0].content.parts[0].text;
+  if(!textoJson) throw new Error('Gemini no ha devuelto datos legibles (puede que haya rechazado la imagen)');
+  return JSON.parse(textoJson);
+}
+// Convierte el JSON de Gemini al mismo formato "info" que ya usan los formularios de edición
+function mapGeminiAInfo(g){
+  const limpia=v=>(v&&typeof v==='string'&&v.trim()&&!/^(no visible|no legible|desconocid|n\/a|null|undefined)/i.test(v.trim()))?v.trim():'';
+  return {
+    cliente:limpia(g.cliente),
+    direccion:[limpia(g.lugar),limpia(g.poblacion)].filter(Boolean).join(', '),
+    numCont:limpia(g.llevada)||limpia(g.retirada)||limpia(g.numero_ticket),
+  };
+}
+// Lee el albarán con Gemini (mucho mejor con letra manuscrita); si falla por cualquier motivo
+// (sin clave, sin conexión, cuota agotada...) cae automáticamente al lector local (Tesseract),
+// para no dejar al usuario sin nada.
+async function leerAlbaranInteligente(file,onEstado){
+  let apiKey=getGeminiApiKey();
+  if(!apiKey) apiKey=pedirGeminiApiKey();
+  if(apiKey){
+    try{
+      if(onEstado) onEstado('🔎 Leyendo albarán con IA (Gemini)…');
+      const g=await leerAlbaranConGemini(file);
+      return {info:mapGeminiAInfo(g),texto:JSON.stringify(g,null,2),motor:'gemini'};
+    }catch(e){
+      console.error('Gemini falló, se prueba con el lector local:',e);
+      if(onEstado) onEstado(`⚠️ Gemini falló (${e.message}), probando con el lector local…`);
+    }
+  }
+  await loadTesseract();
+  const data=await ocrMejorRotacion(file,deg=>{ if(onEstado) onEstado('🔎 Leyendo albarán'+(deg?` (probando girada ${deg}°)`:'')+'…'); });
+  return {info:parseAlbaranOCR(data.text||''),texto:data.text||'',motor:'tesseract'};
+}
+
 // Foto de albarán estando ya sobre un contenedor concreto: rellena sus campos
 // (sin "capture" para que el móvil ofrezca elegir también desde la galería, no solo la cámara)
 function erFotoAlbaran(num){
@@ -2449,23 +2545,20 @@ function erFotoAlbaran(num){
   inp.onchange=async()=>{
     const file=inp.files[0]; if(!file) return;
     const statusEl=document.getElementById('er-ocr-status');
-    if(statusEl) statusEl.textContent='⏳ Cargando lector (puede tardar la primera vez)…';
+    if(statusEl) statusEl.textContent='⏳ Leyendo…';
     try{
-      await loadTesseract();
-      const data=await ocrMejorRotacion(file,deg=>{ if(statusEl) statusEl.textContent='🔎 Leyendo albarán'+(deg?` (probando girada ${deg}°)`:'')+'…'; });
-      const info=parseAlbaranOCR(data.text||'');
+      const {info,texto,motor}=await leerAlbaranInteligente(file,txt=>{ if(statusEl) statusEl.textContent=txt; });
       if(info.cliente) document.getElementById('er-cliente').value=info.cliente;
       if(info.direccion) document.getElementById('er-dir').value=info.direccion;
       if(info.telefono) document.getElementById('er-tel').value=info.telefono;
       if(info.tipo) document.getElementById('er-tipo').value=info.tipo;
       if(info.aCuenta) document.getElementById('er-acuenta').value=info.aCuenta;
-      const leido=(data.text||'').trim();
-      if(statusEl) statusEl.innerHTML='✓ Datos rellenados desde el albarán — revísalos antes de pulsar Listo.'
+      if(statusEl) statusEl.innerHTML=`✓ Datos rellenados ${motor==='gemini'?'con IA (Gemini)':'con el lector local'} — revísalos antes de pulsar Listo.`
         +`<details style="margin-top:6px"><summary style="cursor:pointer">Ver lo que se ha leído</summary>`
-        +`<pre style="white-space:pre-wrap;font-size:10px;background:var(--surface2);padding:6px;border-radius:6px;margin-top:4px;max-height:160px;overflow:auto">${(leido||'(nada legible)').replace(/</g,'&lt;')}</pre></details>`;
+        +`<pre style="white-space:pre-wrap;font-size:10px;background:var(--surface2);padding:6px;border-radius:6px;margin-top:4px;max-height:160px;overflow:auto">${(texto||'(nada legible)').replace(/</g,'&lt;')}</pre></details>`;
       toastMsg('Albarán leído — revisa los datos');
     }catch(e){
-      console.error('Error OCR:',e);
+      console.error('Error leyendo albarán:',e);
       if(statusEl) statusEl.textContent=`✗ No se pudo leer el albarán (${e&&e.message||e}), escribe los datos a mano.`;
       toastMsg('No se pudo leer la foto');
     }
@@ -2479,11 +2572,9 @@ function erFotoAlbaranBuscar(){
   inp.onchange=async()=>{
     const file=inp.files[0]; if(!file) return;
     const statusEl=document.getElementById('er-buscar-status');
-    if(statusEl) statusEl.textContent='⏳ Cargando lector (puede tardar la primera vez)…';
+    if(statusEl) statusEl.textContent='⏳ Leyendo…';
     try{
-      await loadTesseract();
-      const data=await ocrMejorRotacion(file,deg=>{ if(statusEl) statusEl.textContent='🔎 Leyendo albarán'+(deg?` (probando girada ${deg}°)`:'')+'…'; });
-      const info=parseAlbaranOCR(data.text||'');
+      const {info,texto,motor}=await leerAlbaranInteligente(file,txt=>{ if(statusEl) statusEl.textContent=txt; });
       let match=null;
       if(info.numCont) match=getContainer(info.numCont);
       if(!match&&info.cliente){
@@ -2492,18 +2583,17 @@ function erFotoAlbaranBuscar(){
         if(candidatos.length===1) match=candidatos[0];
       }
       if(match){
-        toastMsg(`Albarán identificado: contenedor #${match.num}`);
+        toastMsg(`Albarán identificado: contenedor #${match.num} (${motor==='gemini'?'IA':'lector local'})`);
         editarRapidoForm(match.num,info);
       } else {
         erOcrPendiente=info;
-        const leido=(data.text||'').trim();
-        if(statusEl) statusEl.innerHTML=`No se ha podido identificar el contenedor automáticamente. Escribe el número arriba y pulsa Continuar; los datos leídos se rellenarán igual.`
+        if(statusEl) statusEl.innerHTML=`No se ha podido identificar el contenedor automáticamente (${motor==='gemini'?'IA':'lector local'}). Escribe el número arriba y pulsa Continuar; los datos leídos se rellenarán igual.`
           +`<details style="margin-top:6px"><summary style="cursor:pointer">Ver lo que se ha leído (para depurar)</summary>`
-          +`<pre style="white-space:pre-wrap;font-size:10px;background:var(--surface2);padding:6px;border-radius:6px;margin-top:4px;max-height:160px;overflow:auto">${(leido||'(nada legible)').replace(/</g,'&lt;')}</pre></details>`;
+          +`<pre style="white-space:pre-wrap;font-size:10px;background:var(--surface2);padding:6px;border-radius:6px;margin-top:4px;max-height:160px;overflow:auto">${(texto||'(nada legible)').replace(/</g,'&lt;')}</pre></details>`;
         toastMsg('No identificado — escribe el número a mano');
       }
     }catch(e){
-      console.error('Error OCR:',e);
+      console.error('Error leyendo albarán:',e);
       if(statusEl) statusEl.textContent=`✗ No se pudo leer el albarán (${e&&e.message||e}), escribe los datos a mano.`;
       toastMsg('No se pudo leer la foto');
     }
@@ -3698,6 +3788,7 @@ document.addEventListener('click',e=>{
   else if(action==='er-listo') erGuardar(param);
   else if(action==='er-foto-albaran') erFotoAlbaran(param);
   else if(action==='er-foto-albaran-buscar') erFotoAlbaranBuscar();
+  else if(action==='gemini-key'){ if(pedirGeminiApiKey()) toastMsg('Clave de Gemini guardada ✓'); }
   else if(action==='ver-historial-cont') verHistorialContenedor(param);
   else if(action==='del-foto') delFoto(param,+btn.dataset.idx);
   else if(action==='filter-estado'){filterEstado=param;applyContFilter();}
