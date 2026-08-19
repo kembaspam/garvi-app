@@ -2299,15 +2299,41 @@ function parseAlbaranOCR(texto){
   const norm=s=>(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();
   const lineas=(texto||'').split('\n').map(l=>l.trim()).filter(Boolean);
   const info={};
+  // Separadores típicos entre una etiqueta impresa y el valor manuscrito: espacios, ":" "." "/"
+  // "-" "_" (la línea de puntos/subrayado del formulario suele leerse como guiones bajos).
+  const limpiarSeparadores=s=>s.replace(/^[\s:./_\-–]+/,'');
+  // Otras etiquetas del formulario que pueden venir pegadas justo después de la que buscamos
+  // (p.ej. "CLIENTE / CARGADOR FATUM" → al buscar "cliente" nos deja "/ CARGADOR FATUM";
+  // hay que saltarse también "cargador" para quedarnos solo con "FATUM").
+  const ETIQUETAS_FORM=['cliente','cargador','nombre','lugar','direccion','ubicacion','domicilio','poblacion','conductor','destinatario','observaciones','hora','dni','precio','fecha','tel','telefono'];
+  // Si más adelante en la misma línea aparece OTRA etiqueta del formulario, cortamos ahí: varios
+  // campos pueden venir seguidos en la misma fila (p.ej. "POBLACIÓN ALICANTE CONDUCTOR ALEJANDRO").
+  // norm() no cambia la longitud de los acentos habituales, así que el índice sirve también
+  // sobre la cadena original.
+  const cortarEnSiguienteEtiqueta=s=>{
+    const plano=norm(s);
+    let corte=-1;
+    for(const et of ETIQUETAS_FORM){
+      const idx=plano.indexOf(et);
+      if(idx>0&&(corte===-1||idx<corte)) corte=idx;
+    }
+    return corte===-1?s:s.slice(0,corte);
+  };
   const buscarCampo=(patrones)=>{
     for(const l of lineas){
       const nl=norm(l);
       for(const p of patrones){
         const idx=nl.indexOf(p);
-        if(idx!==-1){
-          const resto=l.slice(idx+p.length).replace(/^[\s:./\-–]+/,'').trim();
-          if(resto) return resto;
+        if(idx===-1) continue;
+        let resto=limpiarSeparadores(l.slice(idx+p.length));
+        for(let i=0;i<3;i++){ // hasta 3 etiquetas pegadas seguidas, por si acaso
+          const nresto=norm(resto);
+          const etq=ETIQUETAS_FORM.find(et=>nresto.startsWith(et));
+          if(!etq) break;
+          resto=limpiarSeparadores(resto.slice(etq.length));
         }
+        resto=cortarEnSiguienteEtiqueta(resto).trim();
+        if(resto) return resto;
       }
     }
     return '';
@@ -2319,10 +2345,13 @@ function parseAlbaranOCR(texto){
   info.direccion=[lugar||direccionGenerica,poblacion].filter(Boolean).join(', ');
   info.aCuenta=buscarCampo(['a cuenta','pendiente','saldo','resto a pagar','deuda']);
   // Nº de contenedor: primero "Llevada nº" (el que se está dejando, el más relevante al editar),
-  // si no "Retirada nº", si no el genérico "contenedor nº"
-  const llevadaM=(texto||'').match(/llevada[\s:.]*n?[ºo°]?[\s:.]*([a-z]?\d+[a-z]?)/i);
-  const retiradaM=(texto||'').match(/retirada[\s:.]*n?[ºo°]?[\s:.]*([a-z]?\d+[a-z]?)/i);
-  const numContM=(texto||'').match(/cont(?:enedor)?\.?\s*n?[ºo°]?\.?\s*(\w+)/i);
+  // si no "Retirada nº", si no el genérico "contenedor nº". Se admite cualquier cantidad de
+  // espacios/puntos/guiones (incluida la raya de puntos suspensivos del formulario) entre la
+  // etiqueta y el número.
+  const SEP='[\\s:._\\-–]*';
+  const llevadaM=(texto||'').match(new RegExp('llevada'+SEP+'n?[ºo°]?'+SEP+'(\\d+[a-z]?)','i'));
+  const retiradaM=(texto||'').match(new RegExp('retirada'+SEP+'n?[ºo°]?'+SEP+'(\\d+[a-z]?)','i'));
+  const numContM=(texto||'').match(new RegExp('cont(?:enedor)?'+SEP+'n?[ºo°]?'+SEP+'(\\w+)','i'));
   info.numCont=(llevadaM&&llevadaM[1])||(retiradaM&&retiradaM[1])||(numContM&&numContM[1])||'';
   const telM=(texto||'').match(/\b(6\d{2}|7[1-9]\d|9\d{2})[\s.-]?\d{2}[\s.-]?\d{2}[\s.-]?\d{2}[\s.-]?\d{0,2}\b/);
   if(telM) info.telefono=telM[0].replace(/[\s.-]/g,'');
@@ -2345,7 +2374,11 @@ function cargarImagenFile(file){
     img.src=url;
   });
 }
-// Dibuja la imagen rotada `deg` grados (0/90/180/270) en un canvas nuevo
+// Dibuja la imagen rotada `deg` grados (0/90/180/270) y en blanco/negro (umbral de brillo) en
+// un canvas nuevo. El paso a blanco/negro "borra" marcas de agua e impresiones claras de fondo
+// (como el logo grande en gris que llevan los albaranes de Garvi) dejando solo la tinta oscura
+// (impresa o manuscrita), que es lo único que Tesseract necesita leer — mejora mucho la lectura
+// en formularios con ese tipo de fondo.
 function rotarImagenCanvas(img,deg){
   const sw=img.naturalWidth||img.width, sh=img.naturalHeight||img.height;
   const swap=deg===90||deg===270;
@@ -2355,6 +2388,17 @@ function rotarImagenCanvas(img,deg){
   ctx.translate(cnv.width/2,cnv.height/2);
   ctx.rotate(deg*Math.PI/180);
   ctx.drawImage(img,-sw/2,-sh/2);
+  try{
+    const id=ctx.getImageData(0,0,cnv.width,cnv.height);
+    const px=id.data;
+    const UMBRAL=175;
+    for(let i=0;i<px.length;i+=4){
+      const lum=0.299*px[i]+0.587*px[i+1]+0.114*px[i+2];
+      const v=lum<UMBRAL?0:255;
+      px[i]=px[i+1]=px[i+2]=v;
+    }
+    ctx.putImageData(id,0,0);
+  }catch(e){ console.error('No se pudo preprocesar la imagen para OCR:',e); }
   return cnv;
 }
 // Un único worker de Tesseract reutilizado para todas las lecturas: la función suelta
@@ -2380,7 +2424,7 @@ async function ocrMejorRotacion(file,onIntento){
     let mejor=null;
     for(const deg of angulos){
       if(onIntento) onIntento(deg);
-      const fuente=deg===0?img:rotarImagenCanvas(img,deg);
+      const fuente=rotarImagenCanvas(img,deg);
       const {data}=await worker.recognize(fuente);
       const conf=data.confidence||0;
       const len=(data.text||'').replace(/\s+/g,'').length;
