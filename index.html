@@ -2442,6 +2442,110 @@ async function ocrMejorRotacion(file,onIntento){
     URL.revokeObjectURL(url);
   }
 }
+
+// ─── LECTURA LÍNEA A LÍNEA CON RECONOCIMIENTO DE ESCRITURA A MANO (TrOCR) ──
+// Tesseract es bueno localizando DÓNDE está cada línea del formulario (funciona bien incluso
+// con la marca de agua de fondo), pero flojo leyendo letra manuscrita. TrOCR (modelo de
+// Microsoft, vía Transformers.js — se ejecuta en el navegador, gratis, sin servidor) es mucho
+// mejor leyendo letra a mano, pero solo sabe leer UNA línea de texto cada vez. Combinamos los
+// dos: Tesseract localiza las líneas, y cada una se recorta y se relee por separado con TrOCR.
+let trocrPipelinePromise=null;
+function getTrocrPipeline(onProgress){
+  if(!trocrPipelinePromise){
+    trocrPipelinePromise=import('https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.2.0')
+      .then(({pipeline})=>pipeline('image-to-text','Xenova/trocr-small-handwritten',{dtype:'q8',progress_callback:onProgress}))
+      .catch(e=>{ trocrPipelinePromise=null; throw e; });
+  }
+  return trocrPipelinePromise;
+}
+// Recorta un rectángulo (con un pequeño margen) de un canvas ya rotado
+function recortarCanvas(cnv,bbox,margen){
+  const x0=Math.max(0,bbox.x0-margen), y0=Math.max(0,bbox.y0-margen);
+  const x1=Math.min(cnv.width,bbox.x1+margen), y1=Math.min(cnv.height,bbox.y1+margen);
+  const w=x1-x0, h=y1-y0;
+  if(w<=0||h<=0) return null;
+  const out=document.createElement('canvas'); out.width=w; out.height=h;
+  out.getContext('2d').drawImage(cnv,x0,y0,w,h,0,0,w,h);
+  return out;
+}
+// Extrae las líneas (con su posición) de la salida "blocks" de Tesseract
+function extraerLineas(data){
+  const lineas=[];
+  (data.blocks||[]).forEach(b=>(b.paragraphs||[]).forEach(p=>(p.lines||[]).forEach(l=>{
+    if(l.text&&l.text.trim()&&l.bbox) lineas.push({texto:l.text,bbox:l.bbox});
+  })));
+  return lineas;
+}
+const MAX_LINEAS_TROCR=25;
+// Lee el albarán línea a línea: localiza las líneas con Tesseract y relee cada una con TrOCR.
+// Si algo falla en cualquier paso, se queda con lo que ya tenía leído (nunca deja al usuario
+// sin nada por un fallo del lector de escritura a mano).
+async function leerAlbaranLineaALinea(file,onEstado){
+  const {img,url}=await cargarImagenFile(file);
+  try{
+    const worker=await getTesseractWorker();
+    const intentos=[{deg:0,bin:false},{deg:0,bin:true},{deg:90,bin:false},{deg:270,bin:false},{deg:180,bin:false}];
+    let mejor=null, mejorCanvas=null;
+    for(const {deg,bin} of intentos){
+      if(onEstado) onEstado(`🔎 Localizando texto${deg?` (girada ${deg}°)`:''}…`);
+      const fuente=rotarImagenCanvas(img,deg,bin);
+      const {data}=await worker.recognize(fuente,{},{blocks:true});
+      const conf=data.confidence||0;
+      const len=(data.text||'').replace(/\s+/g,'').length;
+      console.log(`[OCR] giro ${deg}°${bin?' (b/n)':''} → confianza ${conf} · ${len} caracteres`,data.text);
+      if(!mejor||conf>mejor.conf||(conf===mejor.conf&&len>mejor.len)){
+        mejor={data,conf,len};
+        mejorCanvas=bin?rotarImagenCanvas(img,deg,false):fuente; // para TrOCR usamos siempre la versión SIN blanco/negro
+      }
+      if(conf>=65&&len>25) break;
+    }
+    const lineas=extraerLineas(mejor.data);
+    if(!lineas.length) return mejor.data; // no se han localizado líneas, nos quedamos con lo de Tesseract
+
+    let pipe;
+    try{
+      if(onEstado) onEstado('⏳ Cargando lector de escritura a mano (puede tardar, ~60MB la primera vez)…');
+      pipe=await getTrocrPipeline(p=>{
+        if(onEstado&&p&&p.status==='progress') onEstado(`⏳ Descargando lector de escritura a mano… ${Math.round(p.progress||0)}%`);
+      });
+    }catch(e){
+      console.error('No se pudo cargar TrOCR, se usa solo lo que leyó Tesseract:',e);
+      return mejor.data;
+    }
+
+    const lineasARecortar=lineas.slice(0,MAX_LINEAS_TROCR);
+    const textoFinal=[];
+    for(let i=0;i<lineasARecortar.length;i++){
+      const l=lineasARecortar[i];
+      if(onEstado) onEstado(`✍️ Releyendo línea ${i+1} de ${lineasARecortar.length} con reconocimiento de escritura a mano…`);
+      try{
+        const recorte=recortarCanvas(mejorCanvas,l.bbox,6);
+        if(!recorte){ textoFinal.push(l.texto); continue; }
+        const out=await pipe(recorte.toDataURL('image/png'));
+        const texto=(out&&out[0]&&out[0].generated_text||'').trim();
+        console.log(`[TrOCR] línea ${i+1}: "${l.texto}" → "${texto}"`);
+        textoFinal.push(texto||l.texto);
+      }catch(e){
+        console.error('Error releyendo línea',i+1,'con TrOCR, se mantiene la lectura de Tesseract:',e);
+        textoFinal.push(l.texto);
+      }
+    }
+    return {...mejor.data, text:textoFinal.join('\n')};
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+// Punto de entrada robusto: intenta la lectura línea a línea (mejor con letra a mano) y, si
+// algo falla por completo, cae al modo simple (solo Tesseract) para no dejar al usuario sin nada.
+async function leerAlbaranRobusto(file,onEstado){
+  try{
+    return await leerAlbaranLineaALinea(file,onEstado);
+  }catch(e){
+    console.error('Falló la lectura línea a línea, se usa el modo simple:',e);
+    return await ocrMejorRotacion(file,deg=>onEstado&&onEstado('🔎 Leyendo albarán'+(deg?` (probando girada ${deg}°)`:'')+'…'));
+  }
+}
+
 // Foto de albarán estando ya sobre un contenedor concreto: rellena sus campos
 // (sin "capture" para que el móvil ofrezca elegir también desde la galería, no solo la cámara)
 function erFotoAlbaran(num){
@@ -2452,7 +2556,7 @@ function erFotoAlbaran(num){
     if(statusEl) statusEl.textContent='⏳ Cargando lector (puede tardar la primera vez)…';
     try{
       await loadTesseract();
-      const data=await ocrMejorRotacion(file,deg=>{ if(statusEl) statusEl.textContent='🔎 Leyendo albarán'+(deg?` (probando girada ${deg}°)`:'')+'…'; });
+      const data=await leerAlbaranRobusto(file,txt=>{ if(statusEl) statusEl.textContent=txt; });
       const info=parseAlbaranOCR(data.text||'');
       if(info.cliente) document.getElementById('er-cliente').value=info.cliente;
       if(info.direccion) document.getElementById('er-dir').value=info.direccion;
@@ -2482,7 +2586,7 @@ function erFotoAlbaranBuscar(){
     if(statusEl) statusEl.textContent='⏳ Cargando lector (puede tardar la primera vez)…';
     try{
       await loadTesseract();
-      const data=await ocrMejorRotacion(file,deg=>{ if(statusEl) statusEl.textContent='🔎 Leyendo albarán'+(deg?` (probando girada ${deg}°)`:'')+'…'; });
+      const data=await leerAlbaranRobusto(file,txt=>{ if(statusEl) statusEl.textContent=txt; });
       const info=parseAlbaranOCR(data.text||'');
       let match=null;
       if(info.numCont) match=getContainer(info.numCont);
