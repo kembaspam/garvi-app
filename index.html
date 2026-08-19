@@ -540,7 +540,11 @@ label{
 /* ── MAPA CONTENEDORES ───────────────────────────────────────── */
 .cont-map-layout{display:grid;grid-template-columns:1.4fr 1fr;gap:14px;align-items:start}
 @media(max-width:900px){.cont-map-layout{grid-template-columns:1fr}}
-#cont-map{height:560px;border-radius:10px;overflow:hidden;background:var(--surface2)}
+/* position:relative + z-index crea un contexto de apilado propio: los controles internos de
+   Leaflet (que usan z-index hasta 1000) quedan encerrados dentro y no pueden "sobresalir" por
+   encima del menú/barra inferior de la app al hacer scroll, ni en móvil ni en PC. */
+#cont-map{height:560px;border-radius:10px;overflow:hidden;background:var(--surface2);position:relative;z-index:0}
+#cont-map-card{position:relative;z-index:0}
 #cont-list-card{max-height:560px;overflow-y:auto}
 @media(max-width:767px){#cont-map{height:400px}#cont-list-card{max-height:400px}}
 #cont-map-card.map-fullscreen{position:fixed;top:0;left:0;right:0;bottom:0;width:100vw;height:100vh;z-index:5500;border-radius:0;margin:0;padding:10px;display:flex;flex-direction:column;background:var(--surface)}
@@ -2289,6 +2293,8 @@ function loadTesseract(){
 }
 // Interpreta el texto reconocido de un albarán y extrae los campos que nos interesan.
 // Es una lectura "a mejor esfuerzo": el usuario siempre revisa/corrige los campos antes de guardar.
+// Las etiquetas cubren tanto un albarán "genérico" como el formulario real de Garvi
+// (CLIENTE/CARGADOR, LUGAR, POBLACIÓN, LLEVADA nº, RETIRADA nº, CONDUCTOR...).
 function parseAlbaranOCR(texto){
   const norm=s=>(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();
   const lineas=(texto||'').split('\n').map(l=>l.trim()).filter(Boolean);
@@ -2299,18 +2305,25 @@ function parseAlbaranOCR(texto){
       for(const p of patrones){
         const idx=nl.indexOf(p);
         if(idx!==-1){
-          const resto=l.slice(idx+p.length).replace(/^[\s:.\-–]+/,'').trim();
+          const resto=l.slice(idx+p.length).replace(/^[\s:./\-–]+/,'').trim();
           if(resto) return resto;
         }
       }
     }
     return '';
   };
-  info.cliente=buscarCampo(['cliente','nombre','sr.','sra.','a nombre de']);
-  info.direccion=buscarCampo(['direccion','direcc','calle','ubicacion','lugar','domicilio']);
+  info.cliente=buscarCampo(['cliente','cargador','nombre','sr.','sra.','a nombre de']);
+  const lugar=buscarCampo(['lugar']);
+  const direccionGenerica=buscarCampo(['direccion','direcc','calle','ubicacion','domicilio']);
+  const poblacion=buscarCampo(['poblacion']);
+  info.direccion=[lugar||direccionGenerica,poblacion].filter(Boolean).join(', ');
   info.aCuenta=buscarCampo(['a cuenta','pendiente','saldo','resto a pagar','deuda']);
-  const numContM=(texto||'').match(/cont(?:enedor)?\.?\s*n?º?\.?\s*(\w+)/i);
-  if(numContM) info.numCont=numContM[1];
+  // Nº de contenedor: primero "Llevada nº" (el que se está dejando, el más relevante al editar),
+  // si no "Retirada nº", si no el genérico "contenedor nº"
+  const llevadaM=(texto||'').match(/llevada[\s:.]*n?[ºo°]?[\s:.]*([a-z]?\d+[a-z]?)/i);
+  const retiradaM=(texto||'').match(/retirada[\s:.]*n?[ºo°]?[\s:.]*([a-z]?\d+[a-z]?)/i);
+  const numContM=(texto||'').match(/cont(?:enedor)?\.?\s*n?[ºo°]?\.?\s*(\w+)/i);
+  info.numCont=(llevadaM&&llevadaM[1])||(retiradaM&&retiradaM[1])||(numContM&&numContM[1])||'';
   const telM=(texto||'').match(/\b(6\d{2}|7[1-9]\d|9\d{2})[\s.-]?\d{2}[\s.-]?\d{2}[\s.-]?\d{2}[\s.-]?\d{0,2}\b/);
   if(telM) info.telefono=telM[0].replace(/[\s.-]/g,'');
   const tNorm=norm(texto);
@@ -2322,17 +2335,61 @@ function parseAlbaranOCR(texto){
   }
   return info;
 }
+// Carga un File como <img> ya decodificado
+function cargarImagenFile(file){
+  return new Promise((resolve,reject)=>{
+    const url=URL.createObjectURL(file);
+    const img=new Image();
+    img.onload=()=>resolve({img,url});
+    img.onerror=()=>{URL.revokeObjectURL(url);reject(new Error('No se pudo abrir la imagen'));};
+    img.src=url;
+  });
+}
+// Dibuja la imagen rotada `deg` grados (0/90/180/270) en un canvas nuevo
+function rotarImagenCanvas(img,deg){
+  const sw=img.naturalWidth||img.width, sh=img.naturalHeight||img.height;
+  const swap=deg===90||deg===270;
+  const cnv=document.createElement('canvas');
+  cnv.width=swap?sh:sw; cnv.height=swap?sw:sh;
+  const ctx=cnv.getContext('2d');
+  ctx.translate(cnv.width/2,cnv.height/2);
+  ctx.rotate(deg*Math.PI/180);
+  ctx.drawImage(img,-sw/2,-sh/2);
+  return cnv;
+}
+// Lee el albarán probando también con la foto girada: muchas fotos de móvil quedan "tumbadas"
+// (apaisadas) y Tesseract, si no se le da la vuelta, no consigue leer el texto aunque a simple
+// vista se vea perfectamente. Empieza por 0° (lo normal) y solo prueba a girar si hace falta.
+async function ocrMejorRotacion(file,onIntento){
+  const {img,url}=await cargarImagenFile(file);
+  try{
+    const angulos=[0,90,270,180];
+    let mejor=null;
+    for(const deg of angulos){
+      if(onIntento) onIntento(deg);
+      const fuente=deg===0?img:rotarImagenCanvas(img,deg);
+      const {data}=await Tesseract.recognize(fuente,'spa');
+      const conf=data.confidence||0;
+      const len=(data.text||'').replace(/\s+/g,'').length;
+      if(!mejor||conf>mejor.conf||(conf===mejor.conf&&len>mejor.len)) mejor={data,conf,len};
+      if(conf>=65&&len>25) break; // ya se ha leído bien, no hace falta seguir probando giros
+    }
+    return mejor.data;
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
 // Foto de albarán estando ya sobre un contenedor concreto: rellena sus campos
+// (sin "capture" para que el móvil ofrezca elegir también desde la galería, no solo la cámara)
 function erFotoAlbaran(num){
-  const inp=document.createElement('input'); inp.type='file'; inp.accept='image/*'; inp.capture='environment';
+  const inp=document.createElement('input'); inp.type='file'; inp.accept='image/*';
   inp.onchange=async()=>{
     const file=inp.files[0]; if(!file) return;
     const statusEl=document.getElementById('er-ocr-status');
     if(statusEl) statusEl.textContent='⏳ Cargando lector (puede tardar la primera vez)…';
     try{
       await loadTesseract();
-      if(statusEl) statusEl.textContent='🔎 Leyendo albarán…';
-      const {data}=await Tesseract.recognize(file,'spa');
+      const data=await ocrMejorRotacion(file,deg=>{ if(statusEl) statusEl.textContent='🔎 Leyendo albarán'+(deg?` (probando girada ${deg}°)`:'')+'…'; });
       const info=parseAlbaranOCR(data.text||'');
       if(info.cliente) document.getElementById('er-cliente').value=info.cliente;
       if(info.direccion) document.getElementById('er-dir').value=info.direccion;
@@ -2350,16 +2407,16 @@ function erFotoAlbaran(num){
   inp.click();
 }
 // Foto de albarán antes de elegir contenedor: intenta identificar cuál es a partir de lo leído
+// (sin "capture" para que el móvil ofrezca elegir también desde la galería, no solo la cámara)
 function erFotoAlbaranBuscar(){
-  const inp=document.createElement('input'); inp.type='file'; inp.accept='image/*'; inp.capture='environment';
+  const inp=document.createElement('input'); inp.type='file'; inp.accept='image/*';
   inp.onchange=async()=>{
     const file=inp.files[0]; if(!file) return;
     const statusEl=document.getElementById('er-buscar-status');
     if(statusEl) statusEl.textContent='⏳ Cargando lector (puede tardar la primera vez)…';
     try{
       await loadTesseract();
-      if(statusEl) statusEl.textContent='🔎 Leyendo albarán…';
-      const {data}=await Tesseract.recognize(file,'spa');
+      const data=await ocrMejorRotacion(file,deg=>{ if(statusEl) statusEl.textContent='🔎 Leyendo albarán'+(deg?` (probando girada ${deg}°)`:'')+'…'; });
       const info=parseAlbaranOCR(data.text||'');
       let match=null;
       if(info.numCont) match=getContainer(info.numCont);
@@ -3486,7 +3543,7 @@ function pdfCertificado(idOrNull){
   if(!idOrNull){guardarOActualizarCertificado();renderCertificados();}
   const ct=CERT_TIPOS[c.tipo]||CERT_TIPOS.escombros;
   const {jsPDF}=window.jspdf; const doc=new jsPDF({unit:'mm',format:'a4'});
-  try{drawGVLogo(doc,14,10,20);}catch(e){}
+  try{doc.addImage('data:image/png;base64,'+PRES_LOGO_B64,'PNG',14,8,20,20);}catch(e){}
   doc.setTextColor(15,32,68); doc.setFontSize(10); doc.setFont('helvetica','bold');
   doc.text('GARVI RECYCLING SYSTEMS, S.L.U.',40,16);
   doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(74,96,128);
@@ -3494,7 +3551,7 @@ function pdfCertificado(idOrNull){
   doc.text('C.P.03320 Elche (Alicante)',40,26);
   doc.text('Cif.B54970439',40,31);
   let cy=50;
-  doc.setTextColor(15,32,68); doc.setFontSize(18); doc.setFont('times','bold');
+  doc.setTextColor(15,32,68); doc.setFontSize(18); doc.setFont('helvetica','bold');
   doc.text('CERTIFICADO DE GESTIÓN DE RESIDUOS',14,cy); cy+=14;
   doc.setFont('helvetica','normal'); doc.setFontSize(10.5); doc.setTextColor(30,30,30);
   doc.text('Nº AUTORIZACIÓN:  664/T/RNP/CV',14,cy); cy+=8;
