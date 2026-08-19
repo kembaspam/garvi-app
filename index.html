@@ -2454,11 +2454,14 @@ function erFotoAlbaran(num){
       if(info.telefono) document.getElementById('er-tel').value=info.telefono;
       if(info.tipo) document.getElementById('er-tipo').value=info.tipo;
       if(info.aCuenta) document.getElementById('er-acuenta').value=info.aCuenta;
-      if(statusEl) statusEl.textContent='✓ Datos rellenados desde el albarán — revísalos antes de pulsar Listo.';
+      const leido=(data.text||'').trim();
+      if(statusEl) statusEl.innerHTML='✓ Datos rellenados desde el albarán — revísalos antes de pulsar Listo.'
+        +`<details style="margin-top:6px"><summary style="cursor:pointer">Ver lo que se ha leído</summary>`
+        +`<pre style="white-space:pre-wrap;font-size:10px;background:var(--surface2);padding:6px;border-radius:6px;margin-top:4px;max-height:160px;overflow:auto">${(leido||'(nada legible)').replace(/</g,'&lt;')}</pre></details>`;
       toastMsg('Albarán leído — revisa los datos');
     }catch(e){
       console.error('Error OCR:',e);
-      if(statusEl) statusEl.textContent='✗ No se pudo leer el albarán, escribe los datos a mano.';
+      if(statusEl) statusEl.textContent=`✗ No se pudo leer el albarán (${e&&e.message||e}), escribe los datos a mano.`;
       toastMsg('No se pudo leer la foto');
     }
   };
@@ -2488,12 +2491,15 @@ function erFotoAlbaranBuscar(){
         editarRapidoForm(match.num,info);
       } else {
         erOcrPendiente=info;
-        if(statusEl) statusEl.textContent='No se ha podido identificar el contenedor automáticamente. Escribe el número arriba y pulsa Continuar; los datos leídos se rellenarán igual.';
+        const leido=(data.text||'').trim();
+        if(statusEl) statusEl.innerHTML=`No se ha podido identificar el contenedor automáticamente. Escribe el número arriba y pulsa Continuar; los datos leídos se rellenarán igual.`
+          +`<details style="margin-top:6px"><summary style="cursor:pointer">Ver lo que se ha leído (para depurar)</summary>`
+          +`<pre style="white-space:pre-wrap;font-size:10px;background:var(--surface2);padding:6px;border-radius:6px;margin-top:4px;max-height:160px;overflow:auto">${(leido||'(nada legible)').replace(/</g,'&lt;')}</pre></details>`;
         toastMsg('No identificado — escribe el número a mano');
       }
     }catch(e){
       console.error('Error OCR:',e);
-      if(statusEl) statusEl.textContent='✗ No se pudo leer el albarán, escribe los datos a mano.';
+      if(statusEl) statusEl.textContent=`✗ No se pudo leer el albarán (${e&&e.message||e}), escribe los datos a mano.`;
       toastMsg('No se pudo leer la foto');
     }
   };
