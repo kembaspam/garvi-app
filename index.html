@@ -2374,12 +2374,11 @@ function cargarImagenFile(file){
     img.src=url;
   });
 }
-// Dibuja la imagen rotada `deg` grados (0/90/180/270) y en blanco/negro (umbral de brillo) en
-// un canvas nuevo. El paso a blanco/negro "borra" marcas de agua e impresiones claras de fondo
-// (como el logo grande en gris que llevan los albaranes de Garvi) dejando solo la tinta oscura
-// (impresa o manuscrita), que es lo único que Tesseract necesita leer — mejora mucho la lectura
-// en formularios con ese tipo de fondo.
-function rotarImagenCanvas(img,deg){
+// Dibuja la imagen rotada `deg` grados (0/90/180/270) en un canvas nuevo. Si `binarizar` es
+// true, además pasa la imagen a blanco/negro puro (umbral de brillo) para intentar "borrar" la
+// marca de agua/logo gris de fondo — mejora la lectura en algunas fotos, pero en otras (con
+// sombras o poca luz) puede empeorarla, así que se prueba como alternativa y no siempre.
+function rotarImagenCanvas(img,deg,binarizar){
   const sw=img.naturalWidth||img.width, sh=img.naturalHeight||img.height;
   const swap=deg===90||deg===270;
   const cnv=document.createElement('canvas');
@@ -2388,49 +2387,55 @@ function rotarImagenCanvas(img,deg){
   ctx.translate(cnv.width/2,cnv.height/2);
   ctx.rotate(deg*Math.PI/180);
   ctx.drawImage(img,-sw/2,-sh/2);
-  try{
-    const id=ctx.getImageData(0,0,cnv.width,cnv.height);
-    const px=id.data;
-    const UMBRAL=175;
-    for(let i=0;i<px.length;i+=4){
-      const lum=0.299*px[i]+0.587*px[i+1]+0.114*px[i+2];
-      const v=lum<UMBRAL?0:255;
-      px[i]=px[i+1]=px[i+2]=v;
-    }
-    ctx.putImageData(id,0,0);
-  }catch(e){ console.error('No se pudo preprocesar la imagen para OCR:',e); }
+  if(binarizar){
+    try{
+      const id=ctx.getImageData(0,0,cnv.width,cnv.height);
+      const px=id.data;
+      const UMBRAL=175;
+      for(let i=0;i<px.length;i+=4){
+        const lum=0.299*px[i]+0.587*px[i+1]+0.114*px[i+2];
+        const v=lum<UMBRAL?0:255;
+        px[i]=px[i+1]=px[i+2]=v;
+      }
+      ctx.putImageData(id,0,0);
+    }catch(e){ console.error('No se pudo preprocesar la imagen para OCR:',e); }
+  }
   return cnv;
 }
 // Un único worker de Tesseract reutilizado para todas las lecturas: la función suelta
 // Tesseract.recognize(...) crea, carga y destruye un worker nuevo CADA VEZ (está además
-// marcada como obsoleta por la propia librería), lo que en un albarán con 4 intentos de giro
-// significaba re-descargar/re-inicializar el motor hasta 4 veces — lento y poco fiable en
-// móvil. Con un worker fijo, cada intento es casi inmediato.
+// marcada como obsoleta por la propia librería), lo que en un albarán con varios intentos
+// significaba re-descargar/re-inicializar el motor cada vez — lento y poco fiable en móvil.
+// Con un worker fijo, cada intento es casi inmediato. Se configura en modo "texto disperso"
+// (PSM 11), mejor que el modo automático para formularios con casillas/líneas/marca de agua,
+// donde el modo automático confunde la estructura y mezcla campos entre sí.
 let tesseractWorkerPromise=null;
 function getTesseractWorker(){
   if(!tesseractWorkerPromise){
-    tesseractWorkerPromise=Tesseract.createWorker('spa').catch(e=>{ tesseractWorkerPromise=null; throw e; });
+    tesseractWorkerPromise=Tesseract.createWorker('spa')
+      .then(async w=>{ await w.setParameters({tessedit_pageseg_mode:'11'}); return w; })
+      .catch(e=>{ tesseractWorkerPromise=null; throw e; });
   }
   return tesseractWorkerPromise;
 }
-// Lee el albarán probando también con la foto girada: muchas fotos de móvil quedan "tumbadas"
-// (apaisadas) y Tesseract, si no se le da la vuelta, no consigue leer el texto aunque a simple
-// vista se vea perfectamente. Empieza por 0° (lo normal) y solo prueba a girar si hace falta.
+// Lee el albarán probando varias combinaciones de giro/preprocesado y se queda con la mejor.
+// Muchas fotos de móvil quedan "tumbadas" (apaisadas) y hace falta girarlas; además se prueba
+// con y sin pasar a blanco/negro, porque según la luz de la foto ayuda o, a veces, estorba.
 async function ocrMejorRotacion(file,onIntento){
   const {img,url}=await cargarImagenFile(file);
   try{
     const worker=await getTesseractWorker();
-    const angulos=[0,90,270,180];
+    const intentos=[{deg:0,bin:false},{deg:0,bin:true},{deg:90,bin:false},{deg:270,bin:false},{deg:180,bin:false}];
     let mejor=null;
-    for(const deg of angulos){
+    for(const {deg,bin} of intentos){
       if(onIntento) onIntento(deg);
-      const fuente=rotarImagenCanvas(img,deg);
+      const fuente=rotarImagenCanvas(img,deg,bin);
       const {data}=await worker.recognize(fuente);
       const conf=data.confidence||0;
       const len=(data.text||'').replace(/\s+/g,'').length;
-      console.log(`[OCR] giro ${deg}° → confianza ${conf} · ${len} caracteres`,data.text);
+      console.log(`[OCR] giro ${deg}°${bin?' (b/n)':''} → confianza ${conf} · ${len} caracteres`,data.text);
       if(!mejor||conf>mejor.conf||(conf===mejor.conf&&len>mejor.len)) mejor={data,conf,len};
-      if(conf>=65&&len>25) break; // ya se ha leído bien, no hace falta seguir probando giros
+      if(conf>=65&&len>25) break; // ya se ha leído bien, no hace falta seguir probando
     }
     return mejor.data;
   } finally {
