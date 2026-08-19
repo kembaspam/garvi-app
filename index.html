@@ -2523,6 +2523,7 @@ function mapGeminiAInfo(g){
 async function leerAlbaranInteligente(file,onEstado){
   let apiKey=getGeminiApiKey();
   if(!apiKey) apiKey=pedirGeminiApiKey();
+  let geminiError='';
   if(apiKey){
     try{
       if(onEstado) onEstado('🔎 Leyendo albarán con IA (Gemini)…');
@@ -2530,12 +2531,14 @@ async function leerAlbaranInteligente(file,onEstado){
       return {info:mapGeminiAInfo(g),texto:JSON.stringify(g,null,2),motor:'gemini'};
     }catch(e){
       console.error('Gemini falló, se prueba con el lector local:',e);
-      if(onEstado) onEstado(`⚠️ Gemini falló (${e.message}), probando con el lector local…`);
+      geminiError=e.message||String(e);
+      if(onEstado) onEstado(`⚠️ Gemini falló (${geminiError}), probando con el lector local…`);
     }
   }
   await loadTesseract();
   const data=await ocrMejorRotacion(file,deg=>{ if(onEstado) onEstado('🔎 Leyendo albarán'+(deg?` (probando girada ${deg}°)`:'')+'…'); });
-  return {info:parseAlbaranOCR(data.text||''),texto:data.text||'',motor:'tesseract'};
+  const texto=(geminiError?`⚠️ Gemini falló: ${geminiError}\n\n`:'')+(data.text||'');
+  return {info:parseAlbaranOCR(data.text||''),texto,motor:'tesseract',geminiError};
 }
 
 // Foto de albarán estando ya sobre un contenedor concreto: rellena sus campos
