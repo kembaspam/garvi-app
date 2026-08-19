@@ -2357,20 +2357,34 @@ function rotarImagenCanvas(img,deg){
   ctx.drawImage(img,-sw/2,-sh/2);
   return cnv;
 }
+// Un único worker de Tesseract reutilizado para todas las lecturas: la función suelta
+// Tesseract.recognize(...) crea, carga y destruye un worker nuevo CADA VEZ (está además
+// marcada como obsoleta por la propia librería), lo que en un albarán con 4 intentos de giro
+// significaba re-descargar/re-inicializar el motor hasta 4 veces — lento y poco fiable en
+// móvil. Con un worker fijo, cada intento es casi inmediato.
+let tesseractWorkerPromise=null;
+function getTesseractWorker(){
+  if(!tesseractWorkerPromise){
+    tesseractWorkerPromise=Tesseract.createWorker('spa').catch(e=>{ tesseractWorkerPromise=null; throw e; });
+  }
+  return tesseractWorkerPromise;
+}
 // Lee el albarán probando también con la foto girada: muchas fotos de móvil quedan "tumbadas"
 // (apaisadas) y Tesseract, si no se le da la vuelta, no consigue leer el texto aunque a simple
 // vista se vea perfectamente. Empieza por 0° (lo normal) y solo prueba a girar si hace falta.
 async function ocrMejorRotacion(file,onIntento){
   const {img,url}=await cargarImagenFile(file);
   try{
+    const worker=await getTesseractWorker();
     const angulos=[0,90,270,180];
     let mejor=null;
     for(const deg of angulos){
       if(onIntento) onIntento(deg);
       const fuente=deg===0?img:rotarImagenCanvas(img,deg);
-      const {data}=await Tesseract.recognize(fuente,'spa');
+      const {data}=await worker.recognize(fuente);
       const conf=data.confidence||0;
       const len=(data.text||'').replace(/\s+/g,'').length;
+      console.log(`[OCR] giro ${deg}° → confianza ${conf} · ${len} caracteres`,data.text);
       if(!mejor||conf>mejor.conf||(conf===mejor.conf&&len>mejor.len)) mejor={data,conf,len};
       if(conf>=65&&len>25) break; // ya se ha leído bien, no hace falta seguir probando giros
     }
