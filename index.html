@@ -2145,9 +2145,33 @@ function saveContainerModal(num){
   c.notas=document.getElementById('m-notas').value.trim();
   saveContainers();guardarContenedorNube(c);syncClientes();closeModal();renderContenedores();toastMsg('Guardado ✓');updateBadge();
 }
+// Compara cliente/dirección ignorando acentos, mayúsculas y puntuación, y también si una es
+// simplemente la otra con la ciudad añadida al final — para fusionar entradas del historial
+// que en el fondo son el mismo sitio aunque el texto guardado tenga formato distinto.
+function normTextoHist(s){
+  return (s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
+}
+function mismaUbicacionHist(a,b){
+  if(!a||!b) return false;
+  if(normTextoHist(a.cliente)!==normTextoHist(b.cliente)) return false;
+  const da=normTextoHist(a.direccion), db=normTextoHist(b.direccion);
+  return da===db||(!!da&&!!db&&(da.includes(db)||db.includes(da)));
+}
+// Fusiona entradas consecutivas del historial que sean el mismo cliente/dirección (aunque el
+// texto guardado tenga pequeñas diferencias), quedándose con la más antigua de cada tramo —
+// así una misma estancia no sale repetida por ediciones menores (teléfono, a cuenta...) que se
+// registraron antes de que eso dejara de contar como cambio.
+function fusionarHistorial(hist){
+  const out=[];
+  for(const h of hist){
+    if(out.length&&mismaUbicacionHist(out[out.length-1],h)) out[out.length-1]=h;
+    else out.push(h);
+  }
+  return out;
+}
 function verHistorialContenedor(num){
   const c=getContainer(num); if(!c) return;
-  const hist=c.historial||[];
+  const hist=fusionarHistorial(c.historial||[]);
   const filaActual=`
     <div class="hist-entry hist-actual">
       <div class="hist-fecha">Actual</div>
