@@ -1257,17 +1257,10 @@ function renderInicio(){
   renderCalendar();
   renderAgenda();
 }
-function esPermisoActivo(a,dateStr){
-  if(a.tipo!=='permiso'&&a.tipo!=='renovacion') return false;
-  const fin=a.fechaFin||a.fecha;
-  return dateStr>=a.fecha&&dateStr<=fin;
-}
-// Avisos visibles ese día: en el último día de un permiso, se oculta el "Permiso" (queda solo la Retirada que lo representa)
+// Avisos visibles ese día: un Permiso/Renovación solo aparece el día que EMPIEZA, no todos los
+// días que dura — el día que termina lo representa la Retirada enlazada, no el propio permiso.
 function avisosDelDia(dateStr){
-  return avisos.filter(a=>{
-    if((a.tipo==='permiso'||a.tipo==='renovacion')&&a.fechaFin&&a.fechaFin===dateStr) return false;
-    return a.fecha===dateStr||esPermisoActivo(a,dateStr);
-  });
+  return avisos.filter(a=>a.fecha===dateStr);
 }
 function renderCalendar(){
   const wrap=document.getElementById('cal-wrap'); if(!wrap) return;
