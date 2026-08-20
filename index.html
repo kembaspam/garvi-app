@@ -1107,13 +1107,18 @@ function refreshGlobalDatalists(){
 function getContainer(num){return containers.find(c=>c.num===num);}
 // ─── HISTORIAL DE CAMBIOS DE UN CONTENEDOR ─────────────────────────
 const CAMPOS_HISTORIAL=['cliente','direccion','telefono','tipo','estadoExcel','aCuenta'];
+// Solo cambios en estos dos campos (la empresa/ubicación) generan una entrada nueva en el
+// historial — así queda como un registro de "desde cuándo está en cada sitio", no un log de
+// cada edición (teléfono, a cuenta, estado...) mientras sigue en el mismo cliente/dirección.
+const CAMPOS_CAMBIO_RELEVANTE=['cliente','direccion'];
 function snapshotContenedor(c){
   const s={}; CAMPOS_HISTORIAL.forEach(f=>s[f]=c[f]||''); return s;
 }
 // Se llama ANTES de sobrescribir los campos de un contenedor con los nuevos valores.
-// Si algo cambió respecto al snapshot "antes", guarda una entrada en el historial con fecha/hora.
+// Si cambió la empresa/ubicación respecto al snapshot "antes", guarda una entrada en el
+// historial con fecha/hora (el resto de campos del snapshot se guardan igual, como contexto).
 function registrarHistorialContenedor(c,antes){
-  const cambio=CAMPOS_HISTORIAL.some(f=>(c[f]||'')!==antes[f]);
+  const cambio=CAMPOS_CAMBIO_RELEVANTE.some(f=>(c[f]||'')!==antes[f]);
   if(!cambio) return;
   if(!Array.isArray(c.historial)) c.historial=[];
   c.historial.unshift({fecha:new Date().toISOString(),...antes});
@@ -1228,6 +1233,7 @@ const AVISO_CFG={
   renovacion:{label:'Renovación Permiso',color:'#0891b2'},
   tarea:{label:'Tarea',color:'#16a34a'},
 };
+const AVISO_INFO_DEFECTO='Confirmar Dirección, Indicar tipo de Residuo y Limite de hasta donde se puede Cargar el contenedor';
 function renderInicio(){
   const sec=document.getElementById('sec-inicio');
   sec.innerHTML=`
@@ -1291,7 +1297,8 @@ function renderCalendar(){
     if(c.other) cls.push('other');
     if(iso===hoy) cls.push('today');
     if(iso===calSelDay) cls.push('selected');
-    if(dayAvisos.some(a=>a.tipo==='permiso'||a.tipo==='renovacion')) cls.push('permiso-activo');
+    // Solo se resalta el día en que EMPIEZA o TERMINA (se retira) el permiso, no los días intermedios
+    if(avisos.some(a=>(a.tipo==='permiso'||a.tipo==='renovacion')&&(a.fecha===iso||(a.fechaFin&&a.fechaFin===iso)))) cls.push('permiso-activo');
     if(dayAvisos.length){
       const pendientesDia=dayAvisos.filter(a=>(a.completados||[]).length<(a.cantidad||1));
       if(pendientesDia.length===0) cls.push('dia-completo');
@@ -1495,7 +1502,7 @@ function renderAvisoFields(editing){
       ?`<div class="form-row cols2"><div><label>Fecha inicio</label><input id="av-fecha" type="date" value="${a?a.fecha:calSelDay}"></div><div><label>Fecha final</label><input id="av-fechafin" type="date" value="${a?a.fechaFin||calSelDay:calSelDay}"></div></div>
         <div class="form-row"><label>Hora (opcional)</label><input id="av-hora" type="time" value="${a?a.hora||'':''}"></div>`
       :`<div class="form-row cols2"><div><label>Fecha</label><input id="av-fecha" type="date" value="${a?a.fecha:calSelDay}"></div><div><label>Hora (opcional)</label><input id="av-hora" type="time" value="${a?a.hora||'':''}"></div></div>`}
-    <div class="form-row"><label>Información adicional</label><textarea id="av-info" rows="2" placeholder="Cualquier otro detalle…">${a?a.infoAdicional||'':''}</textarea></div>`;
+    <div class="form-row"><label>Información adicional</label><textarea id="av-info" rows="2" placeholder="Cualquier otro detalle…">${a?(a.infoAdicional||''):AVISO_INFO_DEFECTO}</textarea></div>`;
   document.getElementById('av-nota').addEventListener('input',e=>{
     const m=avisoMemGet(e.target.value);
     if(m){
@@ -2252,6 +2259,7 @@ function editarRapidoForm(num,ocrInfo){
       <div><label>Tipo residuo</label><select id="er-tipo">${TIPOS_RESIDUO.map(t=>`<option${tipo===t?' selected':''}>${t}</option>`).join('')}</select></div>
     </div>
     <div class="form-row"><label>A cuenta (si tiene)</label><input id="er-acuenta" placeholder="ej: 50€ pendiente" value="${aCuenta}"></div>
+    <div class="form-row"><label>Notas</label><textarea id="er-notas" rows="2">${c.notas||''}</textarea></div>
     <div style="font-size:11px;color:var(--muted);margin-top:2px">Última visita: ${fmtDate(c.fecha)} · al pulsar Listo se actualizará a hoy</div>
     <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
       <button class="btn btn-secondary" data-action="er-foto-albaran" data-param="${c.num}">📷 Leer albarán</button>
@@ -2275,6 +2283,7 @@ function erGuardar(num){
   c.telefono=document.getElementById('er-tel').value.trim();
   c.tipo=document.getElementById('er-tipo').value;
   c.aCuenta=document.getElementById('er-acuenta').value.trim();
+  c.notas=document.getElementById('er-notas').value.trim();
   c.fecha=todayISO();
   registrarHistorialContenedor(c,antes);
   saveContainers();guardarContenedorNube(c);syncClientes();closeModal();renderContenedores();toastMsg(`Contenedor #${c.num} actualizado ✓ (${fmtDate(c.fecha)})`);updateBadge();
