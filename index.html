@@ -1290,7 +1290,18 @@ function checkSession(){
   const sessTemp=sessionStorage.getItem('garvi_session');
   if(sessTemp&&!localStorage.getItem('garvi_session')){ localStorage.setItem('garvi_session',sessTemp); sessionStorage.removeItem('garvi_session'); }
   const s=JSON.parse(localStorage.getItem('garvi_session')||'null');
-  if(s){currentUser=s.label;setSidebarUser(currentUser);loadData();renderTab('inicio');updateBadge();}
+  if(s){
+    currentUser=s.label;
+    setSidebarUser(currentUser);
+    // BUG histórico: aquí nunca se ocultaba la pantalla de login. Aunque la sesión sí se
+    // recordaba (localStorage), esta capa a pantalla completa se quedaba encima tapándolo todo,
+    // así que siempre parecía pedir usuario/contraseña de nuevo aunque la app ya estuviera dentro.
+    const loginScreen=document.getElementById('login-screen');
+    if(loginScreen) loginScreen.style.display='none';
+    loadData();
+    renderTab('inicio');
+    updateBadge();
+  }
 }
 function logout(){localStorage.removeItem('garvi_session');sessionStorage.removeItem('garvi_session');location.reload();}
 
