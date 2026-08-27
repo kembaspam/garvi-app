@@ -576,9 +576,6 @@ label{
     </div>
     <div class="form-row"><label>Usuario</label><input id="li-user" type="text" placeholder="usuario" autocomplete="username"></div>
     <div class="form-row"><label>Contraseña</label><input id="li-pass" type="password" placeholder="contraseña" autocomplete="current-password"></div>
-    <label style="display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--text2);margin-top:6px;cursor:pointer">
-      <input id="li-remember" type="checkbox" checked style="width:15px;height:15px;margin:0"> Recordar sesión
-    </label>
     <div class="login-err" id="li-err"></div>
     <button class="btn btn-primary btn-full" style="margin-top:10px" data-action="login">Entrar</button>
   </div>
@@ -1151,6 +1148,9 @@ function saveCfg(){localStorage.setItem('garvi_cfg',JSON.stringify(cfg));}
 function saveCertificados(){localStorage.setItem('garvi_certificados',JSON.stringify(certificados));refreshGlobalDatalists();}
 function saveAvisos(){localStorage.setItem('garvi_avisos',JSON.stringify(avisos));refreshGlobalDatalists();}
 
+// Icono de WhatsApp (SVG inline, sin depender de ningún CDN) para los botones "WA" de toda la app.
+const ICO_WA='<svg width="15" height="15" viewBox="0 0 24 24" fill="#25D366" style="vertical-align:-3px;flex-shrink:0"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.888 11.888 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413"/></svg>';
+
 function getClienteExtra(nombre){const m=JSON.parse(localStorage.getItem('garvi_clientes_extra')||'{}');return m[nombre]||{};}
 function saveClienteExtra(nombre,data){const m=JSON.parse(localStorage.getItem('garvi_clientes_extra')||'{}');m[nombre]={...(m[nombre]||{}),...data};localStorage.setItem('garvi_clientes_extra',JSON.stringify(m));syncClienteExtra();}
 function syncClientes(){
@@ -1270,12 +1270,12 @@ function setSidebarUser(label){
 function handleLogin(){
   const u=(document.getElementById('li-user').value||'').toLowerCase().trim();
   const p=(document.getElementById('li-pass').value||'').trim();
-  const remember=document.getElementById('li-remember').checked;
   const usr=USERS[u];
   if(!usr||usr.pass!==p){document.getElementById('li-err').textContent='Usuario o contraseña incorrectos';return;}
-  const sessionData=JSON.stringify({user:u,label:usr.label});
-  if(remember) localStorage.setItem('garvi_session',sessionData);
-  else sessionStorage.setItem('garvi_session',sessionData);
+  // La sesión siempre se guarda de forma permanente (localStorage, sin caducidad): una vez que
+  // entras, este dispositivo queda con la sesión iniciada indefinidamente, como en apps tipo YouTube.
+  localStorage.setItem('garvi_session',JSON.stringify({user:u,label:usr.label}));
+  sessionStorage.removeItem('garvi_session');
   currentUser=usr.label;
   setSidebarUser(currentUser);
   document.getElementById('login-screen').style.animation='fadeIn .3s ease reverse';
@@ -1285,7 +1285,11 @@ function handleLogin(){
   updateBadge();
 }
 function checkSession(){
-  const s=JSON.parse(localStorage.getItem('garvi_session')||sessionStorage.getItem('garvi_session')||'null');
+  // Compatibilidad: si en este dispositivo quedaba una sesión antigua solo en sessionStorage
+  // (versión anterior con la casilla "Recordar sesión" desmarcada), se pasa a permanente aquí.
+  const sessTemp=sessionStorage.getItem('garvi_session');
+  if(sessTemp&&!localStorage.getItem('garvi_session')){ localStorage.setItem('garvi_session',sessTemp); sessionStorage.removeItem('garvi_session'); }
+  const s=JSON.parse(localStorage.getItem('garvi_session')||'null');
   if(s){currentUser=s.label;setSidebarUser(currentUser);loadData();renderTab('inicio');updateBadge();}
 }
 function logout(){localStorage.removeItem('garvi_session');sessionStorage.removeItem('garvi_session');location.reload();}
@@ -2197,7 +2201,7 @@ function openContainerModal(num){
       <button class="btn btn-secondary" data-action="foto-cont" data-param="${c.num}">📷 Foto</button>
       <button class="btn btn-secondary" data-action="nuevo-albaran-from" data-param="${c.num}">📋 Albarán</button>
       <button class="btn btn-secondary" data-action="ver-historial-cont" data-param="${c.num}">🕘 Historial${c.historial&&c.historial.length?` (${c.historial.length})`:''}</button>
-      ${c.telefono?`<a href="https://wa.me/34${c.telefono}" target="_blank" class="btn btn-secondary">💬 WA</a>`:''}
+      ${c.telefono?`<a href="https://wa.me/34${c.telefono}" target="_blank" class="btn btn-secondary">${ICO_WA} WhatsApp</a>`:''}
       <button class="btn btn-danger btn-sm" style="margin-left:auto" data-action="del-cont" data-param="${c.num}">🗑</button>
     </div>`;
   document.getElementById('modal-overlay').classList.add('open');
@@ -2742,7 +2746,7 @@ function renderAlbaranes(){
       <div class="albaran-ticket-detail">${a.tipo||''} ${a.descripcion?'· '+a.descripcion:''}</div>
       <div class="albaran-ticket-actions">
         <button class="btn btn-secondary btn-sm" data-action="pdf-albaran" data-param="${a.id}">PDF</button>
-        ${a.telefono?`<a href="https://wa.me/34${a.telefono}" target="_blank" class="btn btn-secondary btn-sm">WA</a>`:''}
+        ${a.telefono?`<a href="https://wa.me/34${a.telefono}" target="_blank" class="btn btn-secondary btn-sm">${ICO_WA} WA</a>`:''}
         <button class="btn btn-danger btn-sm" data-action="del-albaran" data-param="${a.id}">🗑</button>
       </div>
     </div>`).join('');
@@ -2924,7 +2928,7 @@ function renderFacturas(){
         <div style="display:flex;gap:4px;margin-top:4px;justify-content:flex-end">
           <button class="btn btn-secondary btn-sm" data-action="pdf-factura" data-param="${f.id}" style="padding:3px 8px;font-size:11px">PDF</button>
           ${f.email?`<a href="mailto:${f.email}?subject=${encodeURIComponent('Factura '+f.num+' - Garvi Recycling Systems')}&body=${encodeURIComponent('Adjuntamos '+f.num+'.\n\nGarvi Recycling Systems, S.L.U. · Tel: 687759465')}" class="btn btn-secondary btn-sm" style="padding:3px 8px;font-size:11px">✉</a>`:''}
-          ${f.telefono?`<a href="https://wa.me/34${f.telefono.replace(/\D/g,'')}" target="_blank" class="btn btn-secondary btn-sm" style="padding:3px 8px;font-size:11px">WA</a>`:''}
+          ${f.telefono?`<a href="https://wa.me/34${f.telefono.replace(/\D/g,'')}" target="_blank" class="btn btn-secondary btn-sm" style="padding:3px 8px;font-size:11px">${ICO_WA} WA</a>`:''}
           <button class="btn btn-danger btn-sm" data-action="del-factura" data-param="${f.id}" style="padding:3px 8px;font-size:11px">🗑</button>
         </div>
       </div>
@@ -3400,7 +3404,7 @@ function verClienteModal(id){
   document.getElementById('modal-body').innerHTML=`
     <div class="modal-header"><span class="modal-title">${c.nombre}</span><button class="btn btn-secondary btn-sm" data-action="close-modal">✕</button></div>
     <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px">
-      ${c.telefono?`<a href="tel:${c.telefono}" class="btn btn-secondary">📞 ${c.telefono}</a><a href="https://wa.me/34${c.telefono}" target="_blank" class="btn btn-secondary">💬 WA</a>`:''}
+      ${c.telefono?`<a href="tel:${c.telefono}" class="btn btn-secondary">📞 ${c.telefono}</a><a href="https://wa.me/34${c.telefono}" target="_blank" class="btn btn-secondary">${ICO_WA} WhatsApp</a>`:''}
       <button class="btn btn-primary" data-action="nueva-factura-cl" data-param="${c.nombre}">🧾 Factura</button>
     </div>
     <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.4px">Datos de facturación</div>
