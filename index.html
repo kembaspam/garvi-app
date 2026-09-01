@@ -205,6 +205,8 @@ label{
   background:var(--surface);border:1px solid var(--border2);
   border-radius:14px;padding:16px;margin-bottom:10px;
   box-shadow:var(--shadow);transition:transform .15s,box-shadow .15s;
+  min-width:0; /* evita que, como item de un grid/flex (p.ej. .inicio-layout), un contenido
+                  ancho dentro de la tarjeta empuje toda la columna más allá de la pantalla */
 }
 .card:hover{transform:translateY(-1px);box-shadow:var(--shadow-md)}
 
@@ -490,6 +492,10 @@ label{
 .cal-legend i{width:8px;height:8px;border-radius:50%;display:inline-block}
 .agenda-item{display:flex;gap:10px;align-items:flex-start;padding:11px 8px 11px 12px;border-bottom:1px solid var(--border2);border-left:4px solid transparent;border-radius:6px;margin-bottom:2px;background:var(--surface2);transition:background .15s}
 .agenda-item:last-child{margin-bottom:0}
+/* Sin min-width:0 aquí, una nota/dirección larga sin espacios podía impedir que este bloque
+   se encogiera y ensanchaba toda la tarjeta (y, al compartir columna de grid, también la del
+   calendario) más allá de la pantalla en móvil, dejando la app "cortada" y sin poder hacer scroll. */
+.agenda-body{flex:1;min-width:0}
 .agenda-item.done{background:#dcfce7}
 .agenda-item.done .agenda-nota{opacity:.55;text-decoration:line-through}
 .agenda-item .tarea-check{margin-top:2px}
@@ -505,8 +511,8 @@ label{
 .sync-status.sync-conectando{background:#fef3c7;color:#92400e}
 .sync-status.sync-error{background:#fee2e2;color:#991b1b}
 .agenda-hora{font-size:11px;font-weight:700;color:var(--text2);margin-left:6px}
-.agenda-nota{font-size:13.5px;color:var(--text);font-weight:600;margin-top:1px}
-.agenda-meta{font-size:11.5px;color:var(--muted);margin-top:3px}
+.agenda-nota{font-size:13.5px;color:var(--text);font-weight:600;margin-top:1px;overflow-wrap:break-word;word-break:break-word}
+.agenda-meta{font-size:11.5px;color:var(--muted);margin-top:3px;overflow-wrap:break-word;word-break:break-word}
 .agenda-copy-link{color:var(--accent-blue);cursor:pointer;text-decoration:underline;font-weight:700;margin-left:4px}
 .cat-row{display:flex;align-items:center;gap:6px;padding:7px 4px;border-bottom:1px solid var(--border);font-size:12px}
 .cat-row:last-child{border-bottom:none}
@@ -1424,7 +1430,7 @@ function renderAvisoCard(a){
     : `<div class="tarea-check${hechos>0?' done':''}" data-action="${hechos>0?'deshacer-unidad-idx':'completar-unidad'}" data-param="${a.id}" data-idx="0" title="Marcar completado">${hechos>0?'✓':''}</div>`;
   return `<div class="agenda-item" style="border-left-color:${cfg.color}">
       ${ticksHtml}
-      <div style="flex:1">
+      <div class="agenda-body">
         <span class="agenda-tipo-pill" style="background:${cfg.color}22;color:${cfg.color}">${cfg.label}</span>
         ${total>1?`<span class="agenda-cantidad">${hechos}/${total} hechos</span>`:''}
         ${a.hora?`<span class="agenda-hora">🕐 ${a.hora}</span>`:''}
@@ -1445,7 +1451,7 @@ function renderUnidadCompletada(entry){
   const cfg=AVISO_CFG[a.tipo]||{label:a.tipo,color:'#999'};
   return `<div class="agenda-item done" style="border-left-color:var(--success)">
       <div class="tarea-check done" data-action="deshacer-unidad-idx" data-param="${a.id}" data-idx="${idx}" title="Deshacer">✓</div>
-      <div style="flex:1">
+      <div class="agenda-body">
         <span class="agenda-tipo-pill" style="background:${cfg.color}22;color:${cfg.color}">${cfg.label}</span>
         ${total>1?`<span class="agenda-cantidad">unidad ${idx+1}/${total}</span>`:''}
         <span class="agenda-hora" style="color:var(--success)">✓ Completado ${fmtHora(ts)}</span>
@@ -3321,7 +3327,7 @@ function renderFinanzas(){
   const filtList=finanzas.filter(f=>f.tipo===finTab).filter(f=>!q||(f.concepto||'').toLowerCase().includes(q)||(f.categoria||'').toLowerCase().includes(q));
   const list=[...filtList].reverse().map(f=>`
     <div class="card" style="display:flex;align-items:center;gap:12px">
-      <div style="flex:1">
+      <div style="flex:1;min-width:0;overflow-wrap:break-word">
         <div style="font-weight:600;font-size:14px">${f.concepto}</div>
         <div style="font-size:12px;color:var(--muted)">${fmtDate(f.fecha)} ${f.categoria?'· '+f.categoria:''}</div>
       </div>
@@ -3734,7 +3740,7 @@ function renderCertificados(){
   const listFiltered=certificados.filter(c=>!q||(c.productor||'').toLowerCase().includes(q)||(c.obra||'').toLowerCase().includes(q)||(c.periodo||'').toLowerCase().includes(q));
   const listHtml=[...listFiltered].reverse().map(c=>`
     <div class="factura-item" data-action="ver-certificado" data-param="${c.id}">
-      <div style="flex:1">
+      <div style="flex:1;min-width:0;overflow-wrap:break-word">
         <div style="font-weight:700;font-size:13px">${c.productor||'—'} <span style="font-size:10px;font-weight:700;color:var(--accent-blue);background:var(--surface2);padding:1px 7px;border-radius:20px;margin-left:4px">${(CERT_TIPOS[c.tipo]||CERT_TIPOS.escombros).label}</span></div>
         <div style="font-size:11px;color:var(--muted)">${c.obra||''} ${c.periodo?'· '+c.periodo:''}</div>
       </div>
