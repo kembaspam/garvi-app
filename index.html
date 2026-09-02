@@ -1805,17 +1805,21 @@ function hexToRgb(hex){
 }
 // Dibuja el check/cruz como vector (no como carácter ✓/✗): las fuentes base de jsPDF
 // (helvetica) no traen esos glifos y saldrían en blanco o como un cuadrado en el PDF.
-function drawCheckMark(doc,cx,cy,hex){
+// Se pinta también un círculo de fondo de color suave para que la marca sea imposible de
+// no ver (funciona como una "chincheta" de color, aunque el trazo saliera muy fino).
+function drawCheckMark(doc,cx,cy,hex,bgHex){
+  const [br,bg,bb]=hexToRgb(bgHex); doc.setFillColor(br,bg,bb); doc.circle(cx,cy,3,'F');
   const [r,g,b]=hexToRgb(hex);
-  doc.setDrawColor(r,g,b); doc.setLineWidth(0.7); doc.setLineCap('round'); doc.setLineJoin('round');
-  doc.line(cx-2.2,cy-0.2,cx-0.6,cy+1.5);
-  doc.line(cx-0.6,cy+1.5,cx+2.6,cy-2.2);
+  doc.setDrawColor(r,g,b); doc.setLineWidth(0.9);
+  doc.line(cx-1.9,cy+0.1,cx-0.4,cy+1.6);
+  doc.line(cx-0.4,cy+1.6,cx+2.2,cy-1.8);
 }
-function drawCrossMark(doc,cx,cy,hex){
+function drawCrossMark(doc,cx,cy,hex,bgHex){
+  const [br,bg,bb]=hexToRgb(bgHex); doc.setFillColor(br,bg,bb); doc.circle(cx,cy,3,'F');
   const [r,g,b]=hexToRgb(hex);
-  doc.setDrawColor(r,g,b); doc.setLineWidth(0.7); doc.setLineCap('round');
-  doc.line(cx-1.9,cy-1.9,cx+1.9,cy+1.9);
-  doc.line(cx-1.9,cy+1.9,cx+1.9,cy-1.9);
+  doc.setDrawColor(r,g,b); doc.setLineWidth(0.9);
+  doc.line(cx-1.7,cy-1.7,cx+1.7,cy+1.7);
+  doc.line(cx-1.7,cy+1.7,cx+1.7,cy-1.7);
 }
 // PDF de contenedores con estilo propio: ordenado por número, en horizontal para que quepa
 // todo (incluido el teléfono) en una sola fila, con la celda del número coloreada según el
@@ -1880,8 +1884,8 @@ function pdfContenedores(){
     doc.text(dias+'d',x+2,cy);
     x+=colsW[5];
     // marca a la derecha de Días: ✗ roja (14+ días, a retirar) o ✓ verde (menos de 14)
-    if(dias>=14) drawCrossMark(doc,x+colsW[6]/2,cy-1.8,'#dc2626');
-    else drawCheckMark(doc,x+colsW[6]/2,cy-1.8,'#16a34a');
+    if(dias>=14) drawCrossMark(doc,x+colsW[6]/2,cy-1.8,'#dc2626','#fee2e2');
+    else drawCheckMark(doc,x+colsW[6]/2,cy-1.8,'#16a34a','#dcfce7');
     cy+=rowH;
   });
   // leyenda de colores de estado
@@ -1901,9 +1905,9 @@ function pdfContenedores(){
   doc.setTextColor(74,96,128); doc.text('Días ≥14 (retirar)',ML+8,cy); cy+=6.5;
   doc.setFillColor(254,243,199); doc.rect(ML,cy-3.8,5.5,5.5,'F');
   doc.setTextColor(74,96,128); doc.text('Días 11-13 (alerta)',ML+8,cy); cy+=6.5;
-  drawCrossMark(doc,ML+2.7,cy-1.8,'#dc2626');
+  drawCrossMark(doc,ML+2.7,cy-1.8,'#dc2626','#fee2e2');
   doc.setTextColor(74,96,128); doc.text('Retirar: 14+ días',ML+8,cy); cy+=6.5;
-  drawCheckMark(doc,ML+2.7,cy-1.8,'#16a34a');
+  drawCheckMark(doc,ML+2.7,cy-1.8,'#16a34a','#dcfce7');
   doc.setTextColor(74,96,128); doc.text('Retirar: menos de 14 días',ML+8,cy);
   doc.setFillColor(240,180,41); doc.rect(0,H-5,W,5,'F');
   doc.save(nombreListado()+'.pdf');
