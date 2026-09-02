@@ -1552,16 +1552,18 @@ function calChangeMonth(delta){
 }
 function calSelectDay(iso){calSelDay=iso;renderCalendar();renderAgenda();}
 let editAvisoId=null;
-function nuevoAvisoModal(id){
+// 'prefill' permite abrir el modal de aviso NUEVO con campos ya rellenos (p.ej. desde el botón
+// "Mandar Aviso" de un contenedor), sin que cuente como edición de un aviso ya existente.
+function nuevoAvisoModal(id,prefill){
   editAvisoId=id||null;
-  const a=editAvisoId?avisos.find(x=>x.id===editAvisoId):null;
+  const a=editAvisoId?avisos.find(x=>x.id===editAvisoId):(prefill||null);
   document.getElementById('modal-body').innerHTML=`
-    <div class="modal-header"><span class="modal-title">${a?'Editar aviso':'Nuevo aviso'}</span><button class="btn btn-secondary btn-sm" data-action="close-modal">✕</button></div>
+    <div class="modal-header"><span class="modal-title">${editAvisoId?'Editar aviso':'Nuevo aviso'}</span><button class="btn btn-secondary btn-sm" data-action="close-modal">✕</button></div>
     <div class="form-row"><label>Tipo</label>
       <select id="av-tipo">${Object.entries(AVISO_CFG).map(([k,v])=>`<option value="${k}"${a&&a.tipo===k?' selected':''}>${v.label}</option>`).join('')}</select>
     </div>
     <div id="av-fields"></div>
-    <button class="btn btn-primary btn-full" style="margin-top:10px" data-action="crear-aviso">${a?'Guardar cambios':'Guardar aviso'}</button>`;
+    <button class="btn btn-primary btn-full" style="margin-top:10px" data-action="crear-aviso">${editAvisoId?'Guardar cambios':'Guardar aviso'}</button>`;
   document.getElementById('av-tipo').addEventListener('change',()=>renderAvisoFields());
   renderAvisoFields(a);
   document.getElementById('modal-overlay').classList.add('open');
@@ -2206,6 +2208,23 @@ function updateContMapMarkers(){
 }
 
 // ─── MODAL CONTENEDOR ─────────────────────────────────────────────
+// Desde el modal de un contenedor: cierra el modal, lleva a la Agenda del día de hoy y abre
+// ahí un aviso nuevo con cliente/dirección/teléfono ya rellenos (se pueden modificar antes de guardar).
+function mandarAvisoDesdeCont(num){
+  const c=getContainer(num); if(!c) return;
+  closeModal();
+  const hoy=todayISO();
+  calYear=new Date().getFullYear(); calMonth=new Date().getMonth(); calSelDay=hoy;
+  renderTab('inicio');
+  setTimeout(()=>nuevoAvisoModal(null,{
+    tipo:'llevada',
+    nota:c.cliente||'',
+    direccion:c.direccion||'',
+    telefono:c.telefono||'',
+    fecha:hoy,
+    infoAdicional:AVISO_INFO_DEFECTO,
+  }),50);
+}
 function openContainerModal(num){
   const c=getContainer(num);
   if(!c) return;
@@ -2213,7 +2232,10 @@ function openContainerModal(num){
   const photosHtml=c.fotos&&c.fotos.length?c.fotos.map((f,i)=>`<img class="photo-thumb" src="${f}" data-action="del-foto" data-param="${c.num}" data-idx="${i}" title="Borrar">`).join(''):'';
   document.getElementById('modal-body').innerHTML=`
     <div class="modal-header">
-      <span class="modal-title"><span class="cont-num s-${c.estadoExcel}" style="margin-right:8px">${c.num}</span>${c.cliente}</span>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;min-width:0">
+        <span class="modal-title"><span class="cont-num s-${c.estadoExcel}" style="margin-right:8px">${c.num}</span>${c.cliente}</span>
+        <button class="btn btn-primary btn-sm" data-action="mandar-aviso-cont" data-param="${c.num}">📨 Mandar Aviso</button>
+      </div>
       <button class="btn btn-secondary btn-sm" data-action="close-modal">✕</button>
     </div>
     <div class="form-row">
@@ -3958,6 +3980,7 @@ document.addEventListener('click',e=>{
   else if(action==='er-foto-albaran-buscar') erFotoAlbaranBuscar();
   else if(action==='gemini-key'){ if(pedirGeminiApiKey()) toastMsg('Clave de Gemini guardada ✓'); }
   else if(action==='ver-historial-cont') verHistorialContenedor(param);
+  else if(action==='mandar-aviso-cont') mandarAvisoDesdeCont(param);
   else if(action==='del-foto') delFoto(param,+btn.dataset.idx);
   else if(action==='filter-estado'){filterEstado=param;applyContFilter();}
   else if(action==='cont-view'){contView=param;applyContFilter();}
