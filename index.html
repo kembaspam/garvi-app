@@ -3933,19 +3933,31 @@ function pdfCertificado(idOrNull){
   doc.text(`PERIODO: ${c.periodo||''}`,14,cy); cy+=8;
   doc.text(`PRODUCTOR: ${c.productor||''}`,14,cy); cy+=8;
   doc.text(`OBRA: ${c.obra||''}`,14,cy); cy+=14;
-  const cols=[{x:14,w:96,label:'TIPO DE RESIDUO'},{x:110,w:26,label:'CÓD. LER'},{x:136,w:24,label:'TONELADAS'},{x:160,w:36,label:'DESTINO/GESTOR'}];
-  doc.setFillColor(15,32,68); doc.rect(14,cy-5,182,8,'F');
+  // Tabla de residuos: cabecera en dos líneas (igual que el modelo) y el cuerpo con una
+  // separación fija respecto a ella. Cada línea se dibuja a mano con el mismo salto de línea
+  // (lineH) que se usa para calcular la altura de la caja, así nunca queda nada solapado ni
+  // cortado por muy larga que sea la descripción del residuo.
+  const cols=[
+    {x:14,w:96,head:['TIPO DE','RESIDUO']},
+    {x:110,w:26,head:['CÓDIGO','LER']},
+    {x:136,w:24,head:['TONELADAS']},
+    {x:160,w:36,head:['DESTINO /','GESTOR FINAL']},
+  ];
+  const headerTop=cy-5, headerH=13, headLineH=4.2;
+  doc.setFillColor(15,32,68); doc.rect(14,headerTop,182,headerH,'F');
   doc.setTextColor(255,255,255); doc.setFontSize(7.5); doc.setFont('helvetica','bold');
-  cols.forEach(col=>doc.text(col.label,col.x+2,cy));
-  cy+=6;
+  cols.forEach(col=>col.head.forEach((line,li)=>doc.text(line,col.x+2,headerTop+5+li*headLineH)));
   const vals=[ct.residuo,ct.ler,String(c.toneladas||''),ct.destino];
   doc.setTextColor(15,32,68); doc.setFont('helvetica','normal'); doc.setFontSize(8);
+  const lineH=4, padTop=5, padBottom=3;
   let maxLines=1;
   const wrapped=cols.map((col,i)=>{const ls=doc.splitTextToSize(vals[i],col.w-4);maxLines=Math.max(maxLines,ls.length);return ls;});
-  cols.forEach((col,i)=>doc.text(wrapped[i],col.x+2,cy+3));
+  const bodyTop=headerTop+headerH+2;
+  cols.forEach((col,i)=>wrapped[i].forEach((line,li)=>doc.text(line,col.x+2,bodyTop+padTop+li*lineH)));
+  const bodyH=padTop+(maxLines-1)*lineH+padBottom;
   doc.setDrawColor(200,200,200);
-  doc.rect(14,cy-6,182,maxLines*4.5+6);
-  cy+=maxLines*4.5+18;
+  doc.rect(14,bodyTop,182,bodyH);
+  cy=bodyTop+bodyH+14;
   doc.setFontSize(10); doc.setTextColor(30,30,30);
   doc.text(`Alicante, ${fechaCertTexto(c.fecha)}`,14,cy);
   cy+=10;
@@ -3953,7 +3965,13 @@ function pdfCertificado(idOrNull){
   doc.setFontSize(9);
   doc.text('D. Jose Antonio García Sebastián',14,cy+40);
   doc.text('Administrador de la empresa Garvi Recycling Systems, S.L.U.',14,cy+46);
-  doc.save(`certificado-${(c.obra||'garvi').toString().slice(0,25).replace(/[^a-z0-9]+/gi,'_')||'garvi'}.pdf`);
+  // Nombre de archivo descriptivo: "CERTIFICADO <TIPO> <PRODUCTOR> <OBRA> <PERIODO>"
+  // (se limpian los caracteres que Windows no admite en nombres de archivo).
+  const limpiaNombre=s=>(s||'').toString().replace(/[\\/:*?"<>|]/g,'').replace(/\s+/g,' ').trim();
+  const tipoArchivo=c.tipo==='escombros'?'ESCOMBRO':ct.label.toUpperCase();
+  const nombreArchivo=['CERTIFICADO',tipoArchivo,c.productor,c.obra,c.periodo]
+    .map(limpiaNombre).filter(Boolean).join(' ');
+  doc.save((nombreArchivo||'certificado')+'.pdf');
 }
 
 // ─── MODAL HELPERS ────────────────────────────────────────────────
