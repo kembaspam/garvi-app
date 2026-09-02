@@ -1803,10 +1803,26 @@ function hexToRgb(hex){
   const n=parseInt(hex.replace('#',''),16);
   return [(n>>16)&255,(n>>8)&255,n&255];
 }
+// Dibuja el check/cruz como vector (no como carácter ✓/✗): las fuentes base de jsPDF
+// (helvetica) no traen esos glifos y saldrían en blanco o como un cuadrado en el PDF.
+function drawCheckMark(doc,cx,cy,hex){
+  const [r,g,b]=hexToRgb(hex);
+  doc.setDrawColor(r,g,b); doc.setLineWidth(0.7); doc.setLineCap('round'); doc.setLineJoin('round');
+  doc.line(cx-2.2,cy-0.2,cx-0.6,cy+1.5);
+  doc.line(cx-0.6,cy+1.5,cx+2.6,cy-2.2);
+}
+function drawCrossMark(doc,cx,cy,hex){
+  const [r,g,b]=hexToRgb(hex);
+  doc.setDrawColor(r,g,b); doc.setLineWidth(0.7); doc.setLineCap('round');
+  doc.line(cx-1.9,cy-1.9,cx+1.9,cy+1.9);
+  doc.line(cx-1.9,cy+1.9,cx+1.9,cy-1.9);
+}
 // PDF de contenedores con estilo propio: ordenado por número, en horizontal para que quepa
 // todo (incluido el teléfono) en una sola fila, con la celda del número coloreada según el
 // estado (mismos colores que las tarjetas de estado en la app) y los "Días" resaltados en
 // amarillo (11-13 días) o rojo (14+ días, a retirar) — igual que el listado de referencia.
+// A la derecha de "Días" se añade una marca: ✗ roja si lleva 14+ días (hay que retirarlo),
+// ✓ verde si lleva menos.
 function pdfContenedores(){
   const list=computeContFilt();
   if(!list.length){toastMsg('No hay datos para exportar');return;}
@@ -1824,9 +1840,9 @@ function pdfContenedores(){
   doc.text('Fecha: '+fmtDate(todayISO()),W-MR,26,{align:'right'});
   doc.setDrawColor(200,212,227); doc.line(ML,32,W-MR,32);
 
-  const headers=['Nº','Cliente','Dirección','Teléfono','Tipo','Fecha','Días'];
+  const headers=['Nº','Cliente','Dirección','Teléfono','Tipo','Fecha','Días','Retirar'];
   // numW + colsW debe sumar "usable"
-  const numW=14, colsW=[55,110,24,20,18,16];
+  const numW=14, colsW=[55,110,24,20,18,16,15];
   const rowH=8; // fila más alta para una letra más grande y legible
   let cy=41;
   const printHeader=()=>{
@@ -1862,6 +1878,10 @@ function pdfContenedores(){
     else if(dias>=11){ doc.setTextColor(146,64,14); doc.setFont('helvetica','bold'); }
     else { doc.setTextColor(15,32,68); doc.setFont('helvetica','normal'); }
     doc.text(dias+'d',x+2,cy);
+    x+=colsW[5];
+    // marca a la derecha de Días: ✗ roja (14+ días, a retirar) o ✓ verde (menos de 14)
+    if(dias>=14) drawCrossMark(doc,x+colsW[6]/2,cy-1.8,'#dc2626');
+    else drawCheckMark(doc,x+colsW[6]/2,cy-1.8,'#16a34a');
     cy+=rowH;
   });
   // leyenda de colores de estado
@@ -1880,7 +1900,11 @@ function pdfContenedores(){
   doc.setFillColor(254,226,226); doc.rect(ML,cy-3.8,5.5,5.5,'F');
   doc.setTextColor(74,96,128); doc.text('Días ≥14 (retirar)',ML+8,cy); cy+=6.5;
   doc.setFillColor(254,243,199); doc.rect(ML,cy-3.8,5.5,5.5,'F');
-  doc.setTextColor(74,96,128); doc.text('Días 11-13 (alerta)',ML+8,cy);
+  doc.setTextColor(74,96,128); doc.text('Días 11-13 (alerta)',ML+8,cy); cy+=6.5;
+  drawCrossMark(doc,ML+2.7,cy-1.8,'#dc2626');
+  doc.setTextColor(74,96,128); doc.text('Retirar: 14+ días',ML+8,cy); cy+=6.5;
+  drawCheckMark(doc,ML+2.7,cy-1.8,'#16a34a');
+  doc.setTextColor(74,96,128); doc.text('Retirar: menos de 14 días',ML+8,cy);
   doc.setFillColor(240,180,41); doc.rect(0,H-5,W,5,'F');
   doc.save(nombreListado()+'.pdf');
 }
@@ -1918,6 +1942,7 @@ async function excelContenedores(){
       {header:'Tipo',key:'tipo',width:12},
       {header:'Fecha',key:'fecha',width:11},
       {header:'Días',key:'dias',width:8},
+      {header:'Retirar',key:'retirar',width:10},
       {header:'Estado',key:'estado',width:14},
     ];
     const headerRow=ws.getRow(1);
@@ -1931,7 +1956,7 @@ async function excelContenedores(){
     list.forEach(c=>{
       const est=ESTADO_CFG.find(e=>e.k===c.estadoExcel)||ESTADO_CFG[1];
       const dias=daysSince(c.fecha);
-      const row=ws.addRow({num:c.num,cliente:c.cliente||'',direccion:c.direccion||'',telefono:c.telefono||'',tipo:c.tipo||'',fecha:fmtDate(c.fecha),dias,estado:est.label});
+      const row=ws.addRow({num:c.num,cliente:c.cliente||'',direccion:c.direccion||'',telefono:c.telefono||'',tipo:c.tipo||'',fecha:fmtDate(c.fecha),dias,retirar:dias>=14?'✗':'✓',estado:est.label});
       row.height=18;
       row.eachCell(cell=>{ cell.font={size:11}; cell.alignment={vertical:'middle'}; });
       const numCell=row.getCell(1);
@@ -1939,15 +1964,19 @@ async function excelContenedores(){
       numCell.fill={type:'pattern',pattern:'solid',fgColor:{argb:hexToArgb(est.bg)}};
       numCell.alignment={vertical:'middle',horizontal:'center'};
       row.getCell(2).font={bold:true,size:11};
-      const estCell=row.getCell(8);
+      const estCell=row.getCell(9);
       estCell.font={bold:true,size:11,color:{argb:hexToArgb(est.color)}};
       estCell.fill={type:'pattern',pattern:'solid',fgColor:{argb:hexToArgb(est.bg)}};
       const diasCell=row.getCell(7);
       diasCell.alignment={horizontal:'center'};
       if(dias>=14) diasCell.font={bold:true,size:11,color:{argb:'FF991B1B'}};
       else if(dias>=11) diasCell.font={bold:true,size:11,color:{argb:'FF92400E'}};
+      // marca a la derecha de Días: ✗ roja (14+ días, a retirar) o ✓ verde (menos de 14)
+      const retirarCell=row.getCell(8);
+      retirarCell.alignment={horizontal:'center'};
+      retirarCell.font={bold:true,size:13,color:{argb:dias>=14?'FFDC2626':'FF16A34A'}};
     });
-    ws.autoFilter={from:'A1',to:'H1'};
+    ws.autoFilter={from:'A1',to:'I1'};
     const buf=await wb.xlsx.writeBuffer();
     const blob=new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
     const url=URL.createObjectURL(blob);
