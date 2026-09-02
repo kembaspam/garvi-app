@@ -1564,7 +1564,7 @@ function nuevoAvisoModal(id,prefill){
     </div>
     <div id="av-fields"></div>
     <button class="btn btn-primary btn-full" style="margin-top:10px" data-action="crear-aviso">${editAvisoId?'Guardar cambios':'Guardar aviso'}</button>`;
-  document.getElementById('av-tipo').addEventListener('change',()=>renderAvisoFields());
+  document.getElementById('av-tipo').addEventListener('change',()=>renderAvisoFields(snapshotAvisoForm()));
   renderAvisoFields(a);
   document.getElementById('modal-overlay').classList.add('open');
 }
@@ -1578,9 +1578,22 @@ function avisoMemSet(nota,data){
   mem[nota.trim().toLowerCase()]=data;
   localStorage.setItem('garvi_aviso_memoria',JSON.stringify(mem));
 }
+// Recoge lo que haya AHORA MISMO escrito en el formulario de aviso (antes de reconstruirlo al
+// cambiar el Tipo), para no perder nada de lo que el usuario ya haya rellenado o modificado.
+function snapshotAvisoForm(){
+  const g=id=>{const el=document.getElementById(id); return el?el.value:undefined;};
+  return {
+    nota:g('av-nota'), direccion:g('av-direccion'), telefono:g('av-telefono'),
+    pago:g('av-pago'), cantidad:g('av-cantidad'), fecha:g('av-fecha'),
+    fechaFin:g('av-fechafin'), hora:g('av-hora'), infoAdicional:g('av-info'),
+  };
+}
 function renderAvisoFields(editing){
   const tipo=document.getElementById('av-tipo').value;
-  const a=editing&&editing.tipo===tipo?editing:null;
+  // Antes exigía que 'editing.tipo' coincidiera con el tipo recién seleccionado, así que al
+  // cambiar el desplegable de Tipo se perdía todo lo escrito (cliente, dirección, teléfono…).
+  // Cliente/dirección/teléfono/etc. no dependen del tipo de aviso, así que se conservan siempre.
+  const a=editing||null;
   const box=document.getElementById('av-fields');
   const permisos=avisos.filter(x=>x.tipo==='permiso');
   if(tipo==='renovacion'){
