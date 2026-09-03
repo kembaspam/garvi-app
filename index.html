@@ -4117,6 +4117,57 @@ document.addEventListener('click',e=>{
 document.getElementById('li-pass').addEventListener('keydown',e=>{if(e.key==='Enter') handleLogin();});
 document.getElementById('li-user').addEventListener('keydown',e=>{if(e.key==='Enter') document.getElementById('li-pass').focus();});
 
+// ─── CABECERA FIJA EN MÓVIL (refuerzo por JS) ──────────────────────
+// En algunos navegadores/WebView de Android, position:sticky de .section-header no se
+// aplica en este contexto (se queda anclado en su sitio en vez de pegarse arriba al hacer
+// scroll). Esto lo fuerza a mano con position:fixed, comprobando en cada scroll si la
+// cabecera de la sección visible ha llegado al borde superior; solo actúa en móvil (en
+// escritorio ya funciona con el CSS). Se re-sincroniza solo tras cada repintado de la app
+// (MutationObserver), para que sobreviva a los renderContenedores()/renderTab() etc.
+(function(){
+  const esMovil=()=>window.matchMedia('(max-width:767px)').matches;
+  let activeHeader=null, activeSection=null, naturalTop=0, fixed=false;
+  function soltar(){
+    if(activeHeader){
+      activeHeader.style.position='';activeHeader.style.top='';
+      activeHeader.style.left='';activeHeader.style.width='';activeHeader.style.zIndex='';
+    }
+    if(activeSection) activeSection.style.paddingTop='';
+    fixed=false;
+  }
+  function sync(){
+    if(!esMovil()){ if(activeHeader) soltar(); activeHeader=null; activeSection=null; return; }
+    const sec=document.querySelector('.section.active');
+    const header=sec&&sec.querySelector(':scope>.section-header');
+    if(header!==activeHeader){ soltar(); activeHeader=header; activeSection=sec; }
+    if(!header||!sec) return;
+    const appEl=document.getElementById('app');
+    const appRect=appEl.getBoundingClientRect();
+    if(fixed){
+      if(window.scrollY<=naturalTop){ soltar(); return; }
+      header.style.left=appRect.left+'px'; header.style.width=appRect.width+'px';
+      return;
+    }
+    const rect=header.getBoundingClientRect();
+    if(rect.top<=0){
+      naturalTop=window.scrollY+rect.top;
+      const h=rect.height;
+      header.style.position='fixed'; header.style.top='0';
+      header.style.left=appRect.left+'px'; header.style.width=appRect.width+'px'; header.style.zIndex='50';
+      sec.style.paddingTop=h+'px';
+      fixed=true;
+    }
+  }
+  let ticking=false;
+  function onScroll(){ if(ticking) return; ticking=true; requestAnimationFrame(()=>{sync();ticking=false;}); }
+  window.addEventListener('scroll',onScroll,{passive:true});
+  window.addEventListener('resize',onScroll);
+  document.addEventListener('DOMContentLoaded',()=>{
+    const appEl=document.getElementById('app');
+    if(appEl) new MutationObserver(()=>{soltar();activeHeader=null;activeSection=null;onScroll();}).observe(appEl,{childList:true,subtree:true});
+  });
+})();
+
 // ─── INIT ─────────────────────────────────────────────────────────
 checkSession();
 initFirebase();
