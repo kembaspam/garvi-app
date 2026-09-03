@@ -125,15 +125,6 @@ html,body{height:100%;font-family:'DM Sans',sans-serif;font-size:14px;color:var(
   #app{margin-left:0;padding-bottom:64px}
   .section{padding:16px}
   .section-header{top:0}
-  /* .section-header ya es sticky (se queda fija arriba al hacer scroll); en el móvil, con la
-     franja azul del dashboard dentro, era tan alta que ocupaba media pantalla fija y apenas
-     dejaba ver el resto. Se compacta aquí para que la parte fija sea mucho más pequeña. */
-  .dash-wrap{padding:12px 14px;margin-bottom:10px;border-radius:14px}
-  .dash-greeting{font-size:16px}
-  .dash-date{font-size:11px;margin-bottom:10px}
-  .dash-metric{padding:8px 12px;min-width:78px}
-  .dash-metric-val{font-size:20px}
-  .dash-metric-label{font-size:9.5px}
   .search-row{flex-wrap:wrap}
   .search-row .search-input{flex:1 1 100%}
   .lineas-table-wrap{overflow-x:auto}
@@ -256,23 +247,26 @@ label{
 .days-danger{background:#fee2e2;color:#991b1b}
 
 /* ── DASHBOARD ─────────────────────────────────────── */
+/* Compacto en cualquier tamaño de pantalla: esta franja va dentro de .section-header, que es
+   sticky (se queda fija arriba al hacer scroll) — cuanto más pequeña, menos "molesta" pegada
+   arriba y más sitio deja para ver el mapa/la lista de debajo. */
 .dash-wrap{
   background:linear-gradient(135deg,var(--accent-blue) 0%,#0f2044 100%);
-  border-radius:18px;padding:20px 22px;margin-bottom:18px;
+  border-radius:14px;padding:12px 16px;margin-bottom:10px;
   box-shadow:0 4px 24px rgba(26,58,143,.2);
 }
-.dash-greeting{font-size:22px;font-weight:800;color:#fff}
-.dash-date{font-size:13px;color:rgba(255,255,255,.55);margin-bottom:18px;text-transform:capitalize}
+.dash-greeting{font-size:17px;font-weight:800;color:#fff}
+.dash-date{font-size:11.5px;color:rgba(255,255,255,.55);margin-bottom:10px;text-transform:capitalize}
 .dash-metrics{display:flex;gap:10px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none}
 .dash-metrics::-webkit-scrollbar{display:none}
 .dash-metric{
   background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15);
-  border-radius:12px;padding:12px 16px;flex-shrink:0;min-width:100px;
+  border-radius:12px;padding:8px 13px;flex-shrink:0;min-width:82px;
   cursor:pointer;transition:all .15s;backdrop-filter:blur(4px);
 }
 .dash-metric:hover{background:rgba(255,255,255,.18)}
-.dash-metric-val{font-size:28px;font-weight:900;color:var(--accent);font-family:'DM Mono',monospace;line-height:1}
-.dash-metric-label{font-size:11px;color:rgba(255,255,255,.55);font-weight:500;margin-top:4px}
+.dash-metric-val{font-size:21px;font-weight:900;color:var(--accent);font-family:'DM Mono',monospace;line-height:1}
+.dash-metric-label{font-size:10px;color:rgba(255,255,255,.55);font-weight:500;margin-top:4px}
 
 /* ── STATE FILTER CHIPS ────────────────────────────── */
 .state-cards{display:flex;gap:6px;overflow-x:auto;margin-bottom:12px;padding-bottom:4px;scrollbar-width:none}
@@ -558,12 +552,12 @@ label{
 /* position:relative + z-index crea un contexto de apilado propio: los controles internos de
    Leaflet (que usan z-index hasta 1000) quedan encerrados dentro y no pueden "sobresalir" por
    encima del menú/barra inferior de la app al hacer scroll, ni en móvil ni en PC. */
-#cont-map{height:380px;border-radius:10px;overflow:hidden;background:var(--surface2);position:relative;z-index:0}
+#cont-map{height:300px;border-radius:10px;overflow:hidden;background:var(--surface2);position:relative;z-index:0}
 #cont-map-card{position:relative;z-index:0}
-#cont-list-card{max-height:380px;overflow-y:auto}
+#cont-list-card{max-height:300px;overflow-y:auto}
 /* En móvil mapa y lista van apilados (uno debajo del otro), no lado a lado: el mapa se reduce
    más para dejar sitio, y la lista puede crecer bastante más sin "robarle" espacio al mapa. */
-@media(max-width:767px){#cont-map{height:220px}#cont-list-card{max-height:480px}}
+@media(max-width:767px){#cont-map{height:190px}#cont-list-card{max-height:520px}}
 #cont-map-card.map-fullscreen{position:fixed;top:0;left:0;right:0;bottom:0;width:100vw;height:100vh;z-index:5500;border-radius:0;margin:0;padding:10px;display:flex;flex-direction:column;background:var(--surface)}
 #cont-map-card.map-fullscreen #cont-map{flex:1;height:auto;border-radius:0}
 .cont-pin{width:36px;height:36px;border-radius:50% 50% 50% 0;background:var(--accent);border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.5);transform:rotate(-45deg);display:flex;align-items:center;justify-content:center}
@@ -1784,7 +1778,7 @@ function renderContenedores(){
           <div style="display:flex;align-items:center;gap:8px">
             <div id="cont-map-status" style="font-size:11px;color:var(--muted)"></div>
             <button class="btn btn-secondary btn-sm" style="padding:3px 8px;font-size:11px" data-action="cont-map-retry" title="Reintentar direcciones no localizadas">🔄</button>
-            <button class="btn btn-secondary btn-sm" style="padding:3px 8px;font-size:11px" data-action="cont-map-fullscreen" title="Pantalla completa">⛶</button>
+            <button class="btn btn-secondary btn-sm" style="padding:4px 10px;font-size:20px;line-height:1" data-action="cont-map-fullscreen" title="Pantalla completa">⛶</button>
           </div>
         </div>
         <div id="cont-map"></div>
