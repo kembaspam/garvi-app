@@ -84,7 +84,12 @@ html,body{height:100%;font-family:'DM Sans',sans-serif;font-size:14px;color:var(
 #app{margin-left:var(--sidebar-w);min-height:100vh;transition:margin-left .2s}
 .section{display:none;padding:28px 32px;width:100%;box-sizing:border-box}
 .section.active{display:block}
-.section-header{position:sticky;top:0;z-index:50;background:var(--bg);padding:16px 0 10px;margin-bottom:16px}
+/* position:-webkit-sticky primero: algunos navegadores/WebView de Android (variantes de
+   fabricante como MIUI, o WebViews más antiguos) no reconocen 'sticky' sin prefijo y, si
+   falta el prefijado, ignoran la línea entera y el elemento se queda fijo en su sitio
+   normal en vez de pegarse arriba al hacer scroll. Los navegadores modernos usan la
+   segunda línea (sin prefijo), que sobrescribe a la primera. */
+.section-header{position:-webkit-sticky;position:sticky;top:0;z-index:50;background:var(--bg);padding:16px 0 10px;margin-bottom:16px}
 .section-title{font-size:22px;font-weight:800;color:var(--text)}
 
 /* Tablet: solo iconos */
