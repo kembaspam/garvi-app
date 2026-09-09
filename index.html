@@ -553,7 +553,14 @@ label{
 .cert-table td{padding:8px;border:1px solid #ddd;color:#222;vertical-align:top}
 /* ── MAPA CONTENEDORES ───────────────────────────────────────── */
 .cont-map-layout{display:grid;grid-template-columns:1fr 1.3fr;gap:14px;align-items:start}
-@media(max-width:900px){.cont-map-layout{grid-template-columns:1fr}}
+/* Por debajo de 900px, mapa y lista se apilan en una sola columna (uno debajo del otro). Ahí
+   la lista va primero y el mapa después, más abajo del listado; en escritorio (dos columnas
+   lado a lado) no cambia nada, el orden visual "más abajo" no aplica cuando van en paralelo. */
+@media(max-width:900px){
+  .cont-map-layout{grid-template-columns:1fr}
+  #cont-list-card{order:1}
+  #cont-map-card{order:2}
+}
 /* position:relative + z-index crea un contexto de apilado propio: los controles internos de
    Leaflet (que usan z-index hasta 1000) quedan encerrados dentro y no pueden "sobresalir" por
    encima del menú/barra inferior de la app al hacer scroll, ni en móvil ni en PC. */
