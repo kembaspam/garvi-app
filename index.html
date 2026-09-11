@@ -548,7 +548,7 @@ label{
 .doc-sign-wrap{display:flex;justify-content:flex-end;margin-top:24px}
 .doc-sign-wrap img{width:200px;display:block;margin:0 auto 4px}
 .doc-sign-name{font-size:11px;color:#333;text-align:center}
-/* Tabla de conceptos de la Carta de Compromiso: sin precios, cabecera azul con texto blanco
+/* Tabla de conceptos de la Carta de Compromiso, cabecera azul con texto blanco
    y filas alternas en gris muy claro, mismos tokens de color que el resto de documentos. */
 .doc-concepts-table{width:100%;border-collapse:collapse;margin:8px 0 14px;font-size:13px}
 .doc-concepts-table th{background:#1a2a6c;color:#fff;text-align:left;padding:7px 10px;font-size:11px;text-transform:uppercase;letter-spacing:.03em}
@@ -3533,9 +3533,10 @@ function pdfClientes(){
 // ─── TAREAS ───────────────────────────────────────────────────────
 let tareasFilter='pendientes', tareasQ='';
 let presItems=[],presDireccion='',presFecha=todayISO(),presPrices=[],presQ='';
-// Tipo de documento de salida del presupuesto: 'presupuesto' (con precios) o 'carta' (carta de
-// compromiso de suministro/colaboración, sin precios). Comparten los mismos datos (obra, fecha,
-// conceptos) — cambiar de tipo NUNCA toca presItems/presDireccion/presFecha, solo la vista.
+// Tipo de documento de salida del presupuesto: 'presupuesto' o 'carta' (carta de compromiso
+// de suministro/colaboración — mismo texto de conceptos y precios, saludo/cuerpo distintos y
+// sin destinatario concreto). Comparten los mismos datos (obra, fecha, conceptos) — cambiar de
+// tipo NUNCA toca presItems/presDireccion/presFecha, solo la vista.
 let presDocType='presupuesto';
 function renderTareas(){
   const sec=document.getElementById('sec-tareas');
@@ -3635,14 +3636,14 @@ function buildPresupuestoPreview(){
     </div>
   </div>`;
 }
-// Carta de compromiso de suministro/colaboración: mismo cliente de datos (obra/fecha/conceptos)
-// que el presupuesto, pero sin precios ni destinatario concreto, con el texto fijo del encargo.
+// Carta de compromiso de suministro/colaboración: mismos datos (obra/fecha/conceptos con
+// precio) que el presupuesto, pero sin destinatario concreto y con el texto fijo del encargo.
 function buildCartaPreview(){
   const dir=presDireccion||'________________';
   const fecha=fmtPresDate(presFecha);
   const conceptsHtml=presItems.length===0
     ?'<p style="color:#999;font-style:italic;margin:8px 0">Sin conceptos añadidos todavía.</p>'
-    :`<table class="doc-concepts-table"><thead><tr><th>Conceptos seleccionados</th></tr></thead><tbody>${presItems.map((it,i)=>`<tr${i%2===1?' class="alt"':''}><td>${it.name}</td></tr>`).join('')}</tbody></table>`;
+    :`<table class="doc-concepts-table"><thead><tr><th>Conceptos seleccionados</th><th style="text-align:right">Precio</th></tr></thead><tbody>${presItems.map((it,i)=>`<tr${i%2===1?' class="alt"':''}><td>${it.name}</td><td style="text-align:right;white-space:nowrap">${fmtPresPrice(it.price)} + IVA</td></tr>`).join('')}</tbody></table>`;
   return `<div class="doc-preview">
     <div class="doc-head">
       <div class="doc-logo-box"><img src="data:image/png;base64,${PRES_LOGO_B64}" alt="GARVI"></div>
@@ -3793,7 +3794,7 @@ function pdfPresupuestoDoc(){
   doc.save('presupuesto-garvi.pdf');
 }
 // Carta de compromiso en PDF: mismo mecanismo/pipeline que el presupuesto (jsPDF, misma
-// cabecera y firma), sin precios ni IVA, con el texto fijo del encargo y footer con CIF/web.
+// cabecera, firma y tabla con precio+IVA), con el texto fijo del encargo y footer con CIF/web.
 function pdfCartaDoc(){
   const {jsPDF}=window.jspdf; const doc=new jsPDF({unit:'mm',format:'a4'});
   const W=210;
@@ -3827,7 +3828,7 @@ function pdfCartaDoc(){
   cy+=1;
   doc.setFillColor(26,42,108); doc.rect(14,cy-5,182,7,'F');
   doc.setTextColor(255,255,255); doc.setFontSize(8); doc.setFont('helvetica','bold');
-  doc.text('CONCEPTOS SELECCIONADOS',17,cy); cy+=7;
+  doc.text('CONCEPTOS SELECCIONADOS',17,cy); doc.text('PRECIO',193,cy,{align:'right'}); cy+=7;
   doc.setFontSize(9);
   if(!presItems.length){
     doc.setTextColor(153,153,153); doc.setFont('helvetica','italic');
@@ -3835,7 +3836,8 @@ function pdfCartaDoc(){
   } else {
     presItems.forEach((it,idx)=>{
       if(idx%2===1){doc.setFillColor(245,247,250);doc.rect(14,cy-4,182,7,'F');}
-      doc.setTextColor(15,32,68); doc.setFont('helvetica','normal'); doc.text(it.name,17,cy); cy+=7;
+      doc.setTextColor(15,32,68); doc.setFont('helvetica','normal');
+      doc.text(it.name,17,cy); doc.text(fmtPresPrice(it.price)+' + IVA',193,cy,{align:'right'}); cy+=7;
     });
   }
   cy+=6;
@@ -3869,7 +3871,7 @@ function emailPresupuestoDoc(){
 function emailCarta(){
   const subject=encodeURIComponent(`Carta de compromiso — ${presDireccion||''}`);
   const dir=presDireccion?`Obra: ${presDireccion}\n`:'';
-  const conceptos=presItems.map(it=>`- ${it.name}`).join('\n');
+  const conceptos=presItems.map(it=>`- ${it.name}: ${fmtPresPrice(it.price)} + IVA`).join('\n');
   const body=encodeURIComponent(`Estimado/a cliente,\n\nAdjuntamos carta de compromiso de suministro y colaboración para los servicios de gestión de residuos de la obra indicada:\n\n${dir}Fecha: ${fmtPresDate(presFecha)}\n\n${conceptos}\n\nQuedamos a su disposición.\n\nGarvi Recycling Systems, S.L.U.\nTel: 687759465 / 634537926\ncontenedores-garvi@hotmail.com`);
   window.open(`mailto:?subject=${subject}&body=${body}`);
 }
