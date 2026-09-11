@@ -548,6 +548,13 @@ label{
 .doc-sign-wrap{display:flex;justify-content:flex-end;margin-top:24px}
 .doc-sign-wrap img{width:200px;display:block;margin:0 auto 4px}
 .doc-sign-name{font-size:11px;color:#333;text-align:center}
+/* Tabla de conceptos de la Carta de Compromiso: sin precios, cabecera azul con texto blanco
+   y filas alternas en gris muy claro, mismos tokens de color que el resto de documentos. */
+.doc-concepts-table{width:100%;border-collapse:collapse;margin:8px 0 14px;font-size:13px}
+.doc-concepts-table th{background:#1a2a6c;color:#fff;text-align:left;padding:7px 10px;font-size:11px;text-transform:uppercase;letter-spacing:.03em}
+.doc-concepts-table td{padding:7px 10px;color:#222;border-bottom:1px solid #eee}
+.doc-concepts-table tr.alt td{background:#f5f7fa}
+.doc-footer{margin-top:20px;padding-top:10px;border-top:1px solid #ddd;font-size:10px;color:#888;text-align:center}
 .cert-table{width:100%;border-collapse:collapse;margin:8px 0 16px;font-size:11.5px}
 .cert-table th{background:#0f2044;color:#fff;padding:7px 8px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.03em}
 .cert-table td{padding:8px;border:1px solid #ddd;color:#222;vertical-align:top}
@@ -3526,6 +3533,10 @@ function pdfClientes(){
 // ─── TAREAS ───────────────────────────────────────────────────────
 let tareasFilter='pendientes', tareasQ='';
 let presItems=[],presDireccion='',presFecha=todayISO(),presPrices=[],presQ='';
+// Tipo de documento de salida del presupuesto: 'presupuesto' (con precios) o 'carta' (carta de
+// compromiso de suministro/colaboración, sin precios). Comparten los mismos datos (obra, fecha,
+// conceptos) — cambiar de tipo NUNCA toca presItems/presDireccion/presFecha, solo la vista.
+let presDocType='presupuesto';
 function renderTareas(){
   const sec=document.getElementById('sec-tareas');
   const pend=tareas.filter(t=>!t.done).length;
@@ -3591,7 +3602,11 @@ function pdfTareas(){
 // ─── PRESUPUESTOS ─────────────────────────────────────────────────
 function initPresPrices(){if(!presPrices.length) presPrices=CATALOG_PRES.map(c=>c.price);}
 
+// Despacha según el tipo de documento activo; ambos reutilizan presDireccion/presFecha/presItems.
 function buildPresPreview(){
+  return presDocType==='carta'?buildCartaPreview():buildPresupuestoPreview();
+}
+function buildPresupuestoPreview(){
   const dir=presDireccion||'________________';
   const fecha=fmtPresDate(presFecha);
   const conceptsHtml=presItems.length===0
@@ -3618,6 +3633,42 @@ function buildPresPreview(){
         <div class="doc-sign-name">Jose · Garvi Recycling Systems, S.L.</div>
       </div>
     </div>
+  </div>`;
+}
+// Carta de compromiso de suministro/colaboración: mismo cliente de datos (obra/fecha/conceptos)
+// que el presupuesto, pero sin precios ni destinatario concreto, con el texto fijo del encargo.
+function buildCartaPreview(){
+  const dir=presDireccion||'________________';
+  const fecha=fmtPresDate(presFecha);
+  const conceptsHtml=presItems.length===0
+    ?'<p style="color:#999;font-style:italic;margin:8px 0">Sin conceptos añadidos todavía.</p>'
+    :`<table class="doc-concepts-table"><thead><tr><th>Conceptos seleccionados</th></tr></thead><tbody>${presItems.map((it,i)=>`<tr${i%2===1?' class="alt"':''}><td>${it.name}</td></tr>`).join('')}</tbody></table>`;
+  return `<div class="doc-preview">
+    <div class="doc-head">
+      <div class="doc-logo-box"><img src="data:image/png;base64,${PRES_LOGO_B64}" alt="GARVI"></div>
+      <div class="doc-title-right">
+        <h3>CARTA DE COMPROMISO</h3>
+        <p>Garvi Recycling Systems, S.L.U. · B-54970439<br>Avd. General Marvá nº 23-2 · C.P. 03005 (Alicante)</p>
+      </div>
+    </div>
+    <div class="doc-meta-line">
+      <strong>Dirección de la obra:</strong> <span id="pres-meta-dir">${dir}</span> &nbsp;&nbsp;
+      <strong>Fecha:</strong> <span id="pres-meta-fecha">${fecha}</span>
+    </div>
+    <p style="margin:12px 0;font-size:13px;color:#333">Estimado/a cliente:</p>
+    <p style="margin:12px 0;font-size:13px;color:#333">Por medio de la presente, Garvi Recycling Systems, S.L.U., con CIF B-54970439, en respuesta a su solicitud manifiesta su firme compromiso de suministrar y colaborar en la prestación de los servicios de gestión de residuos necesarios para la ejecución de la obra indicada.</p>
+    <p style="margin:12px 0;font-size:13px;color:#333">En caso de resultar adjudicataria de la obra, Garvi Recycling Systems, S.L.U. se compromete a poner a disposición los medios materiales y humanos necesarios para el suministro, retirada, transporte y gestión de los residuos generados mediante contenedores, para los servicios que se detallan a continuación:</p>
+    ${conceptsHtml}
+    <p style="margin:12px 0;font-size:13px;color:#333">El presente compromiso queda condicionado al cumplimiento por parte del cliente de las condiciones de prestación del servicio: la correcta solicitud del mismo y el respeto de sus plazos, las condiciones de uso y llenado de los contenedores, así como la antelación mínima necesaria para su pedido y retirada.</p>
+    <p style="margin:12px 0;font-size:13px;color:#333">Quedamos a su entera disposición para cualquier aclaración que precisen y les agradecemos la confianza depositada en nuestra empresa.</p>
+    <p style="margin:12px 0 4px;font-size:13px;color:#333">Atentamente,</p>
+    <div class="doc-sign-wrap">
+      <div>
+        <img src="data:image/jpeg;base64,${PRES_SIGN_B64}" alt="Firma y sello">
+        <div class="doc-sign-name">Jose · Garvi Recycling Systems, S.L.U.</div>
+      </div>
+    </div>
+    <div class="doc-footer">Garvi Recycling Systems, S.L.U. · CIF B-54970439 · www.contenedoresgarvi.com</div>
   </div>`;
 }
 
@@ -3658,6 +3709,10 @@ function renderPresupuestos(){
       </div>
       <div class="card" style="padding:14px;display:flex;flex-direction:column;gap:10px">
         <div style="font-size:12px;font-weight:700;color:var(--accent-blue);border-bottom:2px solid var(--accent-blue);padding-bottom:6px;text-transform:uppercase;letter-spacing:.4px">Datos del presupuesto</div>
+        <div style="display:flex;gap:6px">
+          <button class="fact-toggle-btn ${presDocType==='presupuesto'?'active':''}" data-action="pres-doctype" data-param="presupuesto">Presupuesto</button>
+          <button class="fact-toggle-btn ${presDocType==='carta'?'active':''}" data-action="pres-doctype" data-param="carta">Carta de Compromiso</button>
+        </div>
         <div class="form-row"><label>Dirección de la obra</label><input id="pres-dir" value="${presDireccion}" placeholder="Dirección de la obra…"></div>
         <div class="form-row"><label>Fecha</label><input id="pres-fecha" type="date" value="${presFecha}"></div>
         <hr class="divider">
@@ -3665,13 +3720,13 @@ function renderPresupuestos(){
         ${itemsHtml}
         <div style="display:flex;gap:8px;margin-top:auto;padding-top:8px">
           <button class="btn btn-danger btn-sm" data-action="clear-pres">Vaciar todo</button>
-          <button class="btn btn-primary btn-sm" data-action="pres-scroll">Ver presupuesto ↓</button>
+          <button class="btn btn-primary btn-sm" data-action="pres-scroll">Ver ${presDocType==='carta'?'carta':'presupuesto'} ↓</button>
         </div>
       </div>
     </div>
     <div id="pres-preview-section" class="pres-preview-wrap">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
-        <div style="font-size:13px;font-weight:700;color:var(--text2)">Vista previa del presupuesto</div>
+        <div style="font-size:13px;font-weight:700;color:var(--text2)">Vista previa de la ${presDocType==='carta'?'carta de compromiso':'presupuesto'}</div>
       </div>
       <div id="pres-doc-content">${buildPresPreview()}</div>
     </div>`;
@@ -3688,8 +3743,16 @@ function renderPresupuestos(){
   document.getElementById('pres-search').addEventListener('input',e=>{presQ=e.target.value;reFocusInput('pres-search',renderPresupuestos);});
 }
 
+// Nombre de archivo seguro para Windows (se reutiliza en presupuesto y carta).
+function slugArchivoPres(s){return (s||'').toString().replace(/[\\/:*?"<>|]/g,' ').replace(/\s+/g,'_').replace(/^_+|_+$/g,'');}
+// Despacha al generador del tipo de documento activo; ambos comparten el mismo guard de
+// "sin conceptos" (PDF/Email/Imprimir se comportan igual en los dos modos).
 function pdfPresupuesto(){
   if(!presItems.length){toastMsg('Añade al menos un concepto');return;}
+  if(presDocType==='carta'){ pdfCartaDoc(); return; }
+  pdfPresupuestoDoc();
+}
+function pdfPresupuestoDoc(){
   const {jsPDF}=window.jspdf; const doc=new jsPDF({unit:'mm',format:'a4'});
   const W=210;
   doc.setFillColor(240,180,41); doc.rect(0,0,W,5,'F');
@@ -3729,11 +3792,85 @@ function pdfPresupuesto(){
   doc.setFillColor(240,180,41); doc.rect(0,292,W,5,'F');
   doc.save('presupuesto-garvi.pdf');
 }
+// Carta de compromiso en PDF: mismo mecanismo/pipeline que el presupuesto (jsPDF, misma
+// cabecera y firma), sin precios ni IVA, con el texto fijo del encargo y footer con CIF/web.
+function pdfCartaDoc(){
+  const {jsPDF}=window.jspdf; const doc=new jsPDF({unit:'mm',format:'a4'});
+  const W=210;
+  doc.setFillColor(240,180,41); doc.rect(0,0,W,5,'F');
+  try{doc.addImage('data:image/png;base64,'+PRES_LOGO_B64,'PNG',10,8,16,16);}catch(e){}
+  doc.setTextColor(15,32,68); doc.setFontSize(11); doc.setFont('helvetica','bold');
+  doc.text('GARVI RECYCLING SYSTEMS, S.L.U.',29,15);
+  doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(74,96,128);
+  doc.text('Ptda.Torrellano alto P1, Nº76 · C.P.03320 Elche (Alicante) · CIF: B54970439',29,21);
+  doc.text('Tel: 687759465 / 634537926 · contenedores-garvi@hotmail.com',29,26);
+  doc.setTextColor(240,180,41); doc.setFontSize(20); doc.setFont('helvetica','bold');
+  doc.text('CARTA DE COMPROMISO',196,18,{align:'right'});
+  doc.setTextColor(74,96,128); doc.setFontSize(9); doc.setFont('helvetica','normal');
+  doc.text('Fecha: '+fmtPresDate(presFecha),196,26,{align:'right'});
+  doc.setDrawColor(200,212,227); doc.line(14,34,196,34);
+  let cy=42;
+  if(presDireccion){
+    doc.setTextColor(74,96,128); doc.setFontSize(7); doc.setFont('helvetica','bold');
+    doc.text('DIRECCIÓN DE LA OBRA',14,cy); cy+=6;
+    doc.setTextColor(15,32,68); doc.setFontSize(10); doc.setFont('helvetica','normal');
+    doc.text(presDireccion,14,cy); cy+=10;
+  }
+  doc.setDrawColor(200,212,227); doc.line(14,cy,196,cy); cy+=8;
+  doc.setTextColor(15,32,68); doc.setFontSize(9); doc.setFont('helvetica','normal');
+  const parrafos=[
+    'Estimado/a cliente:',
+    'Por medio de la presente, Garvi Recycling Systems, S.L.U., con CIF B-54970439, en respuesta a su solicitud manifiesta su firme compromiso de suministrar y colaborar en la prestación de los servicios de gestión de residuos necesarios para la ejecución de la obra indicada.',
+    'En caso de resultar adjudicataria de la obra, Garvi Recycling Systems, S.L.U. se compromete a poner a disposición los medios materiales y humanos necesarios para el suministro, retirada, transporte y gestión de los residuos generados mediante contenedores, para los servicios que se detallan a continuación:',
+  ];
+  parrafos.forEach(p=>{ const lines=doc.splitTextToSize(p,182); doc.text(lines,14,cy); cy+=lines.length*4.6+3; });
+  cy+=1;
+  doc.setFillColor(26,42,108); doc.rect(14,cy-5,182,7,'F');
+  doc.setTextColor(255,255,255); doc.setFontSize(8); doc.setFont('helvetica','bold');
+  doc.text('CONCEPTOS SELECCIONADOS',17,cy); cy+=7;
+  doc.setFontSize(9);
+  if(!presItems.length){
+    doc.setTextColor(153,153,153); doc.setFont('helvetica','italic');
+    doc.text('Sin conceptos añadidos todavía.',17,cy+3); cy+=11;
+  } else {
+    presItems.forEach((it,idx)=>{
+      if(idx%2===1){doc.setFillColor(245,247,250);doc.rect(14,cy-4,182,7,'F');}
+      doc.setTextColor(15,32,68); doc.setFont('helvetica','normal'); doc.text(it.name,17,cy); cy+=7;
+    });
+  }
+  cy+=6;
+  const cierre=[
+    'El presente compromiso queda condicionado al cumplimiento por parte del cliente de las condiciones de prestación del servicio: la correcta solicitud del mismo y el respeto de sus plazos, las condiciones de uso y llenado de los contenedores, así como la antelación mínima necesaria para su pedido y retirada.',
+    'Quedamos a su entera disposición para cualquier aclaración que precisen y les agradecemos la confianza depositada en nuestra empresa.',
+  ];
+  doc.setTextColor(15,32,68); doc.setFontSize(9); doc.setFont('helvetica','normal');
+  cierre.forEach(p=>{ const lines=doc.splitTextToSize(p,182); doc.text(lines,14,cy); cy+=lines.length*4.6+3; });
+  doc.text('Atentamente,',14,cy); cy+=8;
+  try{doc.addImage('data:image/jpeg;base64,'+PRES_SIGN_B64,'JPEG',134,cy,50,35);}catch(e){}
+  doc.setTextColor(74,96,128); doc.setFontSize(7);
+  doc.text('Jose · Garvi Recycling Systems, S.L.U.',160,cy+38,{align:'center'});
+  doc.setTextColor(130,140,155); doc.setFontSize(7); doc.setFont('helvetica','normal');
+  doc.text('Garvi Recycling Systems, S.L.U. · CIF B-54970439 · www.contenedoresgarvi.com',105,288,{align:'center'});
+  doc.setFillColor(240,180,41); doc.rect(0,292,W,5,'F');
+  const nombre=['Carta_Compromiso',slugArchivoPres(presDireccion),slugArchivoPres(fmtPresDate(presFecha))].filter(Boolean).join('_');
+  doc.save((nombre||'Carta_Compromiso')+'.pdf');
+}
 function emailPresupuesto(){
+  if(presDocType==='carta'){ emailCarta(); return; }
+  emailPresupuestoDoc();
+}
+function emailPresupuestoDoc(){
   const subject=encodeURIComponent('Presupuesto GARVI Recycling Systems');
   const dir=presDireccion?`Dirección: ${presDireccion}\n`:'';
   const conceptos=presItems.map(it=>`- ${it.name}: ${fmtPresPrice(it.price)} + IVA`).join('\n');
   const body=encodeURIComponent(`Estimado/a cliente,\n\nAdjuntamos presupuesto de servicios:\n\n${dir}${conceptos}\n\nQuedamos a su disposición.\n\nGarvi Recycling Systems, S.L.U.\nTel: 687759465 / 634537926\ncontenedores-garvi@hotmail.com`);
+  window.open(`mailto:?subject=${subject}&body=${body}`);
+}
+function emailCarta(){
+  const subject=encodeURIComponent(`Carta de compromiso — ${presDireccion||''}`);
+  const dir=presDireccion?`Obra: ${presDireccion}\n`:'';
+  const conceptos=presItems.map(it=>`- ${it.name}`).join('\n');
+  const body=encodeURIComponent(`Estimado/a cliente,\n\nAdjuntamos carta de compromiso de suministro y colaboración para los servicios de gestión de residuos de la obra indicada:\n\n${dir}Fecha: ${fmtPresDate(presFecha)}\n\n${conceptos}\n\nQuedamos a su disposición.\n\nGarvi Recycling Systems, S.L.U.\nTel: 687759465 / 634537926\ncontenedores-garvi@hotmail.com`);
   window.open(`mailto:?subject=${subject}&body=${body}`);
 }
 function printPresupuesto(){
@@ -3758,6 +3895,11 @@ body{font-family:'Segoe UI',Arial,sans-serif;padding:30px;color:#222;line-height
 .doc-sign-wrap{display:flex;justify-content:flex-end;margin-top:24px}
 .doc-sign-wrap img{width:200px;display:block;margin:0 auto 4px}
 .doc-sign-name{font-size:11px;color:#333;text-align:center}
+.doc-concepts-table{width:100%;border-collapse:collapse;margin:8px 0 14px;font-size:13px}
+.doc-concepts-table th{background:#1a2a6c;color:#fff;text-align:left;padding:7px 10px;font-size:11px;text-transform:uppercase;letter-spacing:.03em}
+.doc-concepts-table td{padding:7px 10px;color:#222;border-bottom:1px solid #eee}
+.doc-concepts-table tr.alt td{background:#f5f7fa}
+.doc-footer{margin-top:20px;padding-top:10px;border-top:1px solid #ddd;font-size:10px;color:#888;text-align:center}
 span[id]{display:inline}
 @media print{body{padding:0}}
 </style></head><body>${el.innerHTML}</body></html>`);
@@ -4085,6 +4227,9 @@ document.addEventListener('click',e=>{
   else if(action==='del-tarea'){tareas=tareas.filter(t=>t.id!==param);saveTareas();syncTareasCol.borrar(param);renderTareas();toastMsg('Eliminado');}
   else if(action==='toggle-tarea'){const t=tareas.find(x=>x.id===param);if(t){t.done=!t.done;saveTareas();syncTareasCol.guardar(t);renderTareas();}}
   else if(action==='tareas-filter'){tareasFilter=param;renderTareas();}
+  // Cambiar de tipo de documento SOLO redibuja: presItems/presDireccion/presFecha son variables
+  // globales aparte, nunca se tocan aquí, así que nada de lo ya introducido se pierde.
+  else if(action==='pres-doctype'){presDocType=param;renderPresupuestos();}
   else if(action==='add-pres-item'){const i=+param;initPresPrices();presItems.push({name:CATALOG_PRES[i].name,price:presPrices[i]??CATALOG_PRES[i].price,iva:CATALOG_PRES[i].iva});renderPresupuestos();}
   else if(action==='del-pres-item'){presItems.splice(+param,1);renderPresupuestos();}
   else if(action==='clear-pres'){presItems=[];renderPresupuestos();}
