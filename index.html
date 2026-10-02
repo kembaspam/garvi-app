@@ -417,6 +417,19 @@ label{
 .cobros-table td{padding:8px 10px;border-bottom:1px solid var(--border2);vertical-align:middle;white-space:normal}
 .cobros-table tbody tr:last-child td{border-bottom:none}
 .cobros-table-resumen td,.cobros-table-resumen th{padding:5px 10px;font-size:12.5px}
+.metodo-pago-sel{
+  width:150px;font-size:12px;padding:7px 8px;border-radius:8px;
+  border:1.5px solid var(--border);background:#fff;color:var(--text);
+  margin-bottom:6px;cursor:pointer;display:block;
+}
+.avisado-toggle{
+  display:flex;align-items:center;justify-content:center;gap:4px;
+  width:150px;padding:9px 10px;border-radius:8px;border:1.5px solid var(--border);
+  background:#fff;color:var(--muted);font-size:12.5px;font-weight:700;
+  cursor:pointer;transition:all .15s;font-family:inherit;
+}
+.avisado-toggle:hover{border-color:#f59e0b;color:#f59e0b}
+.avisado-toggle.on{background:#f59e0b;border-color:#f59e0b;color:#fff;box-shadow:0 2px 8px rgba(245,158,11,.45)}
 
 /* ── CLIENTES ──────────────────────────────────────── */
 .cliente-item{
@@ -3041,6 +3054,7 @@ function renderQBtns(){
     </button>`).join('');
 }
 let factQ='';
+let facturasView='proformas'; // 'proformas' | 'facturas' — pestaña por defecto dentro de Facturación
 // Una factura (no proforma) se considera "vencida" a partir de 30 días desde su fecha de
 // emisión y sin cobrar — igual que el listado de deudores en papel que ya llevaba el usuario.
 function facturaVencida(f){ return f.tipo==='factura'&&!f.cobrada&&daysSince(f.fecha)>=30; }
@@ -3167,8 +3181,10 @@ function renderFacturas(){
   const profList=facturas.filter(f=>f.tipo==='proforma');
   const factList=facturas.filter(f=>f.tipo==='factura');
   const totalFacturado=facturas.reduce((s,f)=>s+f.total,0);
+  const totalVista=(facturasView==='proformas'?profList:factList).reduce((s,f)=>s+f.total,0);
   const fq=factQ.toLowerCase();
-  const filtFacturas=facturas.filter(f=>!fq||(f.cliente||'').toLowerCase().includes(fq)||(f.num||'').toLowerCase().includes(fq));
+  const filtFacturas=facturas.filter(f=>f.tipo===(facturasView==='proformas'?'proforma':'factura'))
+    .filter(f=>!fq||(f.cliente||'').toLowerCase().includes(fq)||(f.num||'').toLowerCase().includes(fq));
   const listaHtml=[...filtFacturas].reverse().map(f=>{
     const vencida=facturaVencida(f);
     const estadoTag=f.tipo==='factura'?(f.cobrada?' · <span style="color:#166534;font-weight:700">Cobrada</span>':vencida?' · <span style="color:#991b1b;font-weight:700">Vencida</span>':''):'';
@@ -3198,14 +3214,17 @@ function renderFacturas(){
           <button class="btn btn-primary btn-sm" data-action="nueva-factura">+ Nueva</button>
         </div>
       </div>
+      <div class="fact-toggle">
+        <button class="fact-toggle-btn ${facturasView==='proformas'?'active':''}" data-action="facturas-view" data-param="proformas">📄 Proformas (${profList.length})</button>
+        <button class="fact-toggle-btn ${facturasView==='facturas'?'active':''}" data-action="facturas-view" data-param="facturas">🧾 Facturas (${factList.length})</button>
+      </div>
       <div style="display:flex;gap:12px;font-size:13px;color:var(--muted);flex-wrap:wrap;margin-bottom:10px">
-        <span>📄 ${profList.length} proformas</span>
-        <span>🧾 ${factList.length} facturas</span>
-        <span style="margin-left:auto;color:var(--accent);font-weight:700;font-family:'DM Mono',monospace">${fmtMoney(totalFacturado)}</span>
+        <span>${filtFacturas.length} ${facturasView==='proformas'?'proformas':'facturas'}</span>
+        <span style="margin-left:auto;color:var(--accent);font-weight:700;font-family:'DM Mono',monospace">${fmtMoney(totalVista)}</span>
       </div>
       <input class="search-input" id="fact-search" type="search" placeholder="Buscar cliente o número…" value="${factQ}">
     </div>
-    ${listaHtml||'<div class="empty-state"><div class="icon">🧾</div>Sin facturas aún. Pulsa + Nueva para crear.</div>'}`;
+    ${listaHtml||`<div class="empty-state"><div class="icon">🧾</div>Sin ${facturasView==='proformas'?'proformas':'facturas'} aún. Pulsa + Nueva para crear.</div>`}`;
   document.getElementById('fact-search').addEventListener('input',e=>{factQ=e.target.value;reFocusInput('fact-search',renderFacturas);});
 }
 // ─── COBROS PENDIENTES (sección propia) ────────────────────────────
@@ -3229,10 +3248,13 @@ function renderCobrosPendientes(){
     const bg=vencida?'#fee2e2':(f.avisado?'#fef3c7':'var(--surface)');
     return `<tr>
       <td style="background:${bg};border-left:4px solid ${vencida?'#dc2626':f.avisado?'#f59e0b':'transparent'}">
-        <input class="metodo-pago-inp" data-id="${f.id}" value="${(f.metodoPago||'').replace(/"/g,'&quot;')}" placeholder="Confirming/Pagaré/Cheque…" style="font-size:11px;padding:5px 7px;width:140px">
-        <label style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--text2);margin-top:4px;cursor:pointer;white-space:nowrap">
-          <input type="checkbox" data-action="toggle-avisado" data-param="${f.id}" ${f.avisado?'checked':''} style="width:14px;height:14px;margin:0"> Avisado
-        </label>
+        <select class="metodo-pago-sel" data-id="${f.id}">
+          <option value=""${!f.metodoPago?' selected':''}>— Sin especificar —</option>
+          <option value="CONFIRMING"${f.metodoPago==='CONFIRMING'?' selected':''}>🏦 Confirming</option>
+          <option value="PAGARÉ"${f.metodoPago==='PAGARÉ'?' selected':''}>📝 Pagaré</option>
+          <option value="CHEQUE"${f.metodoPago==='CHEQUE'?' selected':''}>💳 Cheque</option>
+        </select>
+        <button class="avisado-toggle${f.avisado?' on':''}" data-action="toggle-avisado" data-param="${f.id}">${f.avisado?'✓ ':''}Avisado</button>
       </td>
       <td data-action="ver-factura" data-param="${f.id}" style="cursor:pointer;font-weight:700">${f.cliente}</td>
       <td data-action="ver-factura" data-param="${f.id}" style="cursor:pointer;color:var(--muted)">${f.num}</td>
@@ -3265,10 +3287,10 @@ function renderCobrosPendientes(){
     ${tablaHtml||'<div class="empty-state"><div class="icon">🎉</div>Sin facturas pendientes de cobro.</div>'}
     ${resumenHtml}`;
   document.getElementById('cobros-search').addEventListener('input',e=>{cobrosQ=e.target.value;reFocusInput('cobros-search',renderCobrosPendientes);});
-  document.querySelectorAll('.metodo-pago-inp').forEach(el=>{
+  document.querySelectorAll('.metodo-pago-sel').forEach(el=>{
     el.addEventListener('change',e=>{
       const f=facturas.find(x=>x.id===e.target.dataset.id); if(!f) return;
-      f.metodoPago=e.target.value.trim();
+      f.metodoPago=e.target.value;
       saveFacturas();syncFacturasCol.guardar(f);
     });
   });
@@ -4464,6 +4486,7 @@ document.addEventListener('click',e=>{
   else if(action==='pdf-factura') pdfFactura(param);
   else if(action==='pdf-facturas') pdfFacturas();
   else if(action==='pdf-cobros-pendientes') pdfCobrosPendientes();
+  else if(action==='facturas-view'){facturasView=param;renderFacturas();}
   else if(action==='toggle-avisado'){
     const f=facturas.find(x=>x.id===param); if(f){ f.avisado=!f.avisado; saveFacturas();syncFacturasCol.guardar(f);renderCobrosPendientes(); }
   }
