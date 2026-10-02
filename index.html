@@ -622,7 +622,7 @@ label{
     <button class="tab-btn active" data-action="tab" data-param="inicio"><span class="tab-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><path d="M9 22V12h6v10"/></svg></span><span class="tab-label">Inicio</span></button>
     <button class="tab-btn" data-action="tab" data-param="contenedores"><span class="tab-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h18M3 7l2 13h14l2-13M3 7l2-3h14l2 3M9 11v6M15 11v6"/></svg></span><span class="tab-label">Contenedores</span><span class="badge" id="badge-ret" style="display:none">0</span></button>
     <button class="tab-btn" data-action="tab" data-param="albaranes"><span class="tab-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2M9 12h6M9 16h4"/></svg></span><span class="tab-label">Albaranes</span></button>
-    <button class="tab-btn" data-action="tab" data-param="facturas"><span class="tab-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l4-2 4 2 4-2 4 2"/></svg></span><span class="tab-label">Facturación</span></button>
+    <button class="tab-btn" data-action="tab" data-param="facturas"><span class="tab-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l4-2 4 2 4-2 4 2"/></svg></span><span class="tab-label">Facturación</span><span class="badge" id="badge-fact" style="display:none">0</span></button>
     <button class="tab-btn" data-action="tab" data-param="presupuestos"><span class="tab-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg></span><span class="tab-label">Presupuestos</span></button>
     <button class="tab-btn" data-action="tab" data-param="certificados"><span class="tab-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15a5 5 0 100-10 5 5 0 000 10z"/><path d="M8.5 13.5L7 22l5-3 5 3-1.5-8.5"/></svg></span><span class="tab-label">Certificados</span></button>
     <button class="tab-btn" data-action="tab" data-param="tareas"><span class="tab-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 12l2 2 4-4"/></svg></span><span class="tab-label">Tareas</span></button>
@@ -1015,7 +1015,7 @@ function migrarYSuscribirTodo(){
     syncAlbaranesCol.suscribir(v=>{albaranes=v;},null,()=>{ saveAlbaranes(); if(currentTab==='albaranes'){renderAlbaranes();} });
     syncTareasCol.suscribir(v=>{tareas=v;},null,()=>{ saveTareas(); if(currentTab==='tareas'){renderTareas();} });
     syncFinanzasCol.suscribir(v=>{finanzas=v;},null,()=>{ saveFinanzas(); if(currentTab==='finanzas'){renderFinanzas();} });
-    syncFacturasCol.suscribir(v=>{facturas=v;},null,()=>{ saveFacturas(); if(currentTab==='facturas'){renderFacturas();} });
+    syncFacturasCol.suscribir(v=>{facturas=v;},null,()=>{ saveFacturas(); updateBadge(); if(currentTab==='facturas'){renderFacturas();} });
     syncCertificadosCol.suscribir(v=>{certificados=v;},null,()=>{ saveCertificados(); if(currentTab==='certificados'){renderCertificados();} });
   });
 }
@@ -1341,6 +1341,9 @@ function updateBadge(){
   const b=document.getElementById('badge-ret');
   if(cnt>0){b.textContent=cnt;b.style.display='flex';}
   else b.style.display='none';
+  const cntFact=facturas.filter(facturaVencida).length;
+  const bf=document.getElementById('badge-fact');
+  if(bf){ if(cntFact>0){bf.textContent=cntFact;bf.style.display='flex';} else bf.style.display='none'; }
 }
 
 // ─── NAV ──────────────────────────────────────────────────────────
@@ -3018,19 +3021,90 @@ function renderQBtns(){
     </button>`).join('');
 }
 let factQ='';
+let factView='todas'; // 'todas' | 'pendientes' — vista de cobros pendientes dentro de Facturación
+// Una factura (no proforma) se considera "vencida" a partir de 30 días desde su fecha de
+// emisión y sin cobrar — igual que el listado de deudores en papel que ya llevaba el usuario.
+function facturaVencida(f){ return f.tipo==='factura'&&!f.cobrada&&daysSince(f.fecha)>=30; }
+function facturasPendientesList(){ return facturas.filter(f=>f.tipo==='factura'&&!f.cobrada); }
 function renderFacturas(){
   const sec=document.getElementById('sec-facturas');
   const profList=facturas.filter(f=>f.tipo==='proforma');
   const factList=facturas.filter(f=>f.tipo==='factura');
   const totalFacturado=facturas.reduce((s,f)=>s+f.total,0);
   const fq=factQ.toLowerCase();
-  const filtFacturas=facturas.filter(f=>!fq||(f.cliente||'').toLowerCase().includes(fq)||(f.num||'').toLowerCase().includes(fq));
-  const listaHtml=[...filtFacturas].reverse().map(f=>`
+  const pendientes=facturasPendientesList().filter(f=>!fq||(f.cliente||'').toLowerCase().includes(fq)||(f.num||'').toLowerCase().includes(fq));
+  const totalPendiente=pendientes.reduce((s,f)=>s+(f.total||0),0);
+  const numVencidas=pendientes.filter(facturaVencida).length;
+
+  const cabecera=`
+    <div class="section-header">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <div class="section-title">Facturación</div>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-secondary btn-sm" data-action="${factView==='pendientes'?'pdf-cobros-pendientes':'pdf-facturas'}">📄 Crear PDF</button>
+          <button class="btn btn-primary btn-sm" data-action="nueva-factura">+ Nueva</button>
+        </div>
+      </div>
+      <div class="fact-toggle">
+        <button class="fact-toggle-btn ${factView==='todas'?'active':''}" data-action="fact-view" data-param="todas">Todas</button>
+        <button class="fact-toggle-btn ${factView==='pendientes'?'active':''}" data-action="fact-view" data-param="pendientes">💸 Cobros pendientes${numVencidas?` (${numVencidas})`:''}</button>
+      </div>
+      <div style="display:flex;gap:12px;font-size:13px;color:var(--muted);flex-wrap:wrap;margin-bottom:10px">
+        ${factView==='pendientes'
+          ?`<span>${pendientes.length} facturas sin cobrar</span><span style="color:#991b1b;font-weight:700">${numVencidas} vencidas (30+ días)</span><span style="margin-left:auto;color:var(--accent);font-weight:700;font-family:'DM Mono',monospace">${fmtMoney(totalPendiente)} pendiente</span>`
+          :`<span>📄 ${profList.length} proformas</span><span>🧾 ${factList.length} facturas</span><span style="margin-left:auto;color:var(--accent);font-weight:700;font-family:'DM Mono',monospace">${fmtMoney(totalFacturado)}</span>`}
+      </div>
+      <input class="search-input" id="fact-search" type="search" placeholder="Buscar cliente o número…" value="${factQ}">
+    </div>`;
+
+  if(factView==='pendientes'){
+    const porCliente=Object.entries(pendientes.reduce((m,f)=>{m[f.cliente]=(m[f.cliente]||0)+(f.total||0);return m;},{})).sort((a,b)=>b[1]-a[1]);
+    const resumenHtml=porCliente.length?`<div class="card" style="padding:10px 14px;margin-bottom:12px">
+      <div style="font-size:11px;font-weight:700;color:var(--accent-blue);text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px">Debe cada cliente</div>
+      ${porCliente.map(([cli,tot])=>`<div style="display:flex;justify-content:space-between;font-size:12.5px;padding:3px 0"><span>${cli}</span><span style="font-family:'DM Mono',monospace;font-weight:700">${fmtMoney(tot)}</span></div>`).join('')}
+    </div>`:'';
+    const filasHtml=[...pendientes].sort((a,b)=>(a.fecha||'').localeCompare(b.fecha||'')).map(f=>{
+      const vencida=facturaVencida(f);
+      const bg=vencida?'#fee2e2':(f.avisado?'#fef3c7':'var(--surface)');
+      return `<div class="factura-item" style="background:${bg};cursor:default">
+        <div style="min-width:120px">
+          <input class="metodo-pago-inp" data-id="${f.id}" value="${(f.metodoPago||'').replace(/"/g,'&quot;')}" placeholder="Confirming/Pagaré/Cheque…" style="font-size:11px;padding:5px 7px">
+          <label style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--text2);margin-top:4px;cursor:pointer">
+            <input type="checkbox" data-action="toggle-avisado" data-param="${f.id}" ${f.avisado?'checked':''} style="width:14px;height:14px;margin:0"> Avisado
+          </label>
+        </div>
+        <div class="fact-info" data-action="ver-factura" data-param="${f.id}" style="cursor:pointer">
+          <div class="fact-cliente">${f.cliente}</div>
+          <div class="fact-meta">${f.num} · ${fmtDate(f.fecha)}${vencida?` · <strong style="color:#991b1b">${daysSince(f.fecha)} días</strong>`:''}</div>
+        </div>
+        <div>
+          <div class="fact-total">${fmtMoney(f.total)}</div>
+          <div style="display:flex;gap:4px;margin-top:4px;justify-content:flex-end">
+            <button class="btn btn-primary btn-sm" data-action="toggle-cobrada" data-param="${f.id}" style="padding:3px 8px;font-size:11px">💰 Cobrada</button>
+            ${f.telefono?`<a href="https://wa.me/34${f.telefono.replace(/\D/g,'')}" target="_blank" class="btn btn-secondary btn-sm" style="padding:3px 8px;font-size:11px">${ICO_WA}</a>`:''}
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+    sec.innerHTML=cabecera+resumenHtml+(filasHtml||'<div class="empty-state"><div class="icon">🎉</div>Sin facturas pendientes de cobro.</div>');
+    document.querySelectorAll('.metodo-pago-inp').forEach(el=>{
+      el.addEventListener('change',e=>{
+        const f=facturas.find(x=>x.id===e.target.dataset.id); if(!f) return;
+        f.metodoPago=e.target.value.trim();
+        saveFacturas();syncFacturasCol.guardar(f);
+      });
+    });
+  } else {
+    const filtFacturas=facturas.filter(f=>!fq||(f.cliente||'').toLowerCase().includes(fq)||(f.num||'').toLowerCase().includes(fq));
+    const listaHtml=[...filtFacturas].reverse().map(f=>{
+      const vencida=facturaVencida(f);
+      const estadoTag=f.tipo==='factura'?(f.cobrada?' · <span style="color:#166534;font-weight:700">Cobrada</span>':vencida?' · <span style="color:#991b1b;font-weight:700">Vencida</span>':''):'';
+      return `
     <div class="factura-item" data-action="ver-factura" data-param="${f.id}">
       <span class="fact-badge ${f.tipo==='proforma'?'fact-badge-p':'fact-badge-f'}">${f.num}</span>
       <div class="fact-info">
         <div class="fact-cliente">${f.cliente}</div>
-        <div class="fact-meta">${fmtDate(f.fecha)}${f.vencimiento?' · Vence: '+fmtDate(f.vencimiento):''}${f.tipo==='proforma'?' · Proforma':' · Factura'}</div>
+        <div class="fact-meta">${fmtDate(f.fecha)}${f.vencimiento?' · Vence: '+fmtDate(f.vencimiento):''}${f.tipo==='proforma'?' · Proforma':' · Factura'}${estadoTag}</div>
       </div>
       <div>
         <div class="fact-total">${fmtMoney(f.total)}</div>
@@ -3041,24 +3115,9 @@ function renderFacturas(){
           <button class="btn btn-danger btn-sm" data-action="del-factura" data-param="${f.id}" style="padding:3px 8px;font-size:11px">🗑</button>
         </div>
       </div>
-    </div>`).join('');
-  sec.innerHTML=`
-    <div class="section-header">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-        <div class="section-title">Facturación</div>
-        <div style="display:flex;gap:6px">
-          <button class="btn btn-secondary btn-sm" data-action="pdf-facturas">📄 Crear PDF</button>
-          <button class="btn btn-primary btn-sm" data-action="nueva-factura">+ Nueva</button>
-        </div>
-      </div>
-      <div style="display:flex;gap:12px;font-size:13px;color:var(--muted);flex-wrap:wrap;margin-bottom:10px">
-        <span>📄 ${profList.length} proformas</span>
-        <span>🧾 ${factList.length} facturas</span>
-        <span style="margin-left:auto;color:var(--accent);font-weight:700;font-family:'DM Mono',monospace">${fmtMoney(totalFacturado)}</span>
-      </div>
-      <input class="search-input" id="fact-search" type="search" placeholder="Buscar cliente o número…" value="${factQ}">
-    </div>
-    ${listaHtml||'<div class="empty-state"><div class="icon">🧾</div>Sin facturas aún. Pulsa + Nueva para crear.</div>'}`;
+    </div>`;}).join('');
+    sec.innerHTML=cabecera+(listaHtml||'<div class="empty-state"><div class="icon">🧾</div>Sin facturas aún. Pulsa + Nueva para crear.</div>');
+  }
   document.getElementById('fact-search').addEventListener('input',e=>{factQ=e.target.value;reFocusInput('fact-search',renderFacturas);});
 }
 function pdfFacturas(){
@@ -3066,6 +3125,61 @@ function pdfFacturas(){
   const rows=facturas.filter(f=>!fq||(f.cliente||'').toLowerCase().includes(fq)||(f.num||'').toLowerCase().includes(fq))
     .map(f=>[f.num||'',f.cliente||'',f.tipo==='proforma'?'Proforma':'Factura',fmtDate(f.fecha),fmtMoney(f.total)]);
   pdfListGenerico('Facturación',['Nº','Cliente','Tipo','Fecha','Total'],rows,'facturacion-garvi.pdf');
+}
+// PDF del listado de cobros pendientes, calcado al Excel en papel que ya llevaba el usuario:
+// mismas columnas (Avisado/Cliente/Nº Fac/Fecha/Importe) y mismos colores de fila
+// (rojo = vencida 30+ días, amarillo = avisado, blanco = aún en plazo), con el total al final.
+function pdfCobrosPendientes(){
+  const fq=factQ.toLowerCase();
+  const list=facturasPendientesList().filter(f=>!fq||(f.cliente||'').toLowerCase().includes(fq)||(f.num||'').toLowerCase().includes(fq))
+    .slice().sort((a,b)=>(a.fecha||'').localeCompare(b.fecha||''));
+  if(!list.length){toastMsg('No hay facturas pendientes de cobro');return;}
+  const {jsPDF}=window.jspdf; const doc=new jsPDF({unit:'mm',format:'a4'});
+  const W=210;
+  doc.setFillColor(240,180,41); doc.rect(0,0,W,5,'F');
+  try{doc.addImage('data:image/png;base64,'+PRES_LOGO_B64,'PNG',10,8,16,16);}catch(e){}
+  doc.setTextColor(15,32,68); doc.setFontSize(11); doc.setFont('helvetica','bold');
+  doc.text('GARVI RECYCLING SYSTEMS, S.L.U.',29,15);
+  doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(74,96,128);
+  doc.text('Ptda.Torrellano alto P1, Nº76 · C.P.03320 Elche (Alicante) · CIF: B54970439',29,21);
+  doc.setTextColor(240,180,41); doc.setFontSize(16); doc.setFont('helvetica','bold');
+  doc.text('LISTADO DEUDORES',196,18,{align:'right'});
+  doc.setTextColor(74,96,128); doc.setFontSize(9); doc.setFont('helvetica','normal');
+  doc.text('Fecha: '+fmtDate(todayISO()),196,26,{align:'right'});
+  doc.setDrawColor(200,212,227); doc.line(14,32,196,32);
+  const cols=[{x:14,w:34,label:'AVISADO'},{x:48,w:56,label:'CLIENTE'},{x:104,w:22,label:'Nº FAC'},{x:126,w:30,label:'FECHA'},{x:156,w:40,label:'IMPORTE'}];
+  const rowH=7;
+  let cy=40;
+  const printHeader=()=>{
+    doc.setFillColor(15,32,68); doc.rect(14,cy-5,182,rowH,'F');
+    doc.setTextColor(255,255,255); doc.setFontSize(8); doc.setFont('helvetica','bold');
+    cols.forEach(c=>doc.text(c.label,c.x+2,cy));
+    cy+=rowH;
+  };
+  printHeader();
+  doc.setFont('helvetica','normal');
+  let total=0;
+  list.forEach(f=>{
+    if(cy>270){doc.addPage();cy=20;printHeader();}
+    const vencida=facturaVencida(f);
+    if(vencida) doc.setFillColor(254,226,226);
+    else if(f.avisado) doc.setFillColor(254,243,199);
+    else doc.setFillColor(255,255,255);
+    doc.rect(14,cy-4.5,182,rowH,'F');
+    doc.setTextColor(15,32,68); doc.setFontSize(8.5);
+    doc.text(f.metodoPago||'',cols[0].x+2,cy,{maxWidth:cols[0].w-3});
+    doc.text(f.cliente||'',cols[1].x+2,cy,{maxWidth:cols[1].w-3});
+    doc.text(String(f.num||''),cols[2].x+2,cy,{maxWidth:cols[2].w-3});
+    doc.text(fmtDate(f.fecha),cols[3].x+2,cy,{maxWidth:cols[3].w-3});
+    doc.text(fmtMoney(f.total),cols[4].x+2,cy,{maxWidth:cols[4].w-3});
+    total+=f.total||0;
+    cy+=rowH;
+  });
+  cy+=5;
+  doc.setDrawColor(200,212,227); doc.line(14,cy-5,196,cy-5);
+  doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(15,32,68);
+  doc.text('TOTAL PENDIENTE: '+fmtMoney(total),196,cy,{align:'right'});
+  doc.save('cobros-pendientes-garvi.pdf');
 }
 function nuevaFacturaModal(idEditar){
   editFactId=idEditar||null;
@@ -3263,7 +3377,7 @@ function guardarFactura(){
     const nuevaFact={id:Date.now().toString(),...datos};
     facturas.push(nuevaFact); syncFacturasCol.guardar(nuevaFact);
   }
-  saveFacturas();clearFacturaDraft();closeModal();renderFacturas();toastMsg('Factura guardada ✓');
+  saveFacturas();clearFacturaDraft();closeModal();renderFacturas();updateBadge();toastMsg('Factura guardada ✓');
 }
 function buildTmpFactura(){
   let base=0,ivaTotal=0;
@@ -4193,9 +4307,21 @@ document.addEventListener('click',e=>{
   else if(action==='pdf-tareas') pdfTareas();
   else if(action==='nueva-factura') nuevaFacturaModal();
   else if(action==='ver-factura') nuevaFacturaModal(param);
-  else if(action==='del-factura'){if(confirm('¿Eliminar?')){facturas=facturas.filter(f=>f.id!==param);saveFacturas();syncFacturasCol.borrar(param);renderFacturas();toastMsg('Eliminado');}}
+  else if(action==='del-factura'){if(confirm('¿Eliminar?')){facturas=facturas.filter(f=>f.id!==param);saveFacturas();syncFacturasCol.borrar(param);renderFacturas();updateBadge();toastMsg('Eliminado');}}
   else if(action==='pdf-factura') pdfFactura(param);
   else if(action==='pdf-facturas') pdfFacturas();
+  else if(action==='pdf-cobros-pendientes') pdfCobrosPendientes();
+  else if(action==='fact-view'){factView=param;renderFacturas();}
+  else if(action==='toggle-avisado'){
+    const f=facturas.find(x=>x.id===param); if(f){ f.avisado=!f.avisado; saveFacturas();syncFacturasCol.guardar(f);renderFacturas(); }
+  }
+  else if(action==='toggle-cobrada'){
+    const f=facturas.find(x=>x.id===param); if(f){
+      f.cobrada=!f.cobrada; f.fechaCobro=f.cobrada?todayISO():'';
+      saveFacturas();syncFacturasCol.guardar(f);renderFacturas();updateBadge();
+      toastMsg(f.cobrada?'Marcada como cobrada ✓':'Marcada como pendiente de nuevo');
+    }
+  }
   else if(action==='concepto-grupo'){conceptoGrupo=param;document.querySelectorAll('.qbtn-tab').forEach(b=>b.classList.toggle('active',b.dataset.param===param));renderQBtns();}
   else if(action==='nueva-factura-cl'){closeModal();setTimeout(()=>{renderTab('facturas');setTimeout(()=>{nuevaFacturaModal();setTimeout(()=>{const el=document.getElementById('f-cliente');if(el) el.value=param;},50);},50);},50);}
   else if(action==='fact-mode'){
