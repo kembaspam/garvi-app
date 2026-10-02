@@ -3295,11 +3295,21 @@ function renderCobrosPendientes(){
     });
   });
 }
+// El PDF del listado respeta la pestaña activa (Proformas/Facturas). Para proformas se pide
+// expresamente cliente + tipo de contenedor (sacado de las líneas) SIN precio; las facturas
+// mantienen el formato de siempre (con total).
 function pdfFacturas(){
   const fq=factQ.toLowerCase();
-  const rows=facturas.filter(f=>!fq||(f.cliente||'').toLowerCase().includes(fq)||(f.num||'').toLowerCase().includes(fq))
-    .map(f=>[f.num||'',f.cliente||'',f.tipo==='proforma'?'Proforma':'Factura',fmtDate(f.fecha),fmtMoney(f.total)]);
-  pdfListGenerico('Facturación',['Nº','Cliente','Tipo','Fecha','Total'],rows,'facturacion-garvi.pdf');
+  const esProforma=facturasView==='proformas';
+  const list=facturas.filter(f=>f.tipo===(esProforma?'proforma':'factura'))
+    .filter(f=>!fq||(f.cliente||'').toLowerCase().includes(fq)||(f.num||'').toLowerCase().includes(fq));
+  if(esProforma){
+    const rows=list.map(f=>[f.num||'',f.cliente||'',(f.lineas||[]).map(l=>l.desc).filter(Boolean).join(', ')||'—',fmtDate(f.fecha)]);
+    pdfListGenerico('Proformas',['Nº','Cliente','Tipo de contenedor','Fecha'],rows,'proformas-garvi.pdf');
+  } else {
+    const rows=list.map(f=>[f.num||'',f.cliente||'',fmtDate(f.fecha),fmtMoney(f.total)]);
+    pdfListGenerico('Facturas',['Nº','Cliente','Fecha','Total'],rows,'facturas-garvi.pdf');
+  }
 }
 // PDF del listado de cobros pendientes, calcado al Excel en papel que ya llevaba el usuario:
 // mismas columnas (Avisado/Cliente/Nº Fac/Fecha/Importe) y mismos colores de fila
