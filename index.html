@@ -409,6 +409,14 @@ label{
 .fact-cliente{font-weight:700;font-size:14px;color:var(--text)}
 .fact-meta{font-size:12px;color:var(--muted);margin-top:2px}
 .fact-total{font-family:'DM Mono',monospace;font-size:15px;color:var(--accent-blue);font-weight:800}
+/* Tabla de Cobros pendientes: columnas alineadas de verdad (como el Excel en papel), con
+   scroll horizontal propio en pantallas estrechas en vez de romper el layout de la página. */
+.cobros-table-wrap{overflow-x:auto}
+.cobros-table{width:100%;border-collapse:collapse;font-size:13px;white-space:nowrap}
+.cobros-table th{text-align:left;font-size:10.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;padding:8px 10px;border-bottom:2px solid var(--border)}
+.cobros-table td{padding:8px 10px;border-bottom:1px solid var(--border2);vertical-align:middle;white-space:normal}
+.cobros-table tbody tr:last-child td{border-bottom:none}
+.cobros-table-resumen td,.cobros-table-resumen th{padding:5px 10px;font-size:12.5px}
 
 /* ── CLIENTES ──────────────────────────────────────── */
 .cliente-item{
@@ -3201,32 +3209,37 @@ function renderCobrosPendientes(){
   const numVencidas=pendientes.filter(facturaVencida).length;
   const porCliente=Object.entries(pendientes.reduce((m,f)=>{m[f.cliente]=(m[f.cliente]||0)+(f.total||0);return m;},{})).sort((a,b)=>b[1]-a[1]);
   const resumenHtml=porCliente.length?`<div class="card" style="padding:10px 14px;margin-bottom:12px">
-    <div style="font-size:11px;font-weight:700;color:var(--accent-blue);text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px">Debe cada cliente</div>
-    ${porCliente.map(([cli,tot])=>`<div style="display:flex;justify-content:space-between;font-size:12.5px;padding:3px 0"><span>${cli}</span><span style="font-family:'DM Mono',monospace;font-weight:700">${fmtMoney(tot)}</span></div>`).join('')}
+    <div style="font-size:11px;font-weight:700;color:var(--accent-blue);text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px">Debe cada cliente</div>
+    <div class="cobros-table-wrap"><table class="cobros-table cobros-table-resumen">
+      <thead><tr><th>Cliente</th><th style="text-align:right">Importe</th></tr></thead>
+      <tbody>${porCliente.map(([cli,tot])=>`<tr><td>${cli}</td><td style="text-align:right;font-family:'DM Mono',monospace;font-weight:700">${fmtMoney(tot)}</td></tr>`).join('')}</tbody>
+    </table></div>
   </div>`:'';
   const filasHtml=[...pendientes].sort((a,b)=>(a.fecha||'').localeCompare(b.fecha||'')).map(f=>{
     const vencida=facturaVencida(f);
     const bg=vencida?'#fee2e2':(f.avisado?'#fef3c7':'var(--surface)');
-    return `<div class="factura-item" style="background:${bg};cursor:default">
-      <div style="min-width:120px">
-        <input class="metodo-pago-inp" data-id="${f.id}" value="${(f.metodoPago||'').replace(/"/g,'&quot;')}" placeholder="Confirming/Pagaré/Cheque…" style="font-size:11px;padding:5px 7px">
-        <label style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--text2);margin-top:4px;cursor:pointer">
+    return `<tr style="background:${bg}">
+      <td>
+        <input class="metodo-pago-inp" data-id="${f.id}" value="${(f.metodoPago||'').replace(/"/g,'&quot;')}" placeholder="Confirming/Pagaré/Cheque…" style="font-size:11px;padding:5px 7px;width:140px">
+        <label style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--text2);margin-top:4px;cursor:pointer;white-space:nowrap">
           <input type="checkbox" data-action="toggle-avisado" data-param="${f.id}" ${f.avisado?'checked':''} style="width:14px;height:14px;margin:0"> Avisado
         </label>
-      </div>
-      <div class="fact-info" data-action="ver-factura" data-param="${f.id}" style="cursor:pointer">
-        <div class="fact-cliente">${f.cliente}</div>
-        <div class="fact-meta">${f.num} · ${fmtDate(f.fecha)}${vencida?` · <strong style="color:#991b1b">${daysSince(f.fecha)} días</strong>`:''}</div>
-      </div>
-      <div>
-        <div class="fact-total">${fmtMoney(f.total)}</div>
-        <div style="display:flex;gap:4px;margin-top:4px;justify-content:flex-end">
-          <button class="btn btn-primary btn-sm" data-action="toggle-cobrada" data-param="${f.id}" style="padding:3px 8px;font-size:11px">💰 Cobrada</button>
-          ${f.telefono?`<a href="https://wa.me/34${f.telefono.replace(/\D/g,'')}" target="_blank" class="btn btn-secondary btn-sm" style="padding:3px 8px;font-size:11px">${ICO_WA}</a>`:''}
-        </div>
-      </div>
-    </div>`;
+      </td>
+      <td data-action="ver-factura" data-param="${f.id}" style="cursor:pointer;font-weight:700">${f.cliente}</td>
+      <td data-action="ver-factura" data-param="${f.id}" style="cursor:pointer;color:var(--muted)">${f.num}</td>
+      <td data-action="ver-factura" data-param="${f.id}" style="cursor:pointer;white-space:nowrap">${fmtDate(f.fecha)}</td>
+      <td style="white-space:nowrap">${vencida?`<strong style="color:#991b1b">${daysSince(f.fecha)} días</strong>`:'—'}</td>
+      <td style="text-align:right;font-family:'DM Mono',monospace;font-weight:700;color:var(--accent-blue);white-space:nowrap">${fmtMoney(f.total)}</td>
+      <td style="white-space:nowrap">
+        <button class="btn btn-primary btn-sm" data-action="toggle-cobrada" data-param="${f.id}" style="padding:3px 8px;font-size:11px">💰 Cobrada</button>
+        ${f.telefono?`<a href="https://wa.me/34${f.telefono.replace(/\D/g,'')}" target="_blank" class="btn btn-secondary btn-sm" style="padding:3px 8px;font-size:11px;margin-left:4px">${ICO_WA}</a>`:''}
+      </td>
+    </tr>`;
   }).join('');
+  const tablaHtml=filasHtml?`<div class="card" style="padding:0"><div class="cobros-table-wrap"><table class="cobros-table">
+    <thead><tr><th>Avisado</th><th>Cliente</th><th>Nº Fac</th><th>Fecha</th><th>Días</th><th style="text-align:right">Importe</th><th></th></tr></thead>
+    <tbody>${filasHtml}</tbody>
+  </table></div></div>`:'';
   sec.innerHTML=`
     <div class="section-header">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
@@ -3241,7 +3254,7 @@ function renderCobrosPendientes(){
       <input class="search-input" id="cobros-search" type="search" placeholder="Buscar cliente o número…" value="${cobrosQ}">
     </div>
     ${resumenHtml}
-    ${filasHtml||'<div class="empty-state"><div class="icon">🎉</div>Sin facturas pendientes de cobro.</div>'}`;
+    ${tablaHtml||'<div class="empty-state"><div class="icon">🎉</div>Sin facturas pendientes de cobro.</div>'}`;
   document.getElementById('cobros-search').addEventListener('input',e=>{cobrosQ=e.target.value;reFocusInput('cobros-search',renderCobrosPendientes);});
   document.querySelectorAll('.metodo-pago-inp').forEach(el=>{
     el.addEventListener('change',e=>{
