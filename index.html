@@ -3208,7 +3208,7 @@ function renderCobrosPendientes(){
   const totalPendiente=pendientes.reduce((s,f)=>s+(f.total||0),0);
   const numVencidas=pendientes.filter(facturaVencida).length;
   const porCliente=Object.entries(pendientes.reduce((m,f)=>{m[f.cliente]=(m[f.cliente]||0)+(f.total||0);return m;},{})).sort((a,b)=>b[1]-a[1]);
-  const resumenHtml=porCliente.length?`<div class="card" style="padding:10px 14px;margin-bottom:12px">
+  const resumenHtml=porCliente.length?`<div class="card" style="padding:10px 14px;margin-top:12px">
     <div style="font-size:11px;font-weight:700;color:var(--accent-blue);text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px">Debe cada cliente</div>
     <div class="cobros-table-wrap"><table class="cobros-table cobros-table-resumen">
       <thead><tr><th>Cliente</th><th style="text-align:right">Importe</th></tr></thead>
@@ -3253,8 +3253,8 @@ function renderCobrosPendientes(){
       </div>
       <input class="search-input" id="cobros-search" type="search" placeholder="Buscar cliente o número…" value="${cobrosQ}">
     </div>
-    ${resumenHtml}
-    ${tablaHtml||'<div class="empty-state"><div class="icon">🎉</div>Sin facturas pendientes de cobro.</div>'}`;
+    ${tablaHtml||'<div class="empty-state"><div class="icon">🎉</div>Sin facturas pendientes de cobro.</div>'}
+    ${resumenHtml}`;
   document.getElementById('cobros-search').addEventListener('input',e=>{cobrosQ=e.target.value;reFocusInput('cobros-search',renderCobrosPendientes);});
   document.querySelectorAll('.metodo-pago-inp').forEach(el=>{
     el.addEventListener('change',e=>{
