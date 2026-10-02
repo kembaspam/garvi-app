@@ -3631,9 +3631,16 @@ function _doPdfFactura(f){
   doc.text('IVA',155,cy,{align:'right'});
   doc.text('IMPORTE',196,cy,{align:'right'});
   cy+=8;
-  // Líneas
+  // Líneas. Las facturas importadas del listado de deudores en papel (ver IMPORT_DEUDORES) no
+  // tienen desglose de líneas (el papel original nunca recogía qué tipo de contenedor era cada
+  // deuda) — en vez de dejar la tabla vacía, se muestra una línea genérica con el total.
   doc.setFont('helvetica','normal'); doc.setTextColor(15,32,68);
-  f.lineas.forEach((l,idx)=>{
+  const lineasParaPdf=f.lineas.length?f.lineas:[{
+    desc:f.notas||'Servicio de gestión de residuos',
+    qty:1, precio:f.total||0,
+    iva:f.base?Math.round((f.iva||0)/f.base*100):0,
+  }];
+  lineasParaPdf.forEach((l,idx)=>{
     if(cy>248){doc.addPage();cy=20;}
     if(idx%2===0){doc.setFillColor(240,244,248);doc.rect(14,cy-4,182,7,'F');}
     const imp=(l.qty||0)*(l.precio||0);
@@ -3643,7 +3650,7 @@ function _doPdfFactura(f){
     doc.text(lines[0],16,cy);
     doc.text(String(l.qty||0),116,cy,{align:'right'});
     doc.text(fmtMoney(l.precio||0),140,cy,{align:'right'});
-    doc.text((l.iva||21)+'%',155,cy,{align:'right'});
+    doc.text((l.iva??21)+'%',155,cy,{align:'right'});
     doc.text(fmtMoney(imp),196,cy,{align:'right'});
     cy+=7;
   });
