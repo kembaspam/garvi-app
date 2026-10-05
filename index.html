@@ -2340,14 +2340,21 @@ function openContainerModal(num){
       ${c.telefono?`<a href="https://wa.me/34${c.telefono}" target="_blank" class="btn btn-secondary">${ICO_WA} WhatsApp</a>`:''}
       <button class="btn btn-danger btn-sm" style="margin-left:auto" data-action="del-cont" data-param="${c.num}">🗑</button>
     </div>`;
-  // Autocompleta la Dirección con la que tenga guardada ese mismo cliente en la "memoria" de
+  // Autocompleta Dirección/Teléfono/Tipo residuo con lo que haya guardado ese mismo cliente,
+  // buscando primero en otro contenedor suyo (el más reciente) y si no en la "memoria" de
   // avisos (misma que ya rellena teléfono/dirección al escribir el cliente en Nuevo aviso).
   document.getElementById('m-cliente').addEventListener('input',e=>{
-    const m=avisoMemGet(e.target.value);
-    if(m){
-      const dirEl=document.getElementById('m-dir');
-      if(dirEl) dirEl.value=m.direccion||'';
-    }
+    const n=e.target.value.trim().toLowerCase();
+    if(!n) return;
+    const mem=avisoMemGet(e.target.value);
+    const otro=containers.filter(x=>x.num!==c.num&&(x.cliente||'').trim().toLowerCase()===n)
+      .sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''))[0];
+    const dir=(otro&&otro.direccion)||(mem&&mem.direccion);
+    const tel=(otro&&otro.telefono)||(mem&&mem.telefono);
+    const tipo=otro&&otro.tipo;
+    if(dir){const el=document.getElementById('m-dir');if(el)el.value=dir;}
+    if(tel){const el=document.getElementById('m-tel');if(el)el.value=tel;}
+    if(tipo){const el=document.getElementById('m-tipo');if(el)el.value=tipo;}
   });
   document.getElementById('modal-overlay').classList.add('open');
 }
