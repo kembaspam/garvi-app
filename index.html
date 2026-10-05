@@ -1623,6 +1623,16 @@ function avisoMemGet(nota){
   const mem=JSON.parse(localStorage.getItem('garvi_aviso_memoria')||'{}');
   return mem[(nota||'').trim().toLowerCase()];
 }
+// Como "SEKMAG EDF. DELFIN" o "SEKMAG TEXAS" (mismo cliente, varias ubicaciones), busca primero
+// exacto y si no hay, la entrada más parecida cuyo nombre empiece por lo escrito.
+function avisoMemGetAprox(nota){
+  const n=(nota||'').trim().toLowerCase();
+  if(!n) return null;
+  const mem=JSON.parse(localStorage.getItem('garvi_aviso_memoria')||'{}');
+  if(mem[n]) return mem[n];
+  const key=Object.keys(mem).find(k=>k.startsWith(n+' ')||n.startsWith(k+' '));
+  return key?mem[key]:null;
+}
 function avisoMemSet(nota,data){
   if(!nota||!nota.trim()) return;
   const mem=JSON.parse(localStorage.getItem('garvi_aviso_memoria')||'{}');
@@ -2343,14 +2353,22 @@ function openContainerModal(num){
   // Autocompleta Dirección/Teléfono/Tipo residuo con lo que haya guardado ese mismo cliente,
   // buscando primero en otro contenedor suyo (el más reciente) y si no en la "memoria" de
   // avisos (misma que ya rellena teléfono/dirección al escribir el cliente en Nuevo aviso).
-  // Escucha 'input' (escribiendo) y también 'change'/'blur' porque al elegir una sugerencia del
-  // datalist, algunos navegadores (sobre todo móviles) no disparan 'input', solo 'change'.
+  // Si no hay coincidencia exacta del nombre, prueba con la más parecida que EMPIECE igual
+  // (p.ej. escribiendo "SEKMAG" encuentra "SEKMAG EDF. DELFIN"), típico de clientes con varias
+  // ubicaciones. Escucha 'input' (escribiendo) y también 'change'/'blur' porque al elegir una
+  // sugerencia del datalist, algunos navegadores (sobre todo móviles) no disparan 'input'.
   function autocompletarClienteCont(e){
     const n=e.target.value.trim().toLowerCase();
     if(!n) return;
-    const mem=avisoMemGet(e.target.value);
-    const otro=containers.filter(x=>x.num!==c.num&&(x.cliente||'').trim().toLowerCase()===n)
-      .sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''))[0];
+    const otros=containers.filter(x=>x.num!==c.num);
+    const porFechaDesc=(a,b)=>(b.fecha||'').localeCompare(a.fecha||'');
+    const exactos=otros.filter(x=>(x.cliente||'').trim().toLowerCase()===n).sort(porFechaDesc);
+    const parecidos=otros.filter(x=>{
+      const cn=(x.cliente||'').trim().toLowerCase();
+      return cn&&(cn.startsWith(n+' ')||n.startsWith(cn+' '));
+    }).sort(porFechaDesc);
+    const otro=exactos[0]||parecidos[0];
+    const mem=avisoMemGetAprox(e.target.value);
     const dir=(otro&&otro.direccion)||(mem&&mem.direccion);
     const tel=(otro&&otro.telefono)||(mem&&mem.telefono);
     const tipo=otro&&otro.tipo;
