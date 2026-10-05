@@ -2343,7 +2343,9 @@ function openContainerModal(num){
   // Autocompleta Dirección/Teléfono/Tipo residuo con lo que haya guardado ese mismo cliente,
   // buscando primero en otro contenedor suyo (el más reciente) y si no en la "memoria" de
   // avisos (misma que ya rellena teléfono/dirección al escribir el cliente en Nuevo aviso).
-  document.getElementById('m-cliente').addEventListener('input',e=>{
+  // Escucha 'input' (escribiendo) y también 'change'/'blur' porque al elegir una sugerencia del
+  // datalist, algunos navegadores (sobre todo móviles) no disparan 'input', solo 'change'.
+  function autocompletarClienteCont(e){
     const n=e.target.value.trim().toLowerCase();
     if(!n) return;
     const mem=avisoMemGet(e.target.value);
@@ -2355,7 +2357,8 @@ function openContainerModal(num){
     if(dir){const el=document.getElementById('m-dir');if(el)el.value=dir;}
     if(tel){const el=document.getElementById('m-tel');if(el)el.value=tel;}
     if(tipo){const el=document.getElementById('m-tipo');if(el)el.value=tipo;}
-  });
+  }
+  ['input','change','blur'].forEach(ev=>document.getElementById('m-cliente').addEventListener(ev,autocompletarClienteCont));
   document.getElementById('modal-overlay').classList.add('open');
 }
 function saveContainerModal(num){
