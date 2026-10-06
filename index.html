@@ -833,6 +833,9 @@ const INIT=RAW.map(([num,cliente,direccion,telefono,tipo,fecha,estadoExcel])=>
   ({num,cliente,direccion,telefono,tipo,fecha,estadoExcel,notas:'',fotos:[]}));
 
 // ─── ESTADO ───────────────────────────────────────────────────────
+// DEBUG TEMPORAL: marca para confirmar en los avisos de depuración que el móvil está cargando
+// esta versión y no una cacheada vieja. Quitar junto con los toasts de depuración.
+const BUILD_STAMP='debug-autocompletar-2026-10-06b';
 const LSKEY='garvi_v17';
 let currentUser='', currentTab='contenedores', filterEstado='todos', searchQ='';
 let containers=[], albaranes=[], tareas=[], finanzas=[], facturas=[], clientes=[], cfg={}, certificados=[], avisos=[];
@@ -2395,6 +2398,9 @@ function openContainerModal(num){
   // 'input'.
   function autocompletarClienteCont(e){
     const datos=datosClientePorNombre(e.target.value,c.num);
+    // DEBUG TEMPORAL — quitar cuando se confirme que el autocompletado funciona bien en el
+    // móvil real (ver conversación sobre "sigue sin funcionar" con FERROVIAL SERVITRIA).
+    if(e.type!=='input') toastMsg('🔍['+BUILD_STAMP+'] "'+e.target.value+'" → '+(datos?('dir:'+(datos.direccion||'∅')+' / tel:'+(datos.telefono||'∅')):'SIN MATCH'),7000);
     if(!datos) return;
     if(datos.direccion){const el=document.getElementById('m-dir');if(el)el.value=datos.direccion;}
     if(datos.telefono){const el=document.getElementById('m-tel');if(el)el.value=datos.telefono;}
@@ -2408,6 +2414,8 @@ function openContainerModal(num){
   // siempre tiene algún valor, no hay forma de saber si está "vacío" o elegido a propósito).
   if(c.cliente){
     const datosInit=datosClientePorNombre(c.cliente,c.num);
+    // DEBUG TEMPORAL — igual que arriba, quitar después.
+    setTimeout(()=>toastMsg('🔍['+BUILD_STAMP+'] Al abrir #'+c.num+' "'+c.cliente+'" → '+(datosInit?('dir:'+(datosInit.direccion||'∅')+' / tel:'+(datosInit.telefono||'∅')):'SIN MATCH'),7000),400);
     if(datosInit){
       const dirEl=document.getElementById('m-dir');
       if(dirEl&&!dirEl.value&&datosInit.direccion) dirEl.value=datosInit.direccion;
