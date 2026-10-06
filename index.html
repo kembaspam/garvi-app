@@ -611,6 +611,10 @@ label{
 </style>
 </head>
 <body>
+<!-- DEBUG TEMPORAL: marca de versión en HTML puro (no depende de que el JS se ejecute bien), para
+     poder confirmar de un vistazo, con una simple foto de la pantalla, si el móvil está viendo
+     esta versión o una vieja cacheada. Quitar junto con el resto de instrumentación de depuración. -->
+<div style="position:fixed;bottom:0;right:0;z-index:999999;background:#000;color:#0f0;font:10px monospace;padding:2px 5px;opacity:.85;pointer-events:none">BUILD-DBG-7</div>
 <!-- Datalists globales de autocompletado: se rellenan con refreshGlobalDatalists() y están
      disponibles para cualquier input list="..." en cualquier sección, aunque estén fuera de ella -->
 <datalist id="dl-global-clientes"></datalist>
