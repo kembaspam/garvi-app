@@ -611,10 +611,6 @@ label{
 </style>
 </head>
 <body>
-<!-- DEBUG TEMPORAL: marca de versión en HTML puro (no depende de que el JS se ejecute bien), para
-     poder confirmar de un vistazo, con una simple foto de la pantalla, si el móvil está viendo
-     esta versión o una vieja cacheada. Quitar junto con el resto de instrumentación de depuración. -->
-<div style="position:fixed;bottom:0;right:0;z-index:999999;background:#000;color:#0f0;font:10px monospace;padding:2px 5px;opacity:.85;pointer-events:none">BUILD-DBG-7</div>
 <!-- Datalists globales de autocompletado: se rellenan con refreshGlobalDatalists() y están
      disponibles para cualquier input list="..." en cualquier sección, aunque estén fuera de ella -->
 <datalist id="dl-global-clientes"></datalist>
@@ -837,9 +833,6 @@ const INIT=RAW.map(([num,cliente,direccion,telefono,tipo,fecha,estadoExcel])=>
   ({num,cliente,direccion,telefono,tipo,fecha,estadoExcel,notas:'',fotos:[]}));
 
 // ─── ESTADO ───────────────────────────────────────────────────────
-// DEBUG TEMPORAL: marca para confirmar en los avisos de depuración que el móvil está cargando
-// esta versión y no una cacheada vieja. Quitar junto con los toasts de depuración.
-const BUILD_STAMP='debug-autocompletar-2026-10-06b';
 const LSKEY='garvi_v17';
 let currentUser='', currentTab='contenedores', filterEstado='todos', searchQ='';
 let containers=[], albaranes=[], tareas=[], finanzas=[], facturas=[], clientes=[], cfg={}, certificados=[], avisos=[];
@@ -1646,10 +1639,6 @@ function avisoMemGetAprox(nota){
 // haber tenido nunca un contenedor con ese nombre exacto. Prioriza coincidencias exactas de
 // nombre sobre las aproximadas (mismo cliente, otra ubicación tipo "SERVITRIA"/"SERVITRIA XXX"),
 // y entre varias, la más reciente.
-// DEBUG TEMPORAL: si datosClientePorNombre revienta con datos reales inesperados (un campo que
-// no sea texto, etc.) lo guardamos aquí para poder mostrarlo en el toast de depuración en vez de
-// morir en silencio sin que se note por qué nunca se autocompletó nada.
-let ULTIMO_ERROR_AUTOCOMPLETAR='';
 function datosClientePorNombre(nombreEscrito,excluirContainerNum){
   // Usa normTextoHist (ya probado para fusionar duplicados del historial) en vez de un simple
   // trim+lowercase: dos nombres iguales a la vista pueden diferir en espacios dobles, un espacio
@@ -1686,7 +1675,6 @@ function datosClientePorNombre(nombreEscrito,excluirContainerNum){
       tipo:(cands.find(x=>x.tipo)||{}).tipo,
     };
   }catch(e){
-    ULTIMO_ERROR_AUTOCOMPLETAR=(e&&e.message)||String(e);
     console.error('datosClientePorNombre:',e);
     return null;
   }
@@ -2373,9 +2361,6 @@ function openContainerModal(num){
     <div class="form-row">
       <label>Cliente</label><input id="m-cliente" list="dl-global-clientes" value="${c.cliente}">
     </div>
-    <!-- DEBUG TEMPORAL: línea fija (no un toast que desaparece) para ver el resultado del
-         autocompletado sin depender de pillar el momento justo. Quitar con el resto del debug. -->
-    <div id="debug-autocomp" style="font-size:11px;background:#000;color:#0f0;padding:4px 8px;border-radius:6px;margin:-4px 0 8px;word-break:break-all">(sin probar todavía)</div>
     <div class="form-row cols2">
       <div><label>Dirección</label><input id="m-dir" list="dl-global-direcciones" value="${c.direccion||''}"></div>
       <div><label>Teléfono</label><input id="m-tel" list="dl-global-telefonos" value="${c.telefono||''}" type="tel">${c.telefono?`<a href="tel:${c.telefono}" style="font-size:12px;color:var(--accent);margin-top:4px;display:block">📞 Llamar</a>`:''}</div>
@@ -2416,17 +2401,8 @@ function openContainerModal(num){
   // datosClientePorNombre. Escucha 'input' (escribiendo) y también 'change'/'blur' porque al
   // elegir una sugerencia del datalist, algunos navegadores (sobre todo móviles) no disparan
   // 'input'.
-  // DEBUG TEMPORAL — escribe el resultado en una línea FIJA dentro del propio modal (no un toast
-  // que desaparece a los pocos segundos y se puede no pillar a tiempo en la foto).
-  function pintarDebugAutocomp(texto){
-    const el=document.getElementById('debug-autocomp');
-    if(el) el.textContent=texto;
-  }
   function autocompletarClienteCont(e){
-    ULTIMO_ERROR_AUTOCOMPLETAR='';
     const datos=datosClientePorNombre(e.target.value,c.num);
-    const resumen=ULTIMO_ERROR_AUTOCOMPLETAR?('ERROR: '+ULTIMO_ERROR_AUTOCOMPLETAR):(datos?('dir:'+(datos.direccion||'∅')+' / tel:'+(datos.telefono||'∅')):'SIN MATCH');
-    pintarDebugAutocomp('['+BUILD_STAMP+'] ('+e.type+') "'+e.target.value+'" → '+resumen);
     if(!datos) return;
     if(datos.direccion){const el=document.getElementById('m-dir');if(el)el.value=datos.direccion;}
     if(datos.telefono){const el=document.getElementById('m-tel');if(el)el.value=datos.telefono;}
@@ -2439,11 +2415,7 @@ function openContainerModal(num){
   // puestos a mano en este contenedor concreto (y no toca Tipo residuo: al ser un <select>
   // siempre tiene algún valor, no hay forma de saber si está "vacío" o elegido a propósito).
   if(c.cliente){
-    ULTIMO_ERROR_AUTOCOMPLETAR='';
     const datosInit=datosClientePorNombre(c.cliente,c.num);
-    // DEBUG TEMPORAL — igual que arriba, quitar después.
-    const errInit=ULTIMO_ERROR_AUTOCOMPLETAR;
-    pintarDebugAutocomp('['+BUILD_STAMP+'] (al abrir) "'+c.cliente+'" → '+(errInit?('ERROR: '+errInit):(datosInit?('dir:'+(datosInit.direccion||'∅')+' / tel:'+(datosInit.telefono||'∅')):'SIN MATCH')));
     if(datosInit){
       const dirEl=document.getElementById('m-dir');
       if(dirEl&&!dirEl.value&&datosInit.direccion) dirEl.value=datosInit.direccion;
@@ -2606,9 +2578,6 @@ function editarRapidoForm(num,ocrInfo){
     <div class="modal-header"><span class="modal-title">✏️ Editar #${c.num}</span><button class="btn btn-secondary btn-sm" data-action="close-modal">✕</button></div>
     ${ocrInfo?'<div style="font-size:12px;color:var(--accent);margin-bottom:6px">✓ Datos rellenados desde el albarán leído — revísalos antes de guardar</div>':''}
     <div class="form-row"><label>Cliente</label><input id="er-cliente" list="dl-global-clientes" value="${cliente}"></div>
-    <!-- DEBUG TEMPORAL: ver openContainerModal() para la misma línea de depuración. Quitar junto
-         con el resto de instrumentación de depuración. -->
-    <div id="debug-autocomp-er" style="font-size:11px;background:#000;color:#0f0;padding:4px 8px;border-radius:6px;margin:-4px 0 8px;word-break:break-all">(sin probar todavía)</div>
     <div class="form-row"><label>Calle / Ubicación</label><input id="er-dir" list="dl-global-direcciones" value="${direccion}"></div>
     <div class="form-row cols2">
       <div><label>Teléfono</label><input id="er-tel" list="dl-global-telefonos" type="tel" value="${telefono}"></div>
@@ -2626,17 +2595,10 @@ function editarRapidoForm(num,ocrInfo){
   // Autocompleta Dirección/Teléfono/Tipo residuo con lo que ya haya guardado de ese cliente en
   // cualquier parte de la app — igual que en openContainerModal(), ver datosClientePorNombre.
   // Esta es la "Edición rápida" (accesible desde el botón ✏️ Editar de la barra superior), un
-  // formulario distinto del de abrir un contenedor directamente desde el listado — había que
-  // añadirlo aquí también, no basta con tenerlo solo en el otro.
-  function pintarDebugAutocompEr(texto){
-    const el=document.getElementById('debug-autocomp-er');
-    if(el) el.textContent=texto;
-  }
+  // formulario distinto del de abrir un contenedor directamente desde el listado — hay que
+  // tenerlo aquí también, no basta con tenerlo solo en el otro.
   function autocompletarClienteEr(e){
-    ULTIMO_ERROR_AUTOCOMPLETAR='';
     const datos=datosClientePorNombre(e.target.value,c.num);
-    const resumen=ULTIMO_ERROR_AUTOCOMPLETAR?('ERROR: '+ULTIMO_ERROR_AUTOCOMPLETAR):(datos?('dir:'+(datos.direccion||'∅')+' / tel:'+(datos.telefono||'∅')):'SIN MATCH');
-    pintarDebugAutocompEr('['+BUILD_STAMP+'] ('+e.type+') "'+e.target.value+'" → '+resumen);
     if(!datos) return;
     if(datos.direccion){const el=document.getElementById('er-dir');if(el)el.value=datos.direccion;}
     if(datos.telefono){const el=document.getElementById('er-tel');if(el)el.value=datos.telefono;}
@@ -2645,10 +2607,7 @@ function editarRapidoForm(num,ocrInfo){
   const erClienteEl=document.getElementById('er-cliente');
   if(erClienteEl) ['input','change','blur'].forEach(ev=>erClienteEl.addEventListener(ev,autocompletarClienteEr));
   if(cliente){
-    ULTIMO_ERROR_AUTOCOMPLETAR='';
     const datosInit=datosClientePorNombre(cliente,c.num);
-    const errInit=ULTIMO_ERROR_AUTOCOMPLETAR;
-    pintarDebugAutocompEr('['+BUILD_STAMP+'] (al abrir) "'+cliente+'" → '+(errInit?('ERROR: '+errInit):(datosInit?('dir:'+(datosInit.direccion||'∅')+' / tel:'+(datosInit.telefono||'∅')):'SIN MATCH')));
     if(datosInit){
       const dirEl=document.getElementById('er-dir');
       if(dirEl&&!dirEl.value&&datosInit.direccion) dirEl.value=datosInit.direccion;
