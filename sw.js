@@ -1,4 +1,4 @@
-const CACHE = 'garvi-v2';
+const CACHE = 'garvi-v3';
 const STATIC = ['./', './index.html', './manifest.json'];
 
 self.addEventListener('install', e => {
@@ -25,9 +25,10 @@ self.addEventListener('fetch', e => {
     })));
     return;
   }
-  // Network first for HTML to always get fresh app
+  // HTML siempre de red, saltándose también la caché HTTP del navegador (no solo la del SW),
+  // para que un cambio recién publicado llegue de verdad sin esperar a que expire ninguna caché.
   if (url.pathname.endsWith('/') || url.pathname.endsWith('.html')) {
-    e.respondWith(fetch(e.request).catch(() => caches.match(e.request).then(r => r || caches.match('./index.html'))));
+    e.respondWith(fetch(e.request.url, {cache:'no-store'}).catch(() => caches.match(e.request).then(r => r || caches.match('./index.html'))));
     return;
   }
   e.respondWith(
