@@ -2397,6 +2397,20 @@ function openContainerModal(num){
     if(datos.tipo){const el=document.getElementById('m-tipo');if(el)el.value=datos.tipo;}
   }
   ['input','change','blur'].forEach(ev=>document.getElementById('m-cliente').addEventListener(ev,autocompletarClienteCont));
+  // Si el contenedor ya tenía puesto el cliente pero le faltan Dirección/Teléfono (p.ej. uno
+  // recién creado), rellena esos huecos nada más abrir el modal, sin esperar a que el usuario
+  // vuelva a escribir el nombre. Solo toca los campos que estén vacíos, nunca pisa datos ya
+  // puestos a mano en este contenedor concreto (y no toca Tipo residuo: al ser un <select>
+  // siempre tiene algún valor, no hay forma de saber si está "vacío" o elegido a propósito).
+  if(c.cliente){
+    const datosInit=datosClientePorNombre(c.cliente,c.num);
+    if(datosInit){
+      const dirEl=document.getElementById('m-dir');
+      if(dirEl&&!dirEl.value&&datosInit.direccion) dirEl.value=datosInit.direccion;
+      const telEl=document.getElementById('m-tel');
+      if(telEl&&!telEl.value&&datosInit.telefono) telEl.value=datosInit.telefono;
+    }
+  }
   document.getElementById('modal-overlay').classList.add('open');
 }
 function saveContainerModal(num){
