@@ -1640,21 +1640,25 @@ function avisoMemGetAprox(nota){
 // nombre sobre las aproximadas (mismo cliente, otra ubicación tipo "SERVITRIA"/"SERVITRIA XXX"),
 // y entre varias, la más reciente.
 function datosClientePorNombre(nombreEscrito,excluirContainerNum){
-  const n=(nombreEscrito||'').trim().toLowerCase();
+  // Usa normTextoHist (ya probado para fusionar duplicados del historial) en vez de un simple
+  // trim+lowercase: dos nombres iguales a la vista pueden diferir en espacios dobles, un espacio
+  // "raro" metido por el teclado del móvil, acentos o una coma/punto final, y con trim+lowercase
+  // a secas esos casos NO se consideraban coincidencia exacta y no se autocompletaba nada.
+  const n=normTextoHist(nombreEscrito);
   if(!n) return null;
   const coincide=cn=>!!cn&&(cn===n||cn.startsWith(n+' ')||n.startsWith(cn+' '));
   const cands=[];
   containers.forEach(x=>{
     if(x.num===excluirContainerNum) return;
-    const cn=(x.cliente||'').trim().toLowerCase();
+    const cn=normTextoHist(x.cliente);
     if(coincide(cn)) cands.push({direccion:x.direccion,telefono:x.telefono,tipo:x.tipo,fecha:x.fecha||'',exacto:cn===n});
   });
   albaranes.forEach(a=>{
-    const cn=(a.cliente||'').trim().toLowerCase();
+    const cn=normTextoHist(a.cliente);
     if(coincide(cn)) cands.push({direccion:a.lugar,telefono:a.telefono,fecha:a.fecha||'',exacto:cn===n});
   });
   facturas.forEach(f=>{
-    const cn=(f.cliente||'').trim().toLowerCase();
+    const cn=normTextoHist(f.cliente);
     if(coincide(cn)) cands.push({direccion:f.dir,telefono:f.telefono,fecha:f.fecha||'',exacto:cn===n});
   });
   const mem=avisoMemGetAprox(nombreEscrito);
