@@ -1642,37 +1642,50 @@ function avisoMemGetAprox(nota){
 // haber tenido nunca un contenedor con ese nombre exacto. Prioriza coincidencias exactas de
 // nombre sobre las aproximadas (mismo cliente, otra ubicación tipo "SERVITRIA"/"SERVITRIA XXX"),
 // y entre varias, la más reciente.
+// DEBUG TEMPORAL: si datosClientePorNombre revienta con datos reales inesperados (un campo que
+// no sea texto, etc.) lo guardamos aquí para poder mostrarlo en el toast de depuración en vez de
+// morir en silencio sin que se note por qué nunca se autocompletó nada.
+let ULTIMO_ERROR_AUTOCOMPLETAR='';
 function datosClientePorNombre(nombreEscrito,excluirContainerNum){
   // Usa normTextoHist (ya probado para fusionar duplicados del historial) en vez de un simple
   // trim+lowercase: dos nombres iguales a la vista pueden diferir en espacios dobles, un espacio
   // "raro" metido por el teclado del móvil, acentos o una coma/punto final, y con trim+lowercase
   // a secas esos casos NO se consideraban coincidencia exacta y no se autocompletaba nada.
-  const n=normTextoHist(nombreEscrito);
-  if(!n) return null;
-  const coincide=cn=>!!cn&&(cn===n||cn.startsWith(n+' ')||n.startsWith(cn+' '));
-  const cands=[];
-  containers.forEach(x=>{
-    if(x.num===excluirContainerNum) return;
-    const cn=normTextoHist(x.cliente);
-    if(coincide(cn)) cands.push({direccion:x.direccion,telefono:x.telefono,tipo:x.tipo,fecha:x.fecha||'',exacto:cn===n});
-  });
-  albaranes.forEach(a=>{
-    const cn=normTextoHist(a.cliente);
-    if(coincide(cn)) cands.push({direccion:a.lugar,telefono:a.telefono,fecha:a.fecha||'',exacto:cn===n});
-  });
-  facturas.forEach(f=>{
-    const cn=normTextoHist(f.cliente);
-    if(coincide(cn)) cands.push({direccion:f.dir,telefono:f.telefono,fecha:f.fecha||'',exacto:cn===n});
-  });
-  const mem=avisoMemGetAprox(nombreEscrito);
-  if(mem) cands.push({direccion:mem.direccion,telefono:mem.telefono,fecha:'',exacto:true});
-  if(!cands.length) return null;
-  cands.sort((a,b)=>a.exacto!==b.exacto?(a.exacto?-1:1):(b.fecha||'').localeCompare(a.fecha||''));
-  return {
-    direccion:(cands.find(x=>x.direccion)||{}).direccion,
-    telefono:(cands.find(x=>x.telefono)||{}).telefono,
-    tipo:(cands.find(x=>x.tipo)||{}).tipo,
-  };
+  // Todo blindado con String(...||'') antes de normTextoHist/localeCompare: un campo guardado
+  // alguna vez como número u otra cosa no-texto no debe poder reventar todo el autocompletado.
+  try{
+    const txt=v=>String(v||'');
+    const n=normTextoHist(txt(nombreEscrito));
+    if(!n) return null;
+    const coincide=cn=>!!cn&&(cn===n||cn.startsWith(n+' ')||n.startsWith(cn+' '));
+    const cands=[];
+    containers.forEach(x=>{
+      if(x.num===excluirContainerNum) return;
+      const cn=normTextoHist(txt(x.cliente));
+      if(coincide(cn)) cands.push({direccion:txt(x.direccion),telefono:txt(x.telefono),tipo:x.tipo,fecha:txt(x.fecha),exacto:cn===n});
+    });
+    albaranes.forEach(a=>{
+      const cn=normTextoHist(txt(a.cliente));
+      if(coincide(cn)) cands.push({direccion:txt(a.lugar),telefono:txt(a.telefono),fecha:txt(a.fecha),exacto:cn===n});
+    });
+    facturas.forEach(f=>{
+      const cn=normTextoHist(txt(f.cliente));
+      if(coincide(cn)) cands.push({direccion:txt(f.dir),telefono:txt(f.telefono),fecha:txt(f.fecha),exacto:cn===n});
+    });
+    const mem=avisoMemGetAprox(txt(nombreEscrito));
+    if(mem) cands.push({direccion:txt(mem.direccion),telefono:txt(mem.telefono),fecha:'',exacto:true});
+    if(!cands.length) return null;
+    cands.sort((a,b)=>a.exacto!==b.exacto?(a.exacto?-1:1):txt(b.fecha).localeCompare(txt(a.fecha)));
+    return {
+      direccion:(cands.find(x=>x.direccion)||{}).direccion,
+      telefono:(cands.find(x=>x.telefono)||{}).telefono,
+      tipo:(cands.find(x=>x.tipo)||{}).tipo,
+    };
+  }catch(e){
+    ULTIMO_ERROR_AUTOCOMPLETAR=(e&&e.message)||String(e);
+    console.error('datosClientePorNombre:',e);
+    return null;
+  }
 }
 function avisoMemSet(nota,data){
   if(!nota||!nota.trim()) return;
@@ -2397,10 +2410,11 @@ function openContainerModal(num){
   // elegir una sugerencia del datalist, algunos navegadores (sobre todo móviles) no disparan
   // 'input'.
   function autocompletarClienteCont(e){
+    ULTIMO_ERROR_AUTOCOMPLETAR='';
     const datos=datosClientePorNombre(e.target.value,c.num);
     // DEBUG TEMPORAL — quitar cuando se confirme que el autocompletado funciona bien en el
     // móvil real (ver conversación sobre "sigue sin funcionar" con FERROVIAL SERVITRIA).
-    if(e.type!=='input') toastMsg('🔍['+BUILD_STAMP+'] "'+e.target.value+'" → '+(datos?('dir:'+(datos.direccion||'∅')+' / tel:'+(datos.telefono||'∅')):'SIN MATCH'),7000);
+    if(e.type!=='input') toastMsg('🔍['+BUILD_STAMP+'] "'+e.target.value+'" → '+(ULTIMO_ERROR_AUTOCOMPLETAR?('ERROR: '+ULTIMO_ERROR_AUTOCOMPLETAR):(datos?('dir:'+(datos.direccion||'∅')+' / tel:'+(datos.telefono||'∅')):'SIN MATCH')),7000);
     if(!datos) return;
     if(datos.direccion){const el=document.getElementById('m-dir');if(el)el.value=datos.direccion;}
     if(datos.telefono){const el=document.getElementById('m-tel');if(el)el.value=datos.telefono;}
@@ -2413,9 +2427,11 @@ function openContainerModal(num){
   // puestos a mano en este contenedor concreto (y no toca Tipo residuo: al ser un <select>
   // siempre tiene algún valor, no hay forma de saber si está "vacío" o elegido a propósito).
   if(c.cliente){
+    ULTIMO_ERROR_AUTOCOMPLETAR='';
     const datosInit=datosClientePorNombre(c.cliente,c.num);
     // DEBUG TEMPORAL — igual que arriba, quitar después.
-    setTimeout(()=>toastMsg('🔍['+BUILD_STAMP+'] Al abrir #'+c.num+' "'+c.cliente+'" → '+(datosInit?('dir:'+(datosInit.direccion||'∅')+' / tel:'+(datosInit.telefono||'∅')):'SIN MATCH'),7000),400);
+    const errInit=ULTIMO_ERROR_AUTOCOMPLETAR;
+    setTimeout(()=>toastMsg('🔍['+BUILD_STAMP+'] Al abrir #'+c.num+' "'+c.cliente+'" → '+(errInit?('ERROR: '+errInit):(datosInit?('dir:'+(datosInit.direccion||'∅')+' / tel:'+(datosInit.telefono||'∅')):'SIN MATCH')),7000),400);
     if(datosInit){
       const dirEl=document.getElementById('m-dir');
       if(dirEl&&!dirEl.value&&datosInit.direccion) dirEl.value=datosInit.direccion;
