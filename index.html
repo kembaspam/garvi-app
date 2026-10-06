@@ -2606,6 +2606,9 @@ function editarRapidoForm(num,ocrInfo){
     <div class="modal-header"><span class="modal-title">✏️ Editar #${c.num}</span><button class="btn btn-secondary btn-sm" data-action="close-modal">✕</button></div>
     ${ocrInfo?'<div style="font-size:12px;color:var(--accent);margin-bottom:6px">✓ Datos rellenados desde el albarán leído — revísalos antes de guardar</div>':''}
     <div class="form-row"><label>Cliente</label><input id="er-cliente" list="dl-global-clientes" value="${cliente}"></div>
+    <!-- DEBUG TEMPORAL: ver openContainerModal() para la misma línea de depuración. Quitar junto
+         con el resto de instrumentación de depuración. -->
+    <div id="debug-autocomp-er" style="font-size:11px;background:#000;color:#0f0;padding:4px 8px;border-radius:6px;margin:-4px 0 8px;word-break:break-all">(sin probar todavía)</div>
     <div class="form-row"><label>Calle / Ubicación</label><input id="er-dir" list="dl-global-direcciones" value="${direccion}"></div>
     <div class="form-row cols2">
       <div><label>Teléfono</label><input id="er-tel" list="dl-global-telefonos" type="tel" value="${telefono}"></div>
@@ -2620,6 +2623,39 @@ function editarRapidoForm(num,ocrInfo){
       <button class="btn btn-primary" style="flex:1" data-action="er-listo" data-param="${c.num}">✅ Listo</button>
     </div>
     <div id="er-ocr-status" style="font-size:12px;color:var(--muted);margin-top:8px"></div>`;
+  // Autocompleta Dirección/Teléfono/Tipo residuo con lo que ya haya guardado de ese cliente en
+  // cualquier parte de la app — igual que en openContainerModal(), ver datosClientePorNombre.
+  // Esta es la "Edición rápida" (accesible desde el botón ✏️ Editar de la barra superior), un
+  // formulario distinto del de abrir un contenedor directamente desde el listado — había que
+  // añadirlo aquí también, no basta con tenerlo solo en el otro.
+  function pintarDebugAutocompEr(texto){
+    const el=document.getElementById('debug-autocomp-er');
+    if(el) el.textContent=texto;
+  }
+  function autocompletarClienteEr(e){
+    ULTIMO_ERROR_AUTOCOMPLETAR='';
+    const datos=datosClientePorNombre(e.target.value,c.num);
+    const resumen=ULTIMO_ERROR_AUTOCOMPLETAR?('ERROR: '+ULTIMO_ERROR_AUTOCOMPLETAR):(datos?('dir:'+(datos.direccion||'∅')+' / tel:'+(datos.telefono||'∅')):'SIN MATCH');
+    pintarDebugAutocompEr('['+BUILD_STAMP+'] ('+e.type+') "'+e.target.value+'" → '+resumen);
+    if(!datos) return;
+    if(datos.direccion){const el=document.getElementById('er-dir');if(el)el.value=datos.direccion;}
+    if(datos.telefono){const el=document.getElementById('er-tel');if(el)el.value=datos.telefono;}
+    if(datos.tipo){const el=document.getElementById('er-tipo');if(el)el.value=datos.tipo;}
+  }
+  const erClienteEl=document.getElementById('er-cliente');
+  if(erClienteEl) ['input','change','blur'].forEach(ev=>erClienteEl.addEventListener(ev,autocompletarClienteEr));
+  if(cliente){
+    ULTIMO_ERROR_AUTOCOMPLETAR='';
+    const datosInit=datosClientePorNombre(cliente,c.num);
+    const errInit=ULTIMO_ERROR_AUTOCOMPLETAR;
+    pintarDebugAutocompEr('['+BUILD_STAMP+'] (al abrir) "'+cliente+'" → '+(errInit?('ERROR: '+errInit):(datosInit?('dir:'+(datosInit.direccion||'∅')+' / tel:'+(datosInit.telefono||'∅')):'SIN MATCH')));
+    if(datosInit){
+      const dirEl=document.getElementById('er-dir');
+      if(dirEl&&!dirEl.value&&datosInit.direccion) dirEl.value=datosInit.direccion;
+      const telEl=document.getElementById('er-tel');
+      if(telEl&&!telEl.value&&datosInit.telefono) telEl.value=datosInit.telefono;
+    }
+  }
   document.getElementById('modal-overlay').classList.add('open');
 }
 function erGuardar(num){
