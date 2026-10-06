@@ -3682,6 +3682,17 @@ function pdfFactura(id){
   if(id){const f=facturas.find(x=>x.id===id);if(f) _doPdfFactura(f);}
   else _doPdfFactura(buildTmpFactura());
 }
+// Quita del texto los caracteres no válidos en un nombre de archivo de Windows, conservando
+// espacios y acentos para que el nombre siga siendo legible (reutilizado por proformas y
+// presupuestos).
+function sanitizarNombreArchivo(s){return (s||'').toString().replace(/[\\/:*?"<>|]/g,'-').trim();}
+// Nombre de archivo de una proforma: "Nº - CLIENTE - CANTIDAD SERVICIO[ + CANTIDAD SERVICIO...]"
+function nombrePdfProforma(f){
+  const lineas=(f.lineas||[]).filter(l=>l&&l.desc);
+  const partes=[f.num||'',f.cliente||''];
+  if(lineas.length) partes.push(lineas.map(l=>`${l.qty||1} ${l.desc}`).join(' + '));
+  return sanitizarNombreArchivo(partes.filter(Boolean).join(' - '))||f.num||'documento';
+}
 function _doPdfFactura(f){
   const {jsPDF}=window.jspdf;
   const doc=new jsPDF({unit:'mm',format:'a4'});
@@ -3769,7 +3780,7 @@ function _doPdfFactura(f){
   doc.text('Indicando: Empresa y nº/factura.',14,cy);
   // Barra inferior dorada
   doc.setFillColor(240,180,41); doc.rect(0,292,W,5,'F');
-  doc.save(`${f.num||'documento'}.pdf`);
+  doc.save((f.tipo==='proforma'?nombrePdfProforma(f):(f.num||'documento'))+'.pdf');
 }
 
 // ─── EXPORT PDF GENÉRICO (listas) ──────────────────────────────────
@@ -3935,7 +3946,7 @@ function pdfClientes(){
 
 // ─── TAREAS ───────────────────────────────────────────────────────
 let tareasFilter='pendientes', tareasQ='';
-let presItems=[],presDireccion='',presFecha=todayISO(),presPrices=[],presQ='';
+let presItems=[],presCliente='',presDireccion='',presFecha=todayISO(),presPrices=[],presQ='';
 // Tipo de documento de salida del presupuesto: 'presupuesto' o 'carta' (carta de compromiso
 // de suministro/colaboración — mismo texto de conceptos y precios, saludo/cuerpo distintos y
 // sin destinatario concreto). Comparten los mismos datos (obra, fecha, conceptos) — cambiar de
@@ -4117,6 +4128,7 @@ function renderPresupuestos(){
           <button class="fact-toggle-btn ${presDocType==='presupuesto'?'active':''}" data-action="pres-doctype" data-param="presupuesto">Presupuesto</button>
           <button class="fact-toggle-btn ${presDocType==='carta'?'active':''}" data-action="pres-doctype" data-param="carta">Carta de Compromiso</button>
         </div>
+        <div class="form-row"><label>Cliente</label><input id="pres-cliente" list="dl-global-clientes" value="${presCliente}" placeholder="Nombre del cliente…"></div>
         <div class="form-row"><label>Dirección de la obra</label><input id="pres-dir" value="${presDireccion}" placeholder="Dirección de la obra…"></div>
         <div class="form-row"><label>Fecha</label><input id="pres-fecha" type="date" value="${presFecha}"></div>
         <hr class="divider">
@@ -4134,6 +4146,7 @@ function renderPresupuestos(){
       </div>
       <div id="pres-doc-content">${buildPresPreview()}</div>
     </div>`;
+  document.getElementById('pres-cliente').addEventListener('input',e=>{presCliente=e.target.value;});
   document.getElementById('pres-dir').addEventListener('input',e=>{
     presDireccion=e.target.value;
     const el=document.getElementById('pres-meta-dir');
@@ -4194,7 +4207,7 @@ function pdfPresupuestoDoc(){
   doc.setTextColor(74,96,128); doc.setFontSize(7);
   doc.text('Jose · Garvi Recycling Systems, S.L.',160,cy+38,{align:'center'});
   doc.setFillColor(240,180,41); doc.rect(0,292,W,5,'F');
-  doc.save('presupuesto-garvi.pdf');
+  doc.save(sanitizarNombreArchivo(['Presupuesto',presCliente,presDireccion].filter(Boolean).join(' - '))+'.pdf');
 }
 // Carta de compromiso en PDF: mismo mecanismo/pipeline que el presupuesto (jsPDF, misma
 // cabecera, firma y tabla con precio+IVA), con el texto fijo del encargo y footer con CIF/web.
