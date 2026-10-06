@@ -1633,6 +1633,40 @@ function avisoMemGetAprox(nota){
   const key=Object.keys(mem).find(k=>k.startsWith(n+' ')||n.startsWith(k+' '));
   return key?mem[key]:null;
 }
+// Busca los datos (dirección/teléfono/tipo) que ya haya guardados de ese cliente en CUALQUIER
+// parte de la app — contenedores, albaranes, facturas y memoria de avisos — no solo contenedores,
+// porque un cliente puede tener su único dato guardado en una factura o un albarán ya hecho sin
+// haber tenido nunca un contenedor con ese nombre exacto. Prioriza coincidencias exactas de
+// nombre sobre las aproximadas (mismo cliente, otra ubicación tipo "SERVITRIA"/"SERVITRIA XXX"),
+// y entre varias, la más reciente.
+function datosClientePorNombre(nombreEscrito,excluirContainerNum){
+  const n=(nombreEscrito||'').trim().toLowerCase();
+  if(!n) return null;
+  const coincide=cn=>!!cn&&(cn===n||cn.startsWith(n+' ')||n.startsWith(cn+' '));
+  const cands=[];
+  containers.forEach(x=>{
+    if(x.num===excluirContainerNum) return;
+    const cn=(x.cliente||'').trim().toLowerCase();
+    if(coincide(cn)) cands.push({direccion:x.direccion,telefono:x.telefono,tipo:x.tipo,fecha:x.fecha||'',exacto:cn===n});
+  });
+  albaranes.forEach(a=>{
+    const cn=(a.cliente||'').trim().toLowerCase();
+    if(coincide(cn)) cands.push({direccion:a.lugar,telefono:a.telefono,fecha:a.fecha||'',exacto:cn===n});
+  });
+  facturas.forEach(f=>{
+    const cn=(f.cliente||'').trim().toLowerCase();
+    if(coincide(cn)) cands.push({direccion:f.dir,telefono:f.telefono,fecha:f.fecha||'',exacto:cn===n});
+  });
+  const mem=avisoMemGetAprox(nombreEscrito);
+  if(mem) cands.push({direccion:mem.direccion,telefono:mem.telefono,fecha:'',exacto:true});
+  if(!cands.length) return null;
+  cands.sort((a,b)=>a.exacto!==b.exacto?(a.exacto?-1:1):(b.fecha||'').localeCompare(a.fecha||''));
+  return {
+    direccion:(cands.find(x=>x.direccion)||{}).direccion,
+    telefono:(cands.find(x=>x.telefono)||{}).telefono,
+    tipo:(cands.find(x=>x.tipo)||{}).tipo,
+  };
+}
 function avisoMemSet(nota,data){
   if(!nota||!nota.trim()) return;
   const mem=JSON.parse(localStorage.getItem('garvi_aviso_memoria')||'{}');
@@ -2350,31 +2384,17 @@ function openContainerModal(num){
       ${c.telefono?`<a href="https://wa.me/34${c.telefono}" target="_blank" class="btn btn-secondary">${ICO_WA} WhatsApp</a>`:''}
       <button class="btn btn-danger btn-sm" style="margin-left:auto" data-action="del-cont" data-param="${c.num}">🗑</button>
     </div>`;
-  // Autocompleta Dirección/Teléfono/Tipo residuo con lo que haya guardado ese mismo cliente,
-  // buscando primero en otro contenedor suyo (el más reciente) y si no en la "memoria" de
-  // avisos (misma que ya rellena teléfono/dirección al escribir el cliente en Nuevo aviso).
-  // Si no hay coincidencia exacta del nombre, prueba con la más parecida que EMPIECE igual
-  // (p.ej. escribiendo "SEKMAG" encuentra "SEKMAG EDF. DELFIN"), típico de clientes con varias
-  // ubicaciones. Escucha 'input' (escribiendo) y también 'change'/'blur' porque al elegir una
-  // sugerencia del datalist, algunos navegadores (sobre todo móviles) no disparan 'input'.
+  // Autocompleta Dirección/Teléfono/Tipo residuo con lo que ya haya guardado de ese cliente en
+  // cualquier parte de la app (contenedores, albaranes, facturas, memoria de avisos) — ver
+  // datosClientePorNombre. Escucha 'input' (escribiendo) y también 'change'/'blur' porque al
+  // elegir una sugerencia del datalist, algunos navegadores (sobre todo móviles) no disparan
+  // 'input'.
   function autocompletarClienteCont(e){
-    const n=e.target.value.trim().toLowerCase();
-    if(!n) return;
-    const otros=containers.filter(x=>x.num!==c.num);
-    const porFechaDesc=(a,b)=>(b.fecha||'').localeCompare(a.fecha||'');
-    const exactos=otros.filter(x=>(x.cliente||'').trim().toLowerCase()===n).sort(porFechaDesc);
-    const parecidos=otros.filter(x=>{
-      const cn=(x.cliente||'').trim().toLowerCase();
-      return cn&&(cn.startsWith(n+' ')||n.startsWith(cn+' '));
-    }).sort(porFechaDesc);
-    const otro=exactos[0]||parecidos[0];
-    const mem=avisoMemGetAprox(e.target.value);
-    const dir=(otro&&otro.direccion)||(mem&&mem.direccion);
-    const tel=(otro&&otro.telefono)||(mem&&mem.telefono);
-    const tipo=otro&&otro.tipo;
-    if(dir){const el=document.getElementById('m-dir');if(el)el.value=dir;}
-    if(tel){const el=document.getElementById('m-tel');if(el)el.value=tel;}
-    if(tipo){const el=document.getElementById('m-tipo');if(el)el.value=tipo;}
+    const datos=datosClientePorNombre(e.target.value,c.num);
+    if(!datos) return;
+    if(datos.direccion){const el=document.getElementById('m-dir');if(el)el.value=datos.direccion;}
+    if(datos.telefono){const el=document.getElementById('m-tel');if(el)el.value=datos.telefono;}
+    if(datos.tipo){const el=document.getElementById('m-tipo');if(el)el.value=datos.tipo;}
   }
   ['input','change','blur'].forEach(ev=>document.getElementById('m-cliente').addEventListener(ev,autocompletarClienteCont));
   document.getElementById('modal-overlay').classList.add('open');
