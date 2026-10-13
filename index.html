@@ -201,6 +201,8 @@ label{
 .btn-secondary:hover{background:var(--accent-blue);color:#fff}
 .btn-danger{background:var(--surface);color:#dc2626;border:1.5px solid #fecaca}
 .btn-danger:hover{background:#fef2f2}
+.btn-cobrar{background:#16a34a;color:#fff}
+.btn-cobrar:hover{filter:brightness(1.08)}
 .btn-sm{padding:6px 12px;font-size:12px;border-radius:8px}
 .btn-icon{width:36px;height:36px;padding:0;justify-content:center;font-size:15px}
 .btn-full{width:100%}
@@ -412,9 +414,9 @@ label{
 /* Tabla de Cobros pendientes: columnas alineadas de verdad (como el Excel en papel), con
    scroll horizontal propio en pantallas estrechas en vez de romper el layout de la página. */
 .cobros-table-wrap{overflow-x:auto}
-.cobros-table{width:100%;border-collapse:collapse;font-size:12.5px;white-space:nowrap}
-.cobros-table th{text-align:left;font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;padding:7px 9px;border-bottom:2px solid var(--border)}
-.cobros-table td{padding:5px 9px;border-bottom:1px solid var(--border2);vertical-align:middle;white-space:normal}
+.cobros-table{width:100%;border-collapse:collapse;font-size:12px;white-space:nowrap}
+.cobros-table th{text-align:left;font-size:9.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;padding:6px 8px;border-bottom:2px solid var(--border)}
+.cobros-table td{padding:3px 8px;border-bottom:1px solid var(--border2);vertical-align:middle;white-space:normal}
 .cobros-table tbody tr:last-child td{border-bottom:none}
 .cobros-table tbody tr{transition:background .12s}
 .cobros-table tbody tr:hover td{filter:brightness(.97)}
@@ -450,15 +452,15 @@ label{
 .cobros-bar-cliente{position:relative;font-weight:600}
 .cobros-bar-importe{position:relative;text-align:right;font-family:'DM Mono',monospace;font-weight:700;color:var(--accent-blue)}
 .metodo-pago-sel{
-  width:122px;font-size:11px;padding:4px 6px;border-radius:7px;
+  width:98px;font-size:10px;padding:3px 4px;border-radius:6px;
   border:1.5px solid var(--border);background:#fff;color:var(--text);
-  margin-bottom:3px;cursor:pointer;display:block;
+  cursor:pointer;display:block;flex-shrink:0;
 }
 .avisado-toggle{
-  display:flex;align-items:center;justify-content:center;gap:4px;
-  width:122px;padding:5px 8px;border-radius:7px;border:1.5px solid var(--border);
-  background:#fff;color:var(--muted);font-size:11px;font-weight:700;
-  cursor:pointer;transition:all .15s;font-family:inherit;
+  display:flex;align-items:center;justify-content:center;gap:3px;
+  width:78px;padding:3px 4px;border-radius:6px;border:1.5px solid var(--border);
+  background:#fff;color:var(--muted);font-size:10px;font-weight:700;
+  cursor:pointer;transition:all .15s;font-family:inherit;flex-shrink:0;
 }
 .avisado-toggle:hover{border-color:#f59e0b;color:#f59e0b}
 .avisado-toggle.on{background:#f59e0b;border-color:#f59e0b;color:#fff;box-shadow:0 2px 8px rgba(245,158,11,.45)}
@@ -3390,13 +3392,15 @@ function renderCobrosPendientes(){
       :`<span class="cobros-status-pill cobros-status-plazo">🔵 En plazo</span>`;
     return `<tr class="${filaClase}">
       <td>
-        <select class="metodo-pago-sel" data-id="${f.id}">
-          <option value=""${!f.metodoPago?' selected':''}>— Sin especificar —</option>
-          <option value="CONFIRMING"${f.metodoPago==='CONFIRMING'?' selected':''}>🏦 Confirming</option>
-          <option value="PAGARÉ"${f.metodoPago==='PAGARÉ'?' selected':''}>📝 Pagaré</option>
-          <option value="CHEQUE"${f.metodoPago==='CHEQUE'?' selected':''}>💳 Cheque</option>
-        </select>
-        <button class="avisado-toggle${f.avisado?' on':''}" data-action="toggle-avisado" data-param="${f.id}">${f.avisado?'✓ ':''}Avisado</button>
+        <div style="display:flex;gap:4px;align-items:center">
+          <select class="metodo-pago-sel" data-id="${f.id}">
+            <option value=""${!f.metodoPago?' selected':''}>— Sin especificar —</option>
+            <option value="CONFIRMING"${f.metodoPago==='CONFIRMING'?' selected':''}>🏦 Confirming</option>
+            <option value="PAGARÉ"${f.metodoPago==='PAGARÉ'?' selected':''}>📝 Pagaré</option>
+            <option value="CHEQUE"${f.metodoPago==='CHEQUE'?' selected':''}>💳 Cheque</option>
+          </select>
+          <button class="avisado-toggle${f.avisado?' on':''}" data-action="toggle-avisado" data-param="${f.id}">${f.avisado?'✓':''} Avisado</button>
+        </div>
       </td>
       <td data-action="ver-factura" data-param="${f.id}" style="cursor:pointer;font-weight:700">${f.cliente}</td>
       <td data-action="ver-factura" data-param="${f.id}" style="cursor:pointer;color:var(--muted)">${f.num}</td>
@@ -3404,8 +3408,8 @@ function renderCobrosPendientes(){
       <td style="white-space:nowrap">${estadoPill}</td>
       <td style="text-align:right;font-family:'DM Mono',monospace;font-weight:700;color:var(--accent-blue);white-space:nowrap">${fmtMoney(f.total)}</td>
       <td style="white-space:nowrap">
-        <button class="btn btn-primary btn-sm" data-action="toggle-cobrada" data-param="${f.id}" style="padding:3px 8px;font-size:11px">💰 Cobrada</button>
-        ${f.telefono?`<a href="https://wa.me/34${f.telefono.replace(/\D/g,'')}" target="_blank" class="btn btn-secondary btn-sm" style="padding:3px 8px;font-size:11px;margin-left:4px">${ICO_WA}</a>`:''}
+        <button class="btn btn-cobrar btn-sm" data-action="toggle-cobrada" data-param="${f.id}" style="padding:2px 7px;font-size:10px">💰 Cobrada</button>
+        ${f.telefono?`<a href="https://wa.me/34${f.telefono.replace(/\D/g,'')}" target="_blank" class="btn btn-secondary btn-sm" style="padding:2px 7px;font-size:10px;margin-left:4px">${ICO_WA}</a>`:''}
       </td>
     </tr>`;
   }).join('');
