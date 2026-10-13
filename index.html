@@ -452,14 +452,19 @@ label{
 .cobros-bar-cliente{position:relative;font-weight:600}
 .cobros-bar-importe{position:relative;text-align:right;font-family:'DM Mono',monospace;font-weight:700;color:var(--accent-blue)}
 .metodo-pago-sel{
-  width:98px;font-size:10px;padding:3px 4px;border-radius:6px;
+  width:62px;font-size:9px;padding:3px 2px;border-radius:6px;
   border:1.5px solid var(--border);background:#fff;color:var(--text);
   cursor:pointer;display:block;flex-shrink:0;
+  text-overflow:ellipsis;overflow:hidden;white-space:nowrap;
 }
+/* Color según el método de pago elegido, para distinguirlos de un vistazo sin leer el texto. */
+.metodo-pago-sel.mp-confirming{background:#e6f0ff;border-color:#1a3a8f;color:#1a3a8f;font-weight:700}
+.metodo-pago-sel.mp-pagare{background:#f3e8ff;border-color:#7c3aed;color:#6d28d9;font-weight:700}
+.metodo-pago-sel.mp-cheque{background:#e0f7fa;border-color:#0891b2;color:#0e7490;font-weight:700}
 .avisado-toggle{
-  display:flex;align-items:center;justify-content:center;gap:3px;
-  width:78px;padding:3px 4px;border-radius:6px;border:1.5px solid var(--border);
-  background:#fff;color:var(--muted);font-size:10px;font-weight:700;
+  display:flex;align-items:center;justify-content:center;
+  width:26px;height:26px;padding:0;border-radius:6px;border:1.5px solid var(--border);
+  background:#fff;color:var(--muted);font-size:13px;font-weight:700;
   cursor:pointer;transition:all .15s;font-family:inherit;flex-shrink:0;
 }
 .avisado-toggle:hover{border-color:#f59e0b;color:#f59e0b}
@@ -3366,6 +3371,13 @@ function renderFacturas(){
 }
 // ─── COBROS PENDIENTES (sección propia) ────────────────────────────
 let cobrosQ='';
+// Clase de color para el desplegable de método de pago, según el valor elegido.
+function claseMetodoPago(mp){
+  if(mp==='CONFIRMING') return 'mp-confirming';
+  if(mp==='PAGARÉ') return 'mp-pagare';
+  if(mp==='CHEQUE') return 'mp-cheque';
+  return '';
+}
 function renderCobrosPendientes(){
   const sec=document.getElementById('sec-cobros');
   const cq=cobrosQ.toLowerCase();
@@ -3392,14 +3404,14 @@ function renderCobrosPendientes(){
       :`<span class="cobros-status-pill cobros-status-plazo">🔵 En plazo</span>`;
     return `<tr class="${filaClase}">
       <td>
-        <div style="display:flex;gap:4px;align-items:center">
-          <select class="metodo-pago-sel" data-id="${f.id}">
-            <option value=""${!f.metodoPago?' selected':''}>— Sin especificar —</option>
-            <option value="CONFIRMING"${f.metodoPago==='CONFIRMING'?' selected':''}>🏦 Confirming</option>
+        <div style="display:flex;gap:3px;align-items:center">
+          <select class="metodo-pago-sel ${claseMetodoPago(f.metodoPago)}" data-id="${f.id}">
+            <option value=""${!f.metodoPago?' selected':''}>—</option>
+            <option value="CONFIRMING"${f.metodoPago==='CONFIRMING'?' selected':''}>🏦 Confirm.</option>
             <option value="PAGARÉ"${f.metodoPago==='PAGARÉ'?' selected':''}>📝 Pagaré</option>
             <option value="CHEQUE"${f.metodoPago==='CHEQUE'?' selected':''}>💳 Cheque</option>
           </select>
-          <button class="avisado-toggle${f.avisado?' on':''}" data-action="toggle-avisado" data-param="${f.id}">${f.avisado?'✓':''} Avisado</button>
+          <button class="avisado-toggle${f.avisado?' on':''}" data-action="toggle-avisado" data-param="${f.id}" title="${f.avisado?'Avisado — pulsa para quitar':'Marcar como avisado'}">${f.avisado?'✓':'🔔'}</button>
         </div>
       </td>
       <td data-action="ver-factura" data-param="${f.id}" style="cursor:pointer;font-weight:700">${f.cliente}</td>
@@ -3437,6 +3449,7 @@ function renderCobrosPendientes(){
     el.addEventListener('change',e=>{
       const f=facturas.find(x=>x.id===e.target.dataset.id); if(!f) return;
       f.metodoPago=e.target.value;
+      e.target.className='metodo-pago-sel '+claseMetodoPago(f.metodoPago);
       saveFacturas();syncFacturasCol.guardar(f);
     });
   });
