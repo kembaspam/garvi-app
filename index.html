@@ -1051,7 +1051,7 @@ function migrarYSuscribirTodo(){
   // Antes de nada: si la nube todavía tiene alguno de los 31 contenedores con el valor erróneo
   // del corte de sincronización del 17-26/08, se corrige aquí mismo. Así, con que UN dispositivo
   // abra esta versión con conexión, la nube queda bien y el resto de dispositivos lo reciben solos.
-  return aplicarFix27AgoNube().then(()=>importarDeudoresNube()).then(()=>Promise.all([
+  return aplicarFix27AgoNube().then(()=>importarDeudoresNube()).then(()=>sincronizarDeudoresOctNube()).then(()=>Promise.all([
     syncContenedores.migrarLocales(containers.map(c=>{const {fotos,...r}=c; return r;})).then(n=>n&&total.push(n+' contenedor(es)')),
     syncAlbaranesCol.migrarLocales(albaranes).then(n=>n&&total.push(n+' albarán(es)')),
     syncTareasCol.migrarLocales(tareas).then(n=>n&&total.push(n+' tarea(s)')),
@@ -1138,6 +1138,7 @@ function loadData(){
   finanzas=JSON.parse(localStorage.getItem('garvi_finanzas')||'[]');
   facturas=JSON.parse(localStorage.getItem('garvi_facturas')||'[]');
   if(importarDeudoresLocal()) saveFacturas();
+  if(sincronizarDeudoresOctLocal()) saveFacturas();
   cfg=JSON.parse(localStorage.getItem('garvi_cfg')||'{"apiKey":"","ultimaFact":0,"ultimaProf":0}');
   certificados=JSON.parse(localStorage.getItem('garvi_certificados')||'[]');
   avisos=JSON.parse(localStorage.getItem('garvi_avisos')||'[]');
@@ -3309,6 +3310,80 @@ function importarDeudoresNube(){
     const escrituras=nuevos.map(r=>fbDb.collection('facturas').doc(r.id).set(r).catch(e=>console.error('Error importando deudor '+r.id+':',e)));
     return Promise.all(escrituras).then(()=>{ localStorage.setItem('garvi_import_deudores_v1','1'); });
   }).catch(e=>{ console.error('Error comprobando deudores existentes en la nube:',e); return 0; });
+}
+// ─── ACTUALIZACIÓN DEL LISTADO DE DEUDORES (revisado hasta el 10/09) ─────
+// Segunda pasada del mismo listado en papel, ya con el "garvi_import_deudores_v1" puesto (así que
+// importarDeudoresLocal/Nube ya no vuelven a correr) — por eso hace falta un segundo flag e igual
+// mecanismo: añade las facturas nuevas que aparecen en esta revisión y marca como cobradas las que
+// ya NO aparecen (el listado en papel solo recoge lo pendiente: si una factura desaparece es que
+// se cobró). Para las que siguen apareciendo en ambas revisiones no se toca avisado/metodoPago,
+// por si ya se han actualizado a mano desde la pantalla de Cobros pendientes.
+const NUEVOS_DEUDORES_OCT=[
+  {id:'ld498',tipo:'factura',num:'498',cliente:'UTE CSPA',fecha:'2026-09-03',total:3798.3,base:3798.3,iva:0,nif:'',dir:'',telefono:'',email:'',notas:'Importada del listado de deudores en papel',lineas:[],vencimiento:'',cobrada:false,fechaCobro:'',avisado:false,metodoPago:''},
+  {id:'ld511',tipo:'factura',num:'511',cliente:'CARSAN',fecha:'2026-09-15',total:1144,base:1144,iva:0,nif:'',dir:'',telefono:'',email:'',notas:'Importada del listado de deudores en papel',lineas:[],vencimiento:'',cobrada:false,fechaCobro:'',avisado:false,metodoPago:''},
+  {id:'ld512',tipo:'factura',num:'512',cliente:'FERROVIAL SERVITRIA',fecha:'2026-09-15',total:2915,base:2915,iva:0,nif:'',dir:'',telefono:'',email:'',notas:'Importada del listado de deudores en papel',lineas:[],vencimiento:'',cobrada:false,fechaCobro:'',avisado:false,metodoPago:''},
+  {id:'ld513',tipo:'factura',num:'513',cliente:'SERVITRIA',fecha:'2026-09-15',total:275,base:275,iva:0,nif:'',dir:'',telefono:'',email:'',notas:'Importada del listado de deudores en papel',lineas:[],vencimiento:'',cobrada:false,fechaCobro:'',avisado:false,metodoPago:''},
+  {id:'ld514',tipo:'factura',num:'514',cliente:'UTE CSPA',fecha:'2026-09-15',total:803,base:803,iva:0,nif:'',dir:'',telefono:'',email:'',notas:'Importada del listado de deudores en papel',lineas:[],vencimiento:'',cobrada:false,fechaCobro:'',avisado:false,metodoPago:''},
+  {id:'ld515',tipo:'factura',num:'515',cliente:'ARENA ALICANTE CIPRES',fecha:'2026-09-15',total:352,base:352,iva:0,nif:'',dir:'',telefono:'',email:'',notas:'Importada del listado de deudores en papel',lineas:[],vencimiento:'',cobrada:false,fechaCobro:'',avisado:false,metodoPago:''},
+  {id:'ld528',tipo:'factura',num:'528',cliente:'CYTEM',fecha:'2026-09-30',total:3190,base:3190,iva:0,nif:'',dir:'',telefono:'',email:'',notas:'Importada del listado de deudores en papel',lineas:[],vencimiento:'',cobrada:false,fechaCobro:'',avisado:false,metodoPago:''},
+  {id:'ld529',tipo:'factura',num:'529',cliente:'ESCLAPES',fecha:'2026-09-30',total:464.2,base:464.2,iva:0,nif:'',dir:'',telefono:'',email:'',notas:'Importada del listado de deudores en papel',lineas:[],vencimiento:'',cobrada:false,fechaCobro:'',avisado:false,metodoPago:''},
+  {id:'ld530',tipo:'factura',num:'530',cliente:'ESCLAPES',fecha:'2026-09-30',total:398.2,base:398.2,iva:0,nif:'',dir:'',telefono:'',email:'',notas:'Importada del listado de deudores en papel',lineas:[],vencimiento:'',cobrada:false,fechaCobro:'',avisado:false,metodoPago:''},
+  {id:'ld531',tipo:'factura',num:'531',cliente:'ESCLAPES',fecha:'2026-09-30',total:347.6,base:347.6,iva:0,nif:'',dir:'',telefono:'',email:'',notas:'Importada del listado de deudores en papel',lineas:[],vencimiento:'',cobrada:false,fechaCobro:'',avisado:false,metodoPago:''},
+  {id:'ld532',tipo:'factura',num:'532',cliente:'SEKMAG',fecha:'2026-09-30',total:253,base:253,iva:0,nif:'',dir:'',telefono:'',email:'',notas:'Importada del listado de deudores en papel',lineas:[],vencimiento:'',cobrada:false,fechaCobro:'',avisado:false,metodoPago:''},
+  {id:'ld533',tipo:'factura',num:'533',cliente:'SEKMAG',fecha:'2026-09-30',total:253,base:253,iva:0,nif:'',dir:'',telefono:'',email:'',notas:'Importada del listado de deudores en papel',lineas:[],vencimiento:'',cobrada:false,fechaCobro:'',avisado:false,metodoPago:''},
+  {id:'ld534',tipo:'factura',num:'534',cliente:'SEKMAG',fecha:'2026-09-30',total:253,base:253,iva:0,nif:'',dir:'',telefono:'',email:'',notas:'Importada del listado de deudores en papel',lineas:[],vencimiento:'',cobrada:false,fechaCobro:'',avisado:false,metodoPago:''},
+  {id:'ld535',tipo:'factura',num:'535',cliente:'SEKMAG',fecha:'2026-09-30',total:253,base:253,iva:0,nif:'',dir:'',telefono:'',email:'',notas:'Importada del listado de deudores en papel',lineas:[],vencimiento:'',cobrada:false,fechaCobro:'',avisado:false,metodoPago:''},
+  {id:'ld536',tipo:'factura',num:'536',cliente:'SEKMAG',fecha:'2026-09-30',total:253,base:253,iva:0,nif:'',dir:'',telefono:'',email:'',notas:'Importada del listado de deudores en papel',lineas:[],vencimiento:'',cobrada:false,fechaCobro:'',avisado:false,metodoPago:''},
+  {id:'ld537',tipo:'factura',num:'537',cliente:'SEKMAG',fecha:'2026-09-30',total:253,base:253,iva:0,nif:'',dir:'',telefono:'',email:'',notas:'Importada del listado de deudores en papel',lineas:[],vencimiento:'',cobrada:false,fechaCobro:'',avisado:false,metodoPago:''},
+  {id:'ld538',tipo:'factura',num:'538',cliente:'SEKMAG',fecha:'2026-09-30',total:253,base:253,iva:0,nif:'',dir:'',telefono:'',email:'',notas:'Importada del listado de deudores en papel',lineas:[],vencimiento:'',cobrada:false,fechaCobro:'',avisado:false,metodoPago:''},
+  {id:'ld539',tipo:'factura',num:'539',cliente:'SEKMAG',fecha:'2026-09-30',total:759,base:759,iva:0,nif:'',dir:'',telefono:'',email:'',notas:'Importada del listado de deudores en papel',lineas:[],vencimiento:'',cobrada:false,fechaCobro:'',avisado:false,metodoPago:''},
+  {id:'ld540',tipo:'factura',num:'540',cliente:'SEKMAG',fecha:'2026-09-30',total:1518,base:1518,iva:0,nif:'',dir:'',telefono:'',email:'',notas:'Importada del listado de deudores en papel',lineas:[],vencimiento:'',cobrada:false,fechaCobro:'',avisado:false,metodoPago:''},
+  {id:'ld541',tipo:'factura',num:'541',cliente:'SEKMAG',fecha:'2026-09-30',total:1012,base:1012,iva:0,nif:'',dir:'',telefono:'',email:'',notas:'Importada del listado de deudores en papel',lineas:[],vencimiento:'',cobrada:false,fechaCobro:'',avisado:false,metodoPago:''},
+  {id:'ld542',tipo:'factura',num:'542',cliente:'NOVALIGEPRO',fecha:'2026-09-30',total:398.2,base:398.2,iva:0,nif:'',dir:'',telefono:'',email:'',notas:'Importada del listado de deudores en papel',lineas:[],vencimiento:'',cobrada:false,fechaCobro:'',avisado:false,metodoPago:''},
+  {id:'ld543',tipo:'factura',num:'543',cliente:'NOVALIGEPRO',fecha:'2026-09-30',total:398.2,base:398.2,iva:0,nif:'',dir:'',telefono:'',email:'',notas:'Importada del listado de deudores en papel',lineas:[],vencimiento:'',cobrada:false,fechaCobro:'',avisado:false,metodoPago:''},
+  {id:'ld544',tipo:'factura',num:'544',cliente:'NOVALIGEPRO',fecha:'2026-09-30',total:904.2,base:904.2,iva:0,nif:'',dir:'',telefono:'',email:'',notas:'Importada del listado de deudores en papel',lineas:[],vencimiento:'',cobrada:false,fechaCobro:'',avisado:false,metodoPago:''},
+  {id:'ld545',tipo:'factura',num:'545',cliente:'NOVALIGEPRO',fecha:'2026-09-30',total:651.2,base:651.2,iva:0,nif:'',dir:'',telefono:'',email:'',notas:'Importada del listado de deudores en papel',lineas:[],vencimiento:'',cobrada:false,fechaCobro:'',avisado:false,metodoPago:''},
+  {id:'ld546',tipo:'factura',num:'546',cliente:'AKRA',fecha:'2026-09-30',total:275,base:275,iva:0,nif:'',dir:'',telefono:'',email:'',notas:'Importada del listado de deudores en papel',lineas:[],vencimiento:'',cobrada:false,fechaCobro:'',avisado:false,metodoPago:''},
+  {id:'ld547',tipo:'factura',num:'547',cliente:'AKRA',fecha:'2026-09-30',total:506,base:506,iva:0,nif:'',dir:'',telefono:'',email:'',notas:'Importada del listado de deudores en papel',lineas:[],vencimiento:'',cobrada:false,fechaCobro:'',avisado:false,metodoPago:''},
+  {id:'ld548',tipo:'factura',num:'548',cliente:'AKRA',fecha:'2026-09-30',total:825,base:825,iva:0,nif:'',dir:'',telefono:'',email:'',notas:'Importada del listado de deudores en papel',lineas:[],vencimiento:'',cobrada:false,fechaCobro:'',avisado:false,metodoPago:''},
+  {id:'ld549',tipo:'factura',num:'549',cliente:'CUPOLA',fecha:'2026-09-30',total:275,base:275,iva:0,nif:'',dir:'',telefono:'',email:'',notas:'Importada del listado de deudores en papel',lineas:[],vencimiento:'',cobrada:false,fechaCobro:'',avisado:false,metodoPago:''},
+  {id:'ld550',tipo:'factura',num:'550',cliente:'FERROVIAL SERVITRIA',fecha:'2026-09-30',total:2277,base:2277,iva:0,nif:'',dir:'',telefono:'',email:'',notas:'Importada del listado de deudores en papel',lineas:[],vencimiento:'',cobrada:false,fechaCobro:'',avisado:false,metodoPago:''},
+  {id:'ld551',tipo:'factura',num:'551',cliente:'SERVITRIA',fecha:'2026-09-30',total:550,base:550,iva:0,nif:'',dir:'',telefono:'',email:'',notas:'Importada del listado de deudores en papel',lineas:[],vencimiento:'',cobrada:false,fechaCobro:'',avisado:false,metodoPago:''},
+  {id:'ld552',tipo:'factura',num:'552',cliente:'CARSAN',fecha:'2026-09-30',total:1012,base:1012,iva:0,nif:'',dir:'',telefono:'',email:'',notas:'Importada del listado de deudores en papel',lineas:[],vencimiento:'',cobrada:false,fechaCobro:'',avisado:false,metodoPago:''},
+  {id:'ld553',tipo:'factura',num:'553',cliente:'UTE CSPA',fecha:'2026-09-30',total:528,base:528,iva:0,nif:'',dir:'',telefono:'',email:'',notas:'Importada del listado de deudores en papel',lineas:[],vencimiento:'',cobrada:false,fechaCobro:'',avisado:false,metodoPago:''},
+  {id:'ld556',tipo:'factura',num:'556',cliente:'NEW ON CT',fecha:'2026-09-30',total:264,base:264,iva:0,nif:'',dir:'',telefono:'',email:'',notas:'Importada del listado de deudores en papel',lineas:[],vencimiento:'',cobrada:false,fechaCobro:'',avisado:false,metodoPago:''},
+];
+// Facturas del listado anterior que ya NO aparecen en esta revisión -> se dan por cobradas.
+const PAGADOS_DEUDORES_OCT=['ld279','ld281','ld282','ld346','ld347','ld351','ld352','ld353','ld354','ld355','ld356','ld357','ld362','ld400','ld419','ld420','ld421','ld427','ld428','ld429','ld436','ld458','ld468','ld469','ld470','ld471','ld472','ld473','ld481','ld483'];
+function sincronizarDeudoresOctLocal(){
+  let cambiado=false;
+  NUEVOS_DEUDORES_OCT.forEach(r=>{
+    if(facturas.some(f=>f.id===r.id)) return;
+    facturas.push({...r});
+    cambiado=true;
+  });
+  PAGADOS_DEUDORES_OCT.forEach(id=>{
+    const f=facturas.find(x=>x.id===id);
+    if(f&&!f.cobrada){ f.cobrada=true; f.fechaCobro=todayISO(); cambiado=true; }
+  });
+  return cambiado;
+}
+function sincronizarDeudoresOctNube(){
+  if(!fbDb||!fbReady) return Promise.resolve();
+  if(localStorage.getItem('garvi_sync_deudores_oct_v1')) return Promise.resolve();
+  return fbDb.collection('facturas').get().then(snap=>{
+    const existentes=new Map(); snap.forEach(d=>existentes.set(d.id,d.data()));
+    const nuevos=NUEVOS_DEUDORES_OCT.filter(r=>!existentes.has(r.id));
+    const escrituras=nuevos.map(r=>fbDb.collection('facturas').doc(r.id).set(r).catch(e=>console.error('Error sincronizando deudor '+r.id+':',e)));
+    const hoy=todayISO();
+    PAGADOS_DEUDORES_OCT.forEach(id=>{
+      const data=existentes.get(id);
+      if(data&&!data.cobrada){
+        escrituras.push(fbDb.collection('facturas').doc(id).update({cobrada:true,fechaCobro:hoy}).catch(e=>console.error('Error marcando cobrado '+id+':',e)));
+      }
+    });
+    return Promise.all(escrituras).then(()=>{ localStorage.setItem('garvi_sync_deudores_oct_v1','1'); });
+  }).catch(e=>{ console.error('Error comprobando deudores en la nube para la actualización de octubre:',e); return 0; });
 }
 function renderFacturas(){
   const sec=document.getElementById('sec-facturas');
