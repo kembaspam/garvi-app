@@ -414,24 +414,18 @@ label{
 /* Tabla de Cobros pendientes: columnas alineadas de verdad (como el Excel en papel), con
    scroll horizontal propio en pantallas estrechas en vez de romper el layout de la página. */
 .cobros-table-wrap{overflow-x:auto}
-.cobros-table{width:100%;border-collapse:collapse;font-size:12px;white-space:nowrap}
-.cobros-table th{text-align:left;font-size:9.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;padding:6px 8px;border-bottom:2px solid var(--border)}
-.cobros-table td{padding:3px 8px;border-bottom:1px solid var(--border2);vertical-align:middle;white-space:normal}
+.cobros-table{width:100%;border-collapse:collapse;font-size:12px;white-space:nowrap;background:#fffbdd}
+.cobros-table th{text-align:left;font-size:9.5px;font-weight:700;color:#8a7a2e;text-transform:uppercase;letter-spacing:.05em;padding:6px 6px;background:#fef3b0;border-bottom:2px solid #fde98c}
+.cobros-table td{padding:3px 6px;border-bottom:1px solid #fbeec2;vertical-align:middle;white-space:normal;color:var(--text)}
 .cobros-table tbody tr:last-child td{border-bottom:none}
 .cobros-table tbody tr{transition:background .12s}
-.cobros-table tbody tr:hover td{filter:brightness(.97)}
-/* Cada columna con su propio tinte tenue (en vez de colorear la fila entera), para separar
-   visualmente de un vistazo sin perder legibilidad ni saturar la vista. */
-.cobros-table th:nth-child(1),.cobros-table td:nth-child(1){background:rgba(26,58,143,.035)}
-.cobros-table th:nth-child(3),.cobros-table td:nth-child(3){background:rgba(143,163,192,.08)}
-.cobros-table th:nth-child(4),.cobros-table td:nth-child(4){background:rgba(26,58,143,.02)}
-.cobros-table th:nth-child(6),.cobros-table td:nth-child(6){background:rgba(240,180,41,.07)}
+.cobros-table tbody tr:hover td{filter:brightness(.96)}
 /* Estado de la fila: una franja de color a la izquierda (no la fila entera, para que se pueda
    seguir leyendo bien). */
 .cobros-table tr td:first-child{border-left:4px solid transparent}
 .cobros-table tr.cobros-row-vencida td:first-child{border-left-color:#dc2626}
 .cobros-table tr.cobros-row-avisada td:first-child{border-left-color:#f59e0b}
-.cobros-status-pill{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:20px;font-size:10.5px;font-weight:700;white-space:nowrap}
+.cobros-status-pill{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:20px;font-size:10.5px;font-weight:700;white-space:nowrap;border:1px solid rgba(0,0,0,.06)}
 .cobros-status-vencida{background:#fee2e2;color:#991b1b}
 .cobros-status-avisada{background:#fef3c7;color:#92400e}
 .cobros-status-plazo{background:#e6f0ff;color:#1a3a8f}
@@ -452,10 +446,9 @@ label{
 .cobros-bar-cliente{position:relative;font-weight:600}
 .cobros-bar-importe{position:relative;text-align:right;font-family:'DM Mono',monospace;font-weight:700;color:var(--accent-blue)}
 .metodo-pago-sel{
-  width:62px;font-size:9px;padding:3px 2px;border-radius:6px;
+  width:94px;font-size:10px;padding:3px 4px;border-radius:6px;
   border:1.5px solid var(--border);background:#fff;color:var(--text);
   cursor:pointer;display:block;flex-shrink:0;
-  text-overflow:ellipsis;overflow:hidden;white-space:nowrap;
 }
 /* Color según el método de pago elegido, para distinguirlos de un vistazo sin leer el texto. */
 .metodo-pago-sel.mp-confirming{background:#e6f0ff;border-color:#1a3a8f;color:#1a3a8f;font-weight:700}
@@ -3425,7 +3418,7 @@ function renderCobrosPendientes(){
       </td>
     </tr>`;
   }).join('');
-  const tablaHtml=filasHtml?`<div class="card" style="padding:0"><div class="cobros-table-wrap"><table class="cobros-table">
+  const tablaHtml=filasHtml?`<div class="card" style="padding:0;overflow:hidden"><div class="cobros-table-wrap"><table class="cobros-table">
     <thead><tr><th>Avisado</th><th>Cliente</th><th>Nº Fac</th><th>Fecha</th><th>Estado</th><th style="text-align:right">Importe</th><th></th></tr></thead>
     <tbody>${filasHtml}</tbody>
   </table></div></div>`:'';
