@@ -1650,6 +1650,11 @@ function datosClientePorNombre(nombreEscrito,excluirContainerNum){
     const txt=v=>String(v||'');
     const n=normTextoHist(txt(nombreEscrito));
     if(!n) return null;
+    // NAVE GARVI y GRANJA TORRELLANO son ubicaciones propias de la empresa, no clientes reales
+    // (igual que ya se excluyen en refreshGlobalDatalists/syncClientes/updateBadge) — cada
+    // contenedor ahí puede estar en un sitio distinto dentro de la nave/granja, así que no tiene
+    // sentido copiar la dirección/teléfono de "otro" con el mismo nombre.
+    if(n==='nave garvi'||n==='granja torrellano') return null;
     const coincide=cn=>!!cn&&(cn===n||cn.startsWith(n+' ')||n.startsWith(cn+' '));
     const cands=[];
     containers.forEach(x=>{
