@@ -3301,6 +3301,7 @@ function renderFacturas(){
         <div class="fact-total">${fmtMoney(f.total)}</div>
         <div style="display:flex;gap:4px;margin-top:4px;justify-content:flex-end">
           <button class="btn btn-secondary btn-sm" data-action="pdf-factura" data-param="${f.id}" style="padding:3px 8px;font-size:11px">PDF</button>
+          ${f.tipo==='proforma'?`<button class="btn btn-primary btn-sm" data-action="hacer-factura" data-param="${f.id}" style="padding:3px 8px;font-size:11px">🧾 Hacer factura</button>`:''}
           ${f.email?`<a href="mailto:${f.email}?subject=${encodeURIComponent('Factura '+f.num+' - Garvi Recycling Systems')}&body=${encodeURIComponent('Adjuntamos '+f.num+'.\n\nGarvi Recycling Systems, S.L.U. · Tel: 687759465')}" class="btn btn-secondary btn-sm" style="padding:3px 8px;font-size:11px">✉</a>`:''}
           ${f.telefono?`<a href="https://wa.me/34${f.telefono.replace(/\D/g,'')}" target="_blank" class="btn btn-secondary btn-sm" style="padding:3px 8px;font-size:11px">${ICO_WA} WA</a>`:''}
           <button class="btn btn-danger btn-sm" data-action="del-factura" data-param="${f.id}" style="padding:3px 8px;font-size:11px">🗑</button>
@@ -3665,6 +3666,30 @@ function guardarFactura(){
     facturas.push(nuevaFact); syncFacturasCol.guardar(nuevaFact);
   }
   saveFacturas();clearFacturaDraft();closeModal();renderFacturas();updateBadge();toastMsg('Factura guardada ✓');
+}
+// Genera una factura NUEVA a partir de una proforma ya hecha (mismo cliente/datos/líneas, nuevo
+// número de factura correlativo). La proforma original se queda tal cual, no se borra ni se
+// convierte — quedan como dos documentos distintos, igual que en la operativa real de la empresa.
+function hacerFactura(id){
+  const p=facturas.find(x=>x.id===id);
+  if(!p||p.tipo!=='proforma') return;
+  cfg.ultimaFact=(cfg.ultimaFact||0)+1;
+  saveCfg(); syncCfg();
+  const nuevaFact={
+    id:Date.now().toString(),
+    tipo:'factura',
+    cliente:p.cliente, nif:p.nif||'', dir:p.dir||'', telefono:p.telefono||'', email:p.email||'',
+    num:'F-'+String(cfg.ultimaFact).padStart(3,'0'),
+    fecha:todayISO(),
+    vencimiento:addDaysISO(30),
+    notas:p.notas||'',
+    lineas:(p.lineas||[]).map(l=>({...l})),
+    base:p.base,iva:p.iva,total:p.total,
+    cobrada:false,fechaCobro:'',avisado:false,metodoPago:'',
+  };
+  facturas.push(nuevaFact); syncFacturasCol.guardar(nuevaFact);
+  saveFacturas(); facturasView='facturas'; renderFacturas(); updateBadge();
+  toastMsg(`Factura ${nuevaFact.num} creada a partir de ${p.num} ✓`);
 }
 function buildTmpFactura(){
   let base=0,ivaTotal=0;
@@ -4614,6 +4639,7 @@ document.addEventListener('click',e=>{
   else if(action==='pdf-tareas') pdfTareas();
   else if(action==='nueva-factura') nuevaFacturaModal();
   else if(action==='ver-factura') nuevaFacturaModal(param);
+  else if(action==='hacer-factura') hacerFactura(param);
   else if(action==='del-factura'){if(confirm('¿Eliminar?')){facturas=facturas.filter(f=>f.id!==param);saveFacturas();syncFacturasCol.borrar(param);renderFacturas();updateBadge();toastMsg('Eliminado');}}
   else if(action==='pdf-factura') pdfFactura(param);
   else if(action==='pdf-facturas') pdfFacturas();
