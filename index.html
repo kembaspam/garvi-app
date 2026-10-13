@@ -413,10 +413,38 @@ label{
    scroll horizontal propio en pantallas estrechas en vez de romper el layout de la página. */
 .cobros-table-wrap{overflow-x:auto}
 .cobros-table{width:100%;border-collapse:collapse;font-size:13px;white-space:nowrap}
-.cobros-table th{text-align:left;font-size:10.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;padding:8px 10px;border-bottom:2px solid var(--border)}
-.cobros-table td{padding:8px 10px;border-bottom:1px solid var(--border2);vertical-align:middle;white-space:normal}
+.cobros-table th{text-align:left;font-size:10.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;padding:10px;background:var(--surface2);border-bottom:2px solid var(--border)}
+.cobros-table td{padding:10px;border-bottom:1px solid var(--border2);vertical-align:middle;white-space:normal}
 .cobros-table tbody tr:last-child td{border-bottom:none}
-.cobros-table-resumen td,.cobros-table-resumen th{padding:5px 10px;font-size:12.5px}
+.cobros-table tbody tr{transition:background .12s}
+.cobros-table tbody tr:hover{background:rgba(26,58,143,.04)}
+/* Estado de la fila: una franja de color a la izquierda (no la fila entera, para que se pueda
+   seguir leyendo bien) + un tinte de fondo muy suave a modo de separación visual. */
+.cobros-table tr.cobros-row-vencida{background:rgba(220,38,38,.035)}
+.cobros-table tr.cobros-row-avisada{background:rgba(245,158,11,.05)}
+.cobros-table tr td:first-child{border-left:4px solid transparent}
+.cobros-table tr.cobros-row-vencida td:first-child{border-left-color:#dc2626}
+.cobros-table tr.cobros-row-avisada td:first-child{border-left-color:#f59e0b}
+.cobros-status-pill{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;white-space:nowrap}
+.cobros-status-vencida{background:#fee2e2;color:#991b1b}
+.cobros-status-avisada{background:#fef3c7;color:#92400e}
+.cobros-status-plazo{background:#e6f0ff;color:#1a3a8f}
+/* Tarjetas de resumen arriba (facturas pendientes / vencidas / total) */
+.cobros-stats{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+.cobros-stat{flex:1;min-width:140px;background:var(--surface);border:1px solid var(--border2);border-radius:14px;padding:12px 16px;box-shadow:var(--shadow)}
+.cobros-stat-num{font-size:23px;font-weight:800;font-family:'DM Mono',monospace;line-height:1.15;color:var(--accent-blue)}
+.cobros-stat-label{font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.04em;margin-top:2px}
+.cobros-stat.vencidas{background:#fef2f2;border-color:#fecaca}
+.cobros-stat.vencidas .cobros-stat-num{color:#991b1b}
+.cobros-stat.total{background:#1a3a8f;border-color:#1a3a8f}
+.cobros-stat.total .cobros-stat-num,.cobros-stat.total .cobros-stat-label{color:#fff}
+.cobros-stat.total .cobros-stat-label{opacity:.75}
+/* "Debe cada cliente": barrita proporcional al importe, para ver de un vistazo quién debe más */
+.cobros-table-resumen td,.cobros-table-resumen th{padding:7px 10px;font-size:12.5px}
+.cobros-bar-row{position:relative}
+.cobros-bar-fill{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(90deg,rgba(240,180,41,.22),rgba(240,180,41,.4));border-radius:3px}
+.cobros-bar-cliente{position:relative;font-weight:600}
+.cobros-bar-importe{position:relative;text-align:right;font-family:'DM Mono',monospace;font-weight:700;color:var(--accent-blue)}
 .metodo-pago-sel{
   width:150px;font-size:12px;padding:7px 8px;border-radius:8px;
   border:1.5px solid var(--border);background:#fff;color:var(--text);
@@ -3339,18 +3367,25 @@ function renderCobrosPendientes(){
   const totalPendiente=pendientes.reduce((s,f)=>s+(f.total||0),0);
   const numVencidas=pendientes.filter(facturaVencida).length;
   const porCliente=Object.entries(pendientes.reduce((m,f)=>{m[f.cliente]=(m[f.cliente]||0)+(f.total||0);return m;},{})).sort((a,b)=>b[1]-a[1]);
+  const maxCliente=porCliente.length?porCliente[0][1]:0;
   const resumenHtml=porCliente.length?`<div class="card" style="padding:10px 14px;margin-top:12px">
-    <div style="font-size:11px;font-weight:700;color:var(--accent-blue);text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px">Debe cada cliente</div>
+    <div style="font-size:11px;font-weight:700;color:var(--accent-blue);text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px">💼 Debe cada cliente</div>
     <div class="cobros-table-wrap"><table class="cobros-table cobros-table-resumen">
       <thead><tr><th>Cliente</th><th style="text-align:right">Importe</th></tr></thead>
-      <tbody>${porCliente.map(([cli,tot])=>`<tr><td>${cli}</td><td style="text-align:right;font-family:'DM Mono',monospace;font-weight:700">${fmtMoney(tot)}</td></tr>`).join('')}</tbody>
+      <tbody>${porCliente.map(([cli,tot])=>{
+        const pct=maxCliente?Math.max((tot/maxCliente)*100,4):0;
+        return `<tr class="cobros-bar-row"><td class="cobros-bar-cliente"><span class="cobros-bar-fill" style="width:${pct}%"></span><span style="position:relative">${cli}</span></td><td class="cobros-bar-importe">${fmtMoney(tot)}</td></tr>`;
+      }).join('')}</tbody>
     </table></div>
   </div>`:'';
   const filasHtml=[...pendientes].sort((a,b)=>(a.fecha||'').localeCompare(b.fecha||'')).map(f=>{
     const vencida=facturaVencida(f);
-    const bg=vencida?'#fee2e2':(f.avisado?'#fef3c7':'var(--surface)');
-    return `<tr>
-      <td style="background:${bg};border-left:4px solid ${vencida?'#dc2626':f.avisado?'#f59e0b':'transparent'}">
+    const filaClase=vencida?'cobros-row-vencida':(f.avisado?'cobros-row-avisada':'');
+    const estadoPill=vencida?`<span class="cobros-status-pill cobros-status-vencida">🔴 ${daysSince(f.fecha)} días</span>`
+      :f.avisado?`<span class="cobros-status-pill cobros-status-avisada">🟡 Avisado</span>`
+      :`<span class="cobros-status-pill cobros-status-plazo">🔵 En plazo</span>`;
+    return `<tr class="${filaClase}">
+      <td>
         <select class="metodo-pago-sel" data-id="${f.id}">
           <option value=""${!f.metodoPago?' selected':''}>— Sin especificar —</option>
           <option value="CONFIRMING"${f.metodoPago==='CONFIRMING'?' selected':''}>🏦 Confirming</option>
@@ -3362,7 +3397,7 @@ function renderCobrosPendientes(){
       <td data-action="ver-factura" data-param="${f.id}" style="cursor:pointer;font-weight:700">${f.cliente}</td>
       <td data-action="ver-factura" data-param="${f.id}" style="cursor:pointer;color:var(--muted)">${f.num}</td>
       <td data-action="ver-factura" data-param="${f.id}" style="cursor:pointer;white-space:nowrap">${fmtDate(f.fecha)}</td>
-      <td style="white-space:nowrap">${vencida?`<strong style="color:#991b1b">${daysSince(f.fecha)} días</strong>`:'—'}</td>
+      <td style="white-space:nowrap">${estadoPill}</td>
       <td style="text-align:right;font-family:'DM Mono',monospace;font-weight:700;color:var(--accent-blue);white-space:nowrap">${fmtMoney(f.total)}</td>
       <td style="white-space:nowrap">
         <button class="btn btn-primary btn-sm" data-action="toggle-cobrada" data-param="${f.id}" style="padding:3px 8px;font-size:11px">💰 Cobrada</button>
@@ -3371,7 +3406,7 @@ function renderCobrosPendientes(){
     </tr>`;
   }).join('');
   const tablaHtml=filasHtml?`<div class="card" style="padding:0"><div class="cobros-table-wrap"><table class="cobros-table">
-    <thead><tr><th>Avisado</th><th>Cliente</th><th>Nº Fac</th><th>Fecha</th><th>Días</th><th style="text-align:right">Importe</th><th></th></tr></thead>
+    <thead><tr><th>Avisado</th><th>Cliente</th><th>Nº Fac</th><th>Fecha</th><th>Estado</th><th style="text-align:right">Importe</th><th></th></tr></thead>
     <tbody>${filasHtml}</tbody>
   </table></div></div>`:'';
   sec.innerHTML=`
@@ -3380,10 +3415,10 @@ function renderCobrosPendientes(){
         <div class="section-title">Cobros pendientes</div>
         <button class="btn btn-secondary btn-sm" data-action="pdf-cobros-pendientes">📄 Crear PDF</button>
       </div>
-      <div style="display:flex;gap:12px;font-size:13px;color:var(--muted);flex-wrap:wrap;margin-bottom:10px">
-        <span>${pendientes.length} facturas sin cobrar</span>
-        <span style="color:#991b1b;font-weight:700">${numVencidas} vencidas (30+ días)</span>
-        <span style="margin-left:auto;color:var(--accent);font-weight:700;font-family:'DM Mono',monospace">${fmtMoney(totalPendiente)} pendiente</span>
+      <div class="cobros-stats">
+        <div class="cobros-stat"><div class="cobros-stat-num">${pendientes.length}</div><div class="cobros-stat-label">Sin cobrar</div></div>
+        <div class="cobros-stat vencidas"><div class="cobros-stat-num">${numVencidas}</div><div class="cobros-stat-label">🔴 Vencidas (30+ días)</div></div>
+        <div class="cobros-stat total"><div class="cobros-stat-num">${fmtMoney(totalPendiente)}</div><div class="cobros-stat-label">Total pendiente</div></div>
       </div>
       <input class="search-input" id="cobros-search" type="search" placeholder="Buscar cliente o número…" value="${cobrosQ}">
     </div>
