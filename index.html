@@ -1672,6 +1672,11 @@ function avisoMemGetAprox(nota){
 // haber tenido nunca un contenedor con ese nombre exacto. Prioriza coincidencias exactas de
 // nombre sobre las aproximadas (mismo cliente, otra ubicación tipo "SERVITRIA"/"SERVITRIA XXX"),
 // y entre varias, la más reciente.
+// NAVE GARVI y GRANJA TORRELLANO son ubicaciones propias de la empresa, no clientes reales.
+function esClienteInterno(nombre){
+  const n=normTextoHist(String(nombre||''));
+  return n==='nave garvi'||n==='granja torrellano';
+}
 function datosClientePorNombre(nombreEscrito,excluirContainerNum){
   // Usa normTextoHist (ya probado para fusionar duplicados del historial) en vez de un simple
   // trim+lowercase: dos nombres iguales a la vista pueden diferir en espacios dobles, un espacio
@@ -2440,6 +2445,13 @@ function openContainerModal(num){
   // elegir una sugerencia del datalist, algunos navegadores (sobre todo móviles) no disparan
   // 'input'.
   function autocompletarClienteCont(e){
+    // NAVE GARVI/GRANJA TORRELLANO: no es un cliente real, así que al ponerlo se vacían
+    // Dirección/Teléfono/A cuenta/Notas (pueden traer datos del cliente que hubiera antes en ese
+    // contenedor) — se deja intacto solo Tipo residuo y Fecha, que no dependen del cliente.
+    if(esClienteInterno(e.target.value)){
+      ['m-dir','m-tel','m-acuenta','m-notas'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+      return;
+    }
     const datos=datosClientePorNombre(e.target.value,c.num);
     if(!datos) return;
     if(datos.direccion){const el=document.getElementById('m-dir');if(el)el.value=datos.direccion;}
@@ -2636,6 +2648,11 @@ function editarRapidoForm(num,ocrInfo){
   // formulario distinto del de abrir un contenedor directamente desde el listado — hay que
   // tenerlo aquí también, no basta con tenerlo solo en el otro.
   function autocompletarClienteEr(e){
+    // NAVE GARVI/GRANJA TORRELLANO: ver autocompletarClienteCont en openContainerModal().
+    if(esClienteInterno(e.target.value)){
+      ['er-dir','er-tel','er-acuenta','er-notas'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+      return;
+    }
     const datos=datosClientePorNombre(e.target.value,c.num);
     if(!datos) return;
     if(datos.direccion){const el=document.getElementById('er-dir');if(el)el.value=datos.direccion;}
