@@ -3402,6 +3402,35 @@ function sincronizarDeudoresOctNube(){
     return Promise.all(escrituras).then(()=>{ localStorage.setItem('garvi_sync_deudores_oct_v1','1'); });
   }).catch(e=>{ console.error('Error comprobando deudores en la nube para la actualización de octubre:',e); return 0; });
 }
+// Ajuste manual del correlativo de proformas/facturas (p.ej. para que la numeración de la app
+// siga a partir de donde se quedó el Excel al pasar a usar esto como definitivo).
+function ajustarNumeracionModal(){
+  document.getElementById('modal-body').innerHTML=`
+    <div class="modal-header"><span class="modal-title">🔢 Numeración</span><button class="btn btn-secondary btn-sm" data-action="close-modal">✕</button></div>
+    <p style="font-size:12.5px;color:var(--muted);margin-bottom:12px">Pon el último número YA USADO (p.ej. en tu Excel) — la siguiente proforma o factura que crees en la app seguirá a partir de ahí.</p>
+    <div class="form-row cols2">
+      <div><label>Última proforma (P-)</label><input id="num-ultima-prof" type="number" min="0" value="${cfg.ultimaProf||0}"></div>
+      <div><label>Última factura (F-)</label><input id="num-ultima-fact" type="number" min="0" value="${cfg.ultimaFact||0}"></div>
+    </div>
+    <div id="num-preview" style="font-size:11.5px;color:var(--muted);margin:6px 0 14px">
+      Próxima proforma: <strong>P-${String((cfg.ultimaProf||0)+1).padStart(3,'0')}</strong> · Próxima factura: <strong>F-${String((cfg.ultimaFact||0)+1).padStart(3,'0')}</strong>
+    </div>
+    <button class="btn btn-primary btn-full" data-action="guardar-numeracion">Guardar</button>`;
+  document.getElementById('modal-overlay').classList.add('open');
+  const refrescar=()=>{
+    const prof=Number(document.getElementById('num-ultima-prof').value)||0;
+    const fact=Number(document.getElementById('num-ultima-fact').value)||0;
+    const el=document.getElementById('num-preview');
+    if(el) el.innerHTML=`Próxima proforma: <strong>P-${String(prof+1).padStart(3,'0')}</strong> · Próxima factura: <strong>F-${String(fact+1).padStart(3,'0')}</strong>`;
+  };
+  document.getElementById('num-ultima-prof').addEventListener('input',refrescar);
+  document.getElementById('num-ultima-fact').addEventListener('input',refrescar);
+}
+function guardarNumeracion(){
+  cfg.ultimaProf=Number(document.getElementById('num-ultima-prof').value)||0;
+  cfg.ultimaFact=Number(document.getElementById('num-ultima-fact').value)||0;
+  saveCfg(); syncCfg(); closeModal(); toastMsg('Numeración actualizada ✓');
+}
 function renderFacturas(){
   const sec=document.getElementById('sec-facturas');
   const profList=facturas.filter(f=>f.tipo==='proforma');
@@ -3438,6 +3467,7 @@ function renderFacturas(){
         <div class="section-title">Facturación</div>
         <div style="display:flex;gap:6px">
           <button class="btn btn-secondary btn-sm" data-action="pdf-facturas">📄 Crear PDF</button>
+          <button class="btn btn-secondary btn-sm" data-action="ajustar-numeracion" title="Ver/cambiar el próximo número de proforma y factura">🔢</button>
           <button class="btn btn-primary btn-sm" data-action="nueva-factura">+ Nueva</button>
         </div>
       </div>
@@ -4794,6 +4824,8 @@ document.addEventListener('click',e=>{
   else if(action==='pdf-clientes') pdfClientes();
   else if(action==='pdf-tareas') pdfTareas();
   else if(action==='nueva-factura') nuevaFacturaModal();
+  else if(action==='ajustar-numeracion') ajustarNumeracionModal();
+  else if(action==='guardar-numeracion') guardarNumeracion();
   else if(action==='ver-factura') nuevaFacturaModal(param);
   else if(action==='hacer-factura') hacerFactura(param);
   else if(action==='del-factura'){if(confirm('¿Eliminar?')){facturas=facturas.filter(f=>f.id!==param);saveFacturas();syncFacturasCol.borrar(param);renderFacturas();updateBadge();toastMsg('Eliminado');}}
