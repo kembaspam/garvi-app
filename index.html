@@ -1060,6 +1060,7 @@ function migrarYSuscribirTodo(){
     syncCertificadosCol.migrarLocales(certificados).then(n=>n&&total.push(n+' certificado(s)')),
     migrarCfg(),
     migrarClientesExtra(),
+    aplicarClienteFiscalLote1Nube(),
   ])).then(()=>{
     if(total.length) toastMsg('Subido a la nube: '+total.join(', ')+' ✓',4000);
     suscribirCfgYClientesExtra();
@@ -1139,6 +1140,7 @@ function loadData(){
   facturas=JSON.parse(localStorage.getItem('garvi_facturas')||'[]');
   if(importarDeudoresLocal()) saveFacturas();
   if(sincronizarDeudoresOctLocal()) saveFacturas();
+  aplicarClienteFiscalLote1Local();
   cfg=JSON.parse(localStorage.getItem('garvi_cfg')||'{"apiKey":"","ultimaFact":0,"ultimaProf":0}');
   certificados=JSON.parse(localStorage.getItem('garvi_certificados')||'[]');
   avisos=JSON.parse(localStorage.getItem('garvi_avisos')||'[]');
@@ -3401,6 +3403,117 @@ function sincronizarDeudoresOctNube(){
     });
     return Promise.all(escrituras).then(()=>{ localStorage.setItem('garvi_sync_deudores_oct_v1','1'); });
   }).catch(e=>{ console.error('Error comprobando deudores en la nube para la actualización de octubre:',e); return 0; });
+}
+// ─── DATOS FISCALES Y CONCEPTOS DE CLIENTES, extraídos a mano de facturas en PDF (lote 1) ──
+// El nombre de cada cliente es el mismo que ya se usa en contenedores/facturas de la app (p.ej.
+// "SERVITRIA", "CYTEM", "CUPOLA", "ESCLAPES"...), NO el nombre fiscal largo que a veces aparece
+// en la factura en PDF — si al facturar se usa normalmente el nombre largo en vez del corto,
+// dímelo y se guarda también con esa clave.
+const CLIENTES_FISCAL_LOTE1=[
+  {nombre:'DESCON INSONORIZACION Y CONSTRUCCION, S.L',cif:'B54584081',dirFacturacion:'CALLE LOS TRANSPORTES 14. 03008 ALICANTE',conceptos:[
+    {desc:'Cont. 5m³ Esc. Selec.',precio:160,iva:10},
+    {desc:'Cont. 5m³ Esc. No Selec.',precio:230,iva:10},
+    {desc:'Cont. 5m³ Varios',precio:250,iva:10},
+    {desc:'Cont. 5m³ Madera',precio:220,iva:10},
+    {desc:'Cont. 5m³ Poda',precio:220,iva:10},
+  ]},
+  {nombre:'NEW ON CT',cif:'B02603306',dirFacturacion:'C/ El Molino, 35 - Caudete - Albacete',conceptos:[
+    {desc:'Cont. 5m³ Esc. Selec.',precio:190,iva:10},
+    {desc:'Cont. 5m³ Esc. No Selec.',precio:240,iva:10},
+  ]},
+  {nombre:'UTE CSPA',cif:'U70789508',dirFacturacion:'Ronda Auguste i Louis Lumiere, nº0 Portal 24 Parque Tecnológico 46980 Paterna (Valencia)',conceptos:[
+    {desc:'Cont. 5m³ Esc. Selec.',precio:140,iva:10},
+    {desc:'Cont. 5m³ Esc. No Selec.',precio:230,iva:10},
+    {desc:'Cont. 5m³ Basura',precio:250,iva:10},
+    {desc:'Cont. 5m³ Madera',precio:220,iva:10},
+    {desc:'Cont. 5m³ Plástico',precio:220,iva:10},
+    {desc:'Cont. 5m³ Fibra',precio:250,iva:10},
+  ]},
+  {nombre:'CARSAN',cif:'B30764807',dirFacturacion:'Calle la Paz 37 30366 el Algar Cartagena',conceptos:[
+    {desc:'Cont. 5m³ Esc. No Selec.',precio:230,iva:10},
+  ]},
+  {nombre:'SERVITRIA',cif:'A96367248',dirFacturacion:'C/. Jesus, 81 Entlo 46007 Valencia',conceptos:[
+    {desc:'Cont. 5m³ Selecc.',precio:180,iva:10},
+    {desc:'Cont. 5m³ Varios',precio:250,iva:10},
+  ]},
+  {nombre:'CIUDAD DE LA JUSTICIA DE ALICANTE - UTE',cif:'ESU72769425',dirFacturacion:'Ribera del Loira 42, 28042, MADRID',conceptos:[
+    {desc:'Cont. 5m³ Selec.',precio:150,iva:10},
+    {desc:'Cont. 5m³ No Selec.',precio:210,iva:10},
+    {desc:'Cont. 5m³ Varios',precio:230,iva:10},
+  ]},
+  {nombre:'CUPOLA',cif:'B54995675',dirFacturacion:'Avenida Saturno 1 03007 ALICANTE',conceptos:[
+    {desc:'Cont. 5m³ Esc. Selec.',precio:160,iva:10},
+    {desc:'Cont. 5m³ Esc. No Selec.',precio:230,iva:10},
+    {desc:'Cont. 5m³ Varios',precio:250,iva:10},
+    {desc:'Cont. 5m³ Madera',precio:170,iva:10},
+  ]},
+  {nombre:'AKRA',cif:'B53967188',dirFacturacion:'Prolongación Rosa de los Vientos, 2 03007',conceptos:[
+    {desc:'Cont. 5m³ Esc. Selec.',precio:150,iva:10},
+    {desc:'Cont. 5m³ Esc. No Selec.',precio:230,iva:10},
+    {desc:'Cont. 5m³ Varios',precio:250,iva:10},
+    {desc:'Cont. 5m³ Madera',precio:170,iva:10},
+    {desc:'Cont. 5m³ Poda',precio:170,iva:10},
+  ]},
+  {nombre:'NOVALIGEPRO',cif:'B54720594',dirFacturacion:'AV. FEDERICO SOTO 20-2º PLANTA (03001 ALICANTE)',conceptos:[
+    {desc:'Cont. 5m³ Esc. Selec.',precio:140,iva:10},
+    {desc:'Cont. 5m³ Esc. No Selec.',precio:230,iva:10},
+    {desc:'Cont. 5m³ Varios',precio:250,iva:10},
+    {desc:'Cont. 5m³ Madera',precio:170,iva:10},
+    {desc:'Cont. 5m³ Poda',precio:170,iva:10},
+  ]},
+  {nombre:'SEKMAG',cif:'B54657242',dirFacturacion:'CALLE ROSA DE LOS VIENTOS 62, 03007 ALICANTE',conceptos:[
+    {desc:'Cont. 5m³ Esc. Selec.',precio:140,iva:10},
+    {desc:'Cont. 5m³ Esc. No Selec.',precio:230,iva:10},
+    {desc:'Cont. 5m³ Varios',precio:250,iva:10},
+    {desc:'Cont. 5m³ Madera',precio:220,iva:10},
+    {desc:'Cont. 5m³ Poda',precio:220,iva:10},
+  ]},
+  {nombre:'ESCLAPES',cif:'B03891983',dirFacturacion:'Avenida alcalde Lorenzo Carbonell, 61 03008 Alicante',conceptos:[
+    {desc:'Cont. 5m³ Esc. Selec.',precio:160,iva:10},
+    {desc:'Cont. 5m³ Esc. No Selec.',precio:230,iva:10},
+    {desc:'Cont. 5m³ Varios',precio:250,iva:10},
+    {desc:'Cont. 5m³ Madera',precio:220,iva:10},
+    {desc:'Cont. 5m³ Poda',precio:220,iva:10},
+  ]},
+  {nombre:'CYTEM',cif:'B98447063',dirFacturacion:'CALLE PEDRAPIQUERS, S/N POL.EL OLIVERAL FASE II 46190 RIBA-ROJA DE TURIA - (VALENCIA)',conceptos:[
+    {desc:'Cont. 5m³ Esc. Selec.',precio:150,iva:10},
+    {desc:'Cont. 5m³ Esc. No Selec.',precio:230,iva:10},
+    {desc:'Cont. 5m³ Basura',precio:250,iva:10},
+    {desc:'Cont. 5m³ Madera',precio:220,iva:10},
+    {desc:'Cont. 5m³ Poda',precio:220,iva:10},
+  ]},
+];
+// Solo rellena lo que esté vacío — nunca pisa un dato que el usuario ya hubiera puesto a mano
+// (NIF, dirección o conceptos) desde la ficha del cliente.
+function mezclaClienteFiscal(actual,c){
+  const data={};
+  if(!actual.dirFacturacion&&c.dirFacturacion) data.dirFacturacion=c.dirFacturacion;
+  if(!actual.cif&&c.cif) data.cif=c.cif;
+  if(!(actual.conceptos&&actual.conceptos.length)&&c.conceptos) data.conceptos=c.conceptos;
+  return data;
+}
+function aplicarClienteFiscalLote1Local(){
+  if(localStorage.getItem('garvi_cliente_fiscal_lote1_v1')) return;
+  const m=JSON.parse(localStorage.getItem('garvi_clientes_extra')||'{}');
+  CLIENTES_FISCAL_LOTE1.forEach(c=>{
+    const data=mezclaClienteFiscal(m[c.nombre]||{},c);
+    if(Object.keys(data).length) m[c.nombre]={...(m[c.nombre]||{}),...data};
+  });
+  localStorage.setItem('garvi_clientes_extra',JSON.stringify(m));
+  localStorage.setItem('garvi_cliente_fiscal_lote1_v1','1');
+}
+function aplicarClienteFiscalLote1Nube(){
+  if(!fbDb||!fbReady) return Promise.resolve();
+  if(localStorage.getItem('garvi_cliente_fiscal_lote1_nube_v1')) return Promise.resolve();
+  return fbDb.collection('config').doc('clientes_extra').get().then(doc=>{
+    const m=doc.exists?doc.data():{};
+    CLIENTES_FISCAL_LOTE1.forEach(c=>{
+      const data=mezclaClienteFiscal(m[c.nombre]||{},c);
+      if(Object.keys(data).length) m[c.nombre]={...(m[c.nombre]||{}),...data};
+    });
+    return fbDb.collection('config').doc('clientes_extra').set(m);
+  }).then(()=>localStorage.setItem('garvi_cliente_fiscal_lote1_nube_v1','1'))
+  .catch(e=>{ console.error('Error aplicando datos fiscales de clientes en la nube:',e); });
 }
 // Ajuste manual del correlativo de proformas/facturas (p.ej. para que la numeración de la app
 // siga a partir de donde se quedó el Excel al pasar a usar esto como definitivo).
