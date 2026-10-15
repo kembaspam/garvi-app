@@ -4499,9 +4499,18 @@ span[id]{display:inline}
 // ─── CERTIFICADOS ─────────────────────────────────────────────────
 const MESES_ES=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
 const CERT_TIPOS={
-  escombros:{label:'Escombros',residuo:'Mezclas de hormigón, ladrillos, tejas y materiales cerámicos, distintas de las especificadas en el código 170106',ler:'170107',destino:'SABOSPA S.L.'},
-  plastico:{label:'Plástico',residuo:'PLASTICO',ler:'200139',destino:'RECICLAJES VICTORTOLEDO S.L.'},
+  escombros:{label:'Escombros',residuo:'Mezclas de hormigón, ladrillos, tejas y materiales cerámicos, distintas de las especificadas en el código 170106',ler:'170107',destino:'SABOSPA S.L.',certifNombre:'escombro'},
+  plastico:{label:'Plástico',residuo:'PLASTICO',ler:'200139',destino:'RECICLAJES VICTORTOLEDO S.L.',certifNombre:'plásticos'},
 };
+// Párrafo "CERTIFICA" fijo del certificado, igual para los dos tipos salvo la última palabra
+// (el tipo de residuo del que trata). Se usa tanto en la vista previa como en el PDF.
+function textoCertifica(tipo){
+  const ct=CERT_TIPOS[tipo]||CERT_TIPOS.escombros;
+  return {
+    intro:'Dª. JOSE ANTONIO GARCIA SEBASTIAN, CON D.N.I. 21473318N, en representación de GARVI RECYCLING SYSTEMS S.L.U., con domicilio en Ptda.Torrellano alto P1, Nº76 C.P.03320 Elche (Alicante), como transportista de residuos no peligrosos (3596/T08/CV), con nº Autorización: 664/T/RNP/CV y NIMA: 0300014535',
+    cuerpo:`Que GARVI RECYCLING SYSTEMS S.L.U. ha realizado el transporte de los residuos generados durante la ejecución de la obra abajo indicada, en las fechas y cantidades que se detallan, emitiéndose el correspondiente certificado de gestión de residuos de ${ct.certifNombre}:`,
+  };
+}
 let certForm={tipo:'escombros',periodo:'',productor:'',obra:'',toneladas:'',fecha:todayISO()};
 let editCertId=null;
 let certQ='';
@@ -4525,9 +4534,9 @@ function buildCertPreview(){
       </div>
       <div class="doc-title-right"><h3>CERTIFICADO DE GESTIÓN DE RESIDUOS</h3></div>
     </div>
-    <div class="doc-meta-line"><strong>Nº AUTORIZACIÓN:</strong> 664/T/RNP/CV</div>
-    <div class="doc-meta-line">3596/T08/CV – Transporte de residuos</div>
-    <div class="doc-meta-line"><strong>Cod. E3L (NIMA):</strong> 0300014535</div>
+    <p style="margin:10px 0;font-size:11.5px;line-height:1.5;color:#222;text-align:justify" id="cert-meta-intro">${textoCertifica(f.tipo).intro}</p>
+    <p style="margin:8px 0;font-size:12px;font-weight:800;color:#1a2a6c">CERTIFICA:</p>
+    <p style="margin:8px 0 14px;font-size:11.5px;line-height:1.5;color:#222;text-align:justify" id="cert-meta-cuerpo">${textoCertifica(f.tipo).cuerpo}</p>
     <hr class="divider" style="margin:10px 0">
     <div class="doc-meta-line"><strong>PERIODO:</strong> <span id="cert-meta-periodo">${f.periodo||'________________'}</span></div>
     <div class="doc-meta-line"><strong>PRODUCTOR:</strong> <span id="cert-meta-productor">${f.productor||'________________'}</span></div>
@@ -4663,10 +4672,16 @@ function pdfCertificado(idOrNull){
   let cy=50;
   doc.setTextColor(15,32,68); doc.setFontSize(18); doc.setFont('helvetica','bold');
   doc.text('CERTIFICADO DE GESTIÓN DE RESIDUOS',14,cy); cy+=14;
-  doc.setFont('helvetica','normal'); doc.setFontSize(10.5); doc.setTextColor(30,30,30);
-  doc.text('Nº AUTORIZACIÓN:  664/T/RNP/CV',14,cy); cy+=8;
-  doc.text('3596/T08/CV – Transporte de residuos',14,cy); cy+=8;
-  doc.text('Cod. E3L (NIMA): 0300014535',14,cy); cy+=12;
+  const certTxt=textoCertifica(c.tipo);
+  doc.setFont('helvetica','normal'); doc.setFontSize(9.5); doc.setTextColor(30,30,30);
+  doc.splitTextToSize(certTxt.intro,182).forEach(l=>{doc.text(l,14,cy);cy+=5;});
+  cy+=4;
+  doc.setFont('helvetica','bold'); doc.setFontSize(10.5); doc.setTextColor(15,32,68);
+  doc.text('CERTIFICA:',14,cy); cy+=7;
+  doc.setFont('helvetica','normal'); doc.setFontSize(9.5); doc.setTextColor(30,30,30);
+  doc.splitTextToSize(certTxt.cuerpo,182).forEach(l=>{doc.text(l,14,cy);cy+=5;});
+  cy+=8;
+  doc.setFontSize(10.5);
   doc.text(`PERIODO: ${c.periodo||''}`,14,cy); cy+=8;
   doc.text(`PRODUCTOR: ${c.productor||''}`,14,cy); cy+=8;
   doc.text(`OBRA: ${c.obra||''}`,14,cy); cy+=14;
