@@ -4141,7 +4141,7 @@ function _doPdfFactura(f){
   // Totales
   doc.setFontSize(9); doc.setFont('helvetica','normal'); doc.setTextColor(74,96,128);
   doc.text('Base imponible:',128,cy); doc.setTextColor(15,32,68); doc.text(fmtMoney(f.base),196,cy,{align:'right'}); cy+=6;
-  doc.setTextColor(74,96,128); doc.text('IVA (21%):',128,cy); doc.setTextColor(15,32,68); doc.text(fmtMoney(f.iva),196,cy,{align:'right'}); cy+=2;
+  doc.setTextColor(74,96,128); doc.text('IVA:',128,cy); doc.setTextColor(15,32,68); doc.text(fmtMoney(f.iva),196,cy,{align:'right'}); cy+=2;
   doc.setDrawColor(200,212,227); doc.line(128,cy,196,cy); cy+=6;
   doc.setTextColor(15,32,68); doc.setFontSize(13); doc.setFont('helvetica','bold');
   doc.text('TOTAL:',128,cy); doc.text(fmtMoney(f.total),196,cy,{align:'right'}); cy+=12;
