@@ -568,8 +568,8 @@ label{
    tener min-width:0 se dejaba encoger hasta casi 0 px, partiendo cada palabra letra a letra).
    Con un ancho máximo, las unidades de más pasan a una fila nueva (crece hacia abajo) y el texto
    siempre tiene sitio de verdad. */
-.agenda-unidades{display:flex;gap:4px;flex-wrap:wrap;margin-top:2px;max-width:120px}
-.agenda-unidad{width:22px;height:22px;border-radius:50%;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:10.5px;font-weight:800;color:var(--text2);cursor:pointer;flex-shrink:0;background:var(--surface)}
+.agenda-unidades{display:flex;gap:4px;flex-wrap:wrap;margin-top:2px;max-width:52px}
+.agenda-unidad{width:24px;height:24px;border-radius:50%;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:9.5px;font-weight:800;color:var(--text2);cursor:pointer;flex-shrink:0;background:var(--surface)}
 .agenda-unidad:hover{border-color:var(--accent);color:var(--accent)}
 .agenda-unidad.done{background:var(--success);border-color:var(--success);color:#fff}
 .sync-status{font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px}
@@ -1445,6 +1445,9 @@ const AVISO_CFG={
   renovacion:{label:'Renovación Permiso',color:'#0891b2'},
   tarea:{label:'Tarea',color:'#16a34a'},
 };
+// Letra corta para los círculos de "unidad pendiente" de un aviso (ver renderAvisoCard) — en vez
+// de un número, así se ve de un vistazo de qué tipo es cada una.
+const AVISO_LETRA={llevada:'LL',cambio:'C',carga_rapida:'CR',retirada:'R',permiso:'P',renovacion:'REN',tarea:'T'};
 const AVISO_INFO_DEFECTO='Confirmar Dirección, Indicar tipo de Residuo y Limite de hasta donde se puede Cargar el contenedor';
 function renderInicio(){
   const sec=document.getElementById('sec-inicio');
@@ -1527,13 +1530,21 @@ function renderAvisoCard(a){
   const total=a.cantidad||1;
   const completados=a.completados||[];
   const hechos=completados.length;
+  const letra=AVISO_LETRA[a.tipo]||(cfg.label||'?')[0].toUpperCase();
   const ticksHtml=total>1
     ? `<div class="agenda-unidades">${Array.from({length:total},(_,i)=>
         i<hechos
           ? `<span class="agenda-unidad done" data-action="deshacer-unidad-idx" data-param="${a.id}" data-idx="${i}" title="Completado ${fmtHora(completados[i])} · clic para deshacer">✓</span>`
-          : `<span class="agenda-unidad" data-action="completar-unidad" data-param="${a.id}" title="Marcar este cambio como hecho">${i+1}</span>`
+          : `<span class="agenda-unidad" style="color:${cfg.color};border-color:${cfg.color}" data-action="completar-unidad" data-param="${a.id}" title="Marcar este ${cfg.label.toLowerCase()} como hecho">${letra}</span>`
       ).join('')}</div>`
     : `<div class="tarea-check${hechos>0?' done':''}" data-action="${hechos>0?'deshacer-unidad-idx':'completar-unidad'}" data-param="${a.id}" data-idx="0" title="Marcar completado">${hechos>0?'✓':''}</div>`;
+  // Añadir rápido, para el mismo cliente, una unidad más de Llevada/Cambio/Retirada: si ya existe
+  // hoy un aviso de ese tipo para este mismo cliente, suma una unidad más ahí; si no, crea uno
+  // nuevo reutilizando los datos de contacto que ya se tienen (sin volver a escribirlos).
+  const botonesAnadir=['llevada','cambio','retirada'].map(t=>{
+    const c=AVISO_CFG[t];
+    return `<button class="btn btn-secondary btn-sm" style="padding:2px 9px;font-size:11px;border-color:${c.color};color:${c.color}" data-action="add-unidad-cliente" data-param="${a.id}" data-tipo="${t}" title="Añadir ${c.label.toLowerCase()} para ${a.nota||'este cliente'}">+${AVISO_LETRA[t]}</button>`;
+  }).join('');
   return `<div class="agenda-item" style="border-left-color:${cfg.color}">
       ${ticksHtml}
       <div class="agenda-body">
@@ -1544,13 +1555,31 @@ function renderAvisoCard(a){
         <div class="agenda-meta">${rango}${a.telefono?' · 📞 '+a.telefono:''}${a.pago?' · 💰 '+a.pago:''}</div>
         ${a.direccion?`<div class="agenda-meta">📍 ${a.direccion} <a class="agenda-copy-link" href="${mapsLinkFor(a.direccion)}" target="_blank" rel="noopener">abrir en Maps</a></div>`:''}
         ${a.infoAdicional?`<div class="agenda-meta">ℹ️ ${a.infoAdicional}</div>`:''}
-        <div style="display:flex;gap:6px;margin-top:6px">
+        <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">
           <button class="btn btn-secondary btn-sm" style="padding:2px 9px;font-size:11px" data-action="copy-aviso" data-param="${a.id}">📋 Copiar aviso</button>
           <button class="btn btn-secondary btn-sm" style="padding:2px 9px;font-size:11px" data-action="editar-aviso" data-param="${a.id}">✏️ Editar</button>
+          ${botonesAnadir}
         </div>
       </div>
       <button class="btn btn-danger btn-sm btn-icon" data-action="del-aviso" data-param="${a.id}">🗑</button>
     </div>`;
+}
+// Añade una unidad de Llevada/Cambio/Retirada para el mismo cliente del aviso 'aId' (ver
+// botonesAnadir en renderAvisoCard): si ese cliente ya tiene hoy un aviso de ese tipo, suma una
+// unidad más ahí (como pulsar "+1"); si no, crea uno nuevo con sus mismos datos de contacto, sin
+// tener que volver a escribirlos.
+function agregarUnidadParaCliente(aId,tipo){
+  const base=avisos.find(x=>x.id===aId); if(!base) return;
+  const notaN=normTextoHist(base.nota||'');
+  let destino=avisos.find(x=>x.tipo===tipo&&x.fecha===base.fecha&&normTextoHist(x.nota||'')===notaN);
+  if(destino){
+    destino.cantidad=(destino.cantidad||1)+1;
+  } else {
+    destino={id:Date.now().toString(),tipo,fecha:base.fecha,cantidad:1,completados:[],nota:base.nota||'',direccion:base.direccion||'',telefono:base.telefono||'',pago:base.pago||'',infoAdicional:'',creada:new Date().toISOString()};
+    avisos.push(destino);
+  }
+  saveAvisos(); syncAviso(destino); renderAgenda(); renderCalendar();
+  toastMsg((AVISO_CFG[tipo]||{}).label+' añadido para '+(base.nota||'este cliente')+' ✓');
 }
 function renderUnidadCompletada(entry){
   const {a,idx,ts,total}=entry;
@@ -5132,6 +5161,7 @@ document.addEventListener('click',e=>{
     const a=avisos.find(x=>x.id===param);
     if(a&&Array.isArray(a.completados)){ a.completados.splice(+idx,1); saveAvisos(); syncAviso(a); renderAgenda(); renderCalendar(); }
   }
+  else if(action==='add-unidad-cliente') agregarUnidadParaCliente(param,btn.dataset.tipo);
   else if(action==='copy-aviso') iniciarCopiaAviso(param);
   else if(action==='confirmar-copia-aviso') confirmarCopiaAviso(param);
   else if(action==='guardar-certificado') guardarCertificado();
