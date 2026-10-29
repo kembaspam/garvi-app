@@ -563,7 +563,12 @@ label{
 .agenda-tipo-pill{display:inline-block;padding:2px 9px;border-radius:20px;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px}
 .agenda-cantidad{font-size:11px;font-weight:800;color:#fff;background:var(--accent-blue);border-radius:20px;padding:1px 7px;margin-left:5px}
 .agenda-section-title{font-size:11px;font-weight:800;color:var(--success);text-transform:uppercase;letter-spacing:.05em;margin:14px 0 6px;padding-top:10px;border-top:1px dashed var(--border)}
-.agenda-unidades{display:flex;gap:4px;flex-wrap:wrap;margin-top:2px}
+/* max-width fijo: con muchas unidades (muchos servicios del mismo aviso en un día) esto debía
+   crecer en ANCHO antes de envolver línea, robándole casi todo el sitio a .agenda-body (que al
+   tener min-width:0 se dejaba encoger hasta casi 0 px, partiendo cada palabra letra a letra).
+   Con un ancho máximo, las unidades de más pasan a una fila nueva (crece hacia abajo) y el texto
+   siempre tiene sitio de verdad. */
+.agenda-unidades{display:flex;gap:4px;flex-wrap:wrap;margin-top:2px;max-width:120px}
 .agenda-unidad{width:22px;height:22px;border-radius:50%;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:10.5px;font-weight:800;color:var(--text2);cursor:pointer;flex-shrink:0;background:var(--surface)}
 .agenda-unidad:hover{border-color:var(--accent);color:var(--accent)}
 .agenda-unidad.done{background:var(--success);border-color:var(--success);color:#fff}
