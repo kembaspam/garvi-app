@@ -1508,7 +1508,7 @@ function renderCalendar(){
     // Solo se resalta el día en que EMPIEZA o TERMINA (se retira) el permiso, no los días intermedios
     if(avisos.some(a=>(a.tipo==='permiso'||a.tipo==='renovacion')&&(a.fecha===iso||(a.fechaFin&&a.fechaFin===iso)))) cls.push('permiso-activo');
     if(dayAvisos.length){
-      const pendientesDia=dayAvisos.filter(a=>(a.completados||[]).length<(a.cantidad||1));
+      const pendientesDia=dayAvisos.filter(avisoPendiente);
       if(pendientesDia.length===0) cls.push('dia-completo');
       else if(iso<hoy) cls.push('dia-pendiente');
     } else if(iso<hoy){
@@ -1524,6 +1524,13 @@ function renderCalendar(){
   wrap.innerHTML=html;
 }
 function fmtHora(iso){return iso?new Date(iso).toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'}):'';}
+// ¿Le queda a este aviso algo sin marcar como hecho? Cuenta tanto sus unidades "propias"
+// (completados/cantidad) como las unidades de OTRO tipo añadidas con agregarUnidadParaCliente
+// (a.extra) — ver más abajo. Se usa para decidir si sigue en "pendientes" o pasa a "completados".
+function avisoPendiente(a){
+  if((a.completados||[]).length<(a.cantidad||1)) return true;
+  return (a.extra||[]).some(e=>!e.completadoEn);
+}
 function renderAvisoCard(a){
   const cfg=AVISO_CFG[a.tipo]||{label:a.tipo,color:'#999'};
   const rango=a.fechaFin&&a.fechaFin!==a.fecha?`${fmtDate(a.fecha)} → ${fmtDate(a.fechaFin)}`:fmtDate(a.fecha);
@@ -1531,25 +1538,39 @@ function renderAvisoCard(a){
   const completados=a.completados||[];
   const hechos=completados.length;
   const letra=AVISO_LETRA[a.tipo]||(cfg.label||'?')[0].toUpperCase();
-  const ticksHtml=total>1
-    ? `<div class="agenda-unidades">${Array.from({length:total},(_,i)=>
-        i<hechos
-          ? `<span class="agenda-unidad done" data-action="deshacer-unidad-idx" data-param="${a.id}" data-idx="${i}" title="Completado ${fmtHora(completados[i])} · clic para deshacer">✓</span>`
-          : `<span class="agenda-unidad" style="color:${cfg.color};border-color:${cfg.color}" data-action="completar-unidad" data-param="${a.id}" title="Marcar este ${cfg.label.toLowerCase()} como hecho">${letra}</span>`
-      ).join('')}</div>`
+  // Unidades "propias" del aviso (su tipo original) + unidades de OTRO tipo añadidas desde los
+  // botones +LL/+C/+R (a.extra) — ambas se pintan juntas, cada una con el color/letra de SU
+  // propio tipo, en vez de crear una tarjeta nueva por cada tipo distinto para el mismo cliente.
+  const extra=Array.isArray(a.extra)?a.extra:[];
+  const totalTodo=total+extra.length;
+  const hechosTodo=hechos+extra.filter(e=>e.completadoEn).length;
+  const circulosPropios=Array.from({length:total},(_,i)=>
+    i<hechos
+      ? `<span class="agenda-unidad done" data-action="deshacer-unidad-idx" data-param="${a.id}" data-idx="${i}" title="Completado ${fmtHora(completados[i])} · clic para deshacer">✓</span>`
+      : `<span class="agenda-unidad" style="color:${cfg.color};border-color:${cfg.color}" data-action="completar-unidad" data-param="${a.id}" title="Marcar este ${cfg.label.toLowerCase()} como hecho">${letra}</span>`
+  ).join('');
+  const circulosExtra=extra.map((e,i)=>{
+    const ecfg=AVISO_CFG[e.tipo]||{label:e.tipo,color:'#999'};
+    const eletra=AVISO_LETRA[e.tipo]||(ecfg.label||'?')[0].toUpperCase();
+    return e.completadoEn
+      ? `<span class="agenda-unidad done" data-action="deshacer-extra" data-param="${a.id}" data-idx="${i}" title="Completado ${fmtHora(e.completadoEn)} · clic para deshacer">✓</span>`
+      : `<span class="agenda-unidad" style="color:${ecfg.color};border-color:${ecfg.color}" data-action="completar-extra" data-param="${a.id}" data-idx="${i}" title="Marcar este ${ecfg.label.toLowerCase()} como hecho">${eletra}</span>`;
+  }).join('');
+  const ticksHtml=totalTodo>1
+    ? `<div class="agenda-unidades">${circulosPropios}${circulosExtra}</div>`
     : `<div class="tarea-check${hechos>0?' done':''}" data-action="${hechos>0?'deshacer-unidad-idx':'completar-unidad'}" data-param="${a.id}" data-idx="0" title="Marcar completado">${hechos>0?'✓':''}</div>`;
-  // Añadir rápido, para el mismo cliente, una unidad más de Llevada/Cambio/Retirada: si ya existe
-  // hoy un aviso de ese tipo para este mismo cliente, suma una unidad más ahí; si no, crea uno
-  // nuevo reutilizando los datos de contacto que ya se tienen (sin volver a escribirlos).
+  // Añadir rápido, para este mismo aviso/cliente, una unidad más de Llevada/Cambio/Retirada: si
+  // coincide con el tipo propio del aviso, suma una unidad ahí (+1); si es de OTRO tipo, se añade
+  // como unidad "extra" dentro de esta MISMA tarjeta (no crea un aviso ni una tarjeta nueva).
   const botonesAnadir=['llevada','cambio','retirada'].map(t=>{
     const c=AVISO_CFG[t];
-    return `<button class="btn btn-secondary btn-sm" style="padding:2px 9px;font-size:11px;border-color:${c.color};color:${c.color}" data-action="add-unidad-cliente" data-param="${a.id}" data-tipo="${t}" title="Añadir ${c.label.toLowerCase()} para ${a.nota||'este cliente'}">+${AVISO_LETRA[t]}</button>`;
+    return `<button class="btn btn-secondary btn-sm" style="padding:2px 9px;font-size:11px;border-color:${c.color};color:${c.color}" data-action="add-unidad-cliente" data-param="${a.id}" data-tipo="${t}" title="Añadir ${c.label.toLowerCase()} a este aviso">+${AVISO_LETRA[t]}</button>`;
   }).join('');
   return `<div class="agenda-item" style="border-left-color:${cfg.color}">
       ${ticksHtml}
       <div class="agenda-body">
         <span class="agenda-tipo-pill" style="background:${cfg.color}22;color:${cfg.color}">${cfg.label}</span>
-        ${total>1?`<span class="agenda-cantidad">${hechos}/${total} hechos</span>`:''}
+        ${totalTodo>1?`<span class="agenda-cantidad">${hechosTodo}/${totalTodo} hechos</span>`:''}
         ${a.hora?`<span class="agenda-hora">🕐 ${a.hora}</span>`:''}
         <div class="agenda-nota">${a.nota||''}</div>
         <div class="agenda-meta">${rango}${a.telefono?' · 📞 '+a.telefono:''}${a.pago?' · 💰 '+a.pago:''}</div>
@@ -1564,22 +1585,20 @@ function renderAvisoCard(a){
       <button class="btn btn-danger btn-sm btn-icon" data-action="del-aviso" data-param="${a.id}">🗑</button>
     </div>`;
 }
-// Añade una unidad de Llevada/Cambio/Retirada para el mismo cliente del aviso 'aId' (ver
-// botonesAnadir en renderAvisoCard): si ese cliente ya tiene hoy un aviso de ese tipo, suma una
-// unidad más ahí (como pulsar "+1"); si no, crea uno nuevo con sus mismos datos de contacto, sin
-// tener que volver a escribirlos.
+// Añade una unidad de Llevada/Cambio/Retirada al MISMO aviso 'aId' (ver botonesAnadir en
+// renderAvisoCard): si el tipo coincide con el propio del aviso, suma +1 a su cantidad; si es de
+// otro tipo, se guarda en a.extra (unidades de otro tipo dentro de esta misma tarjeta) en vez de
+// crear un aviso/tarjeta aparte para el mismo cliente.
 function agregarUnidadParaCliente(aId,tipo){
-  const base=avisos.find(x=>x.id===aId); if(!base) return;
-  const notaN=normTextoHist(base.nota||'');
-  let destino=avisos.find(x=>x.tipo===tipo&&x.fecha===base.fecha&&normTextoHist(x.nota||'')===notaN);
-  if(destino){
-    destino.cantidad=(destino.cantidad||1)+1;
+  const a=avisos.find(x=>x.id===aId); if(!a) return;
+  if(tipo===a.tipo){
+    a.cantidad=(a.cantidad||1)+1;
   } else {
-    destino={id:Date.now().toString(),tipo,fecha:base.fecha,cantidad:1,completados:[],nota:base.nota||'',direccion:base.direccion||'',telefono:base.telefono||'',pago:base.pago||'',infoAdicional:'',creada:new Date().toISOString()};
-    avisos.push(destino);
+    if(!Array.isArray(a.extra)) a.extra=[];
+    a.extra.push({tipo,completadoEn:null});
   }
-  saveAvisos(); syncAviso(destino); renderAgenda(); renderCalendar();
-  toastMsg((AVISO_CFG[tipo]||{}).label+' añadido para '+(base.nota||'este cliente')+' ✓');
+  saveAvisos(); syncAviso(a); renderAgenda(); renderCalendar();
+  toastMsg((AVISO_CFG[tipo]||{}).label+' añadido ✓');
 }
 function renderUnidadCompletada(entry){
   const {a,idx,ts,total}=entry;
@@ -1607,7 +1626,7 @@ function renderAgenda(){
   const list=document.getElementById('agenda-list'); if(!list) return;
   const title=document.getElementById('agenda-title');
   const todos=avisosDelDia(calSelDay);
-  const pendientes=todos.filter(a=>(a.completados||[]).length<(a.cantidad||1)).sort((a,b)=>{
+  const pendientes=todos.filter(avisoPendiente).sort((a,b)=>{
     if(a.hora&&b.hora) return a.hora.localeCompare(b.hora);
     if(a.hora&&!b.hora) return -1;
     if(!a.hora&&b.hora) return 1;
@@ -5162,6 +5181,20 @@ document.addEventListener('click',e=>{
     if(a&&Array.isArray(a.completados)){ a.completados.splice(+idx,1); saveAvisos(); syncAviso(a); renderAgenda(); renderCalendar(); }
   }
   else if(action==='add-unidad-cliente') agregarUnidadParaCliente(param,btn.dataset.tipo);
+  else if(action==='completar-extra'){
+    const a=avisos.find(x=>x.id===param);
+    if(a&&Array.isArray(a.extra)&&a.extra[+idx]&&!a.extra[+idx].completadoEn){
+      a.extra[+idx].completadoEn=new Date().toISOString();
+      saveAvisos(); syncAviso(a); renderAgenda(); renderCalendar();
+    }
+  }
+  else if(action==='deshacer-extra'){
+    const a=avisos.find(x=>x.id===param);
+    if(a&&Array.isArray(a.extra)&&a.extra[+idx]){
+      a.extra[+idx].completadoEn=null;
+      saveAvisos(); syncAviso(a); renderAgenda(); renderCalendar();
+    }
+  }
   else if(action==='copy-aviso') iniciarCopiaAviso(param);
   else if(action==='confirmar-copia-aviso') confirmarCopiaAviso(param);
   else if(action==='guardar-certificado') guardarCertificado();
