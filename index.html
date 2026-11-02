@@ -4941,6 +4941,18 @@ function guardarOActualizarCertificado(){
 }
 function guardarCertificado(){
   if(!certForm.productor.trim()){toastMsg('Indica el productor');return;}
+  // Si se abrió un certificado ya guardado para verlo/exportarlo (ver-certificado deja su id en
+  // editCertId) y, sin pulsar antes "+ Nuevo", se escribe el productor de OTRO cliente y se le
+  // da a guardar, esto ANTES sobrescribía en silencio el certificado original — así es muy
+  // probablemente como desaparecieron certificados guardados (NOVALIGEPRO, ESCLAPES...): no se
+  // borraban a propósito, se sobrescribían al guardar uno nuevo sin darse cuenta.
+  if(editCertId){
+    const existente=certificados.find(x=>x.id===editCertId);
+    if(existente&&(existente.productor||'').trim().toLowerCase()!==certForm.productor.trim().toLowerCase()){
+      const ok=confirm(`Esto va a SOBRESCRIBIR el certificado ya guardado de "${existente.productor}" con los datos de "${certForm.productor}".\n\nSi quieres guardar este como uno NUEVO sin tocar el de "${existente.productor}", pulsa Cancelar y luego "+ Nuevo" antes de guardar.`);
+      if(!ok) return;
+    }
+  }
   guardarOActualizarCertificado();
   renderCertificados();toastMsg('Certificado guardado ✓');
 }
