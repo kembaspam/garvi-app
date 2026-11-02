@@ -4925,34 +4925,29 @@ function renderCertificados(){
   document.getElementById('cert-search').addEventListener('input',e=>{certQ=e.target.value;reFocusInput('cert-search',renderCertificados);});
 }
 function f_esc(v){return (v||'').toString().replace(/"/g,'&quot;');}
+// Un certificado se identifica por CLIENTE + TIPO, no por lo que haya quedado cargado en
+// editCertId (de haber abierto otro para verlo/exportarlo antes). Así, el mismo cliente puede
+// tener varios certificados guardados — uno por cada tipo de residuo (p.ej. NOVALIGEPRO
+// Escombros Y NOVALIGEPRO Plástico, cada uno su propio documento) — sin que guardar uno
+// sobrescriba al otro por tener distinto tipo aunque sea el mismo cliente. Si lo que hay cargado
+// ya no coincide en cliente+tipo con lo que se va a guardar, se busca si ya existe un
+// certificado con esa combinación exacta (para actualizarlo) o se crea uno nuevo aparte.
 function guardarOActualizarCertificado(){
-  let obj;
+  const prodN=(certForm.productor||'').trim().toLowerCase();
+  let obj=null;
   if(editCertId){
-    const c=certificados.find(x=>x.id===editCertId);
-    if(c){ Object.assign(c,certForm); obj=c; }
-    else{ obj={id:editCertId,...certForm}; certificados.push(obj); }
-  } else {
-    editCertId=Date.now().toString();
-    obj={id:editCertId,...certForm};
-    certificados.push(obj);
+    const cargado=certificados.find(x=>x.id===editCertId);
+    if(cargado&&(cargado.productor||'').trim().toLowerCase()===prodN&&cargado.tipo===certForm.tipo) obj=cargado;
   }
+  if(!obj) obj=certificados.find(x=>(x.productor||'').trim().toLowerCase()===prodN&&x.tipo===certForm.tipo);
+  if(obj){ Object.assign(obj,certForm); }
+  else{ obj={id:Date.now().toString(),...certForm}; certificados.push(obj); }
+  editCertId=obj.id;
   saveCertificados();
   syncCertificadosCol.guardar(obj);
 }
 function guardarCertificado(){
   if(!certForm.productor.trim()){toastMsg('Indica el productor');return;}
-  // Si se abrió un certificado ya guardado para verlo/exportarlo (ver-certificado deja su id en
-  // editCertId) y, sin pulsar antes "+ Nuevo", se escribe el productor de OTRO cliente y se le
-  // da a guardar, esto ANTES sobrescribía en silencio el certificado original — así es muy
-  // probablemente como desaparecieron certificados guardados (NOVALIGEPRO, ESCLAPES...): no se
-  // borraban a propósito, se sobrescribían al guardar uno nuevo sin darse cuenta.
-  if(editCertId){
-    const existente=certificados.find(x=>x.id===editCertId);
-    if(existente&&(existente.productor||'').trim().toLowerCase()!==certForm.productor.trim().toLowerCase()){
-      const ok=confirm(`Esto va a SOBRESCRIBIR el certificado ya guardado de "${existente.productor}" con los datos de "${certForm.productor}".\n\nSi quieres guardar este como uno NUEVO sin tocar el de "${existente.productor}", pulsa Cancelar y luego "+ Nuevo" antes de guardar.`);
-      if(!ok) return;
-    }
-  }
   guardarOActualizarCertificado();
   renderCertificados();toastMsg('Certificado guardado ✓');
 }
