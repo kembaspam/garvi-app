@@ -1562,7 +1562,7 @@ function renderAvisoCard(a){
   // Añadir rápido, para este mismo aviso/cliente, una unidad más de Llevada/Cambio/Retirada: si
   // coincide con el tipo propio del aviso, suma una unidad ahí (+1); si es de OTRO tipo, se añade
   // como unidad "extra" dentro de esta MISMA tarjeta (no crea un aviso ni una tarjeta nueva).
-  const botonesAnadir=['llevada','cambio','retirada'].map(t=>{
+  const botonesAnadir=['llevada','cambio','retirada','carga_rapida'].map(t=>{
     const c=AVISO_CFG[t];
     return `<button class="btn btn-secondary btn-sm" style="padding:2px 9px;font-size:11px;border-color:${c.color};color:${c.color}" data-action="add-unidad-cliente" data-param="${a.id}" data-tipo="${t}" title="Añadir ${c.label.toLowerCase()} a este aviso">+${AVISO_LETRA[t]}</button>`;
   }).join('');
