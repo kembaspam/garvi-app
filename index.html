@@ -423,10 +423,12 @@ label{
 /* Estado de la fila: una franja de color a la izquierda (no la fila entera, para que se pueda
    seguir leyendo bien). */
 .cobros-table tr td:first-child{border-left:4px solid transparent}
-.cobros-table tr.cobros-row-vencida td:first-child{border-left-color:#dc2626}
+.cobros-table tr.cobros-row-muyvencida td:first-child{border-left-color:#dc2626}
+.cobros-table tr.cobros-row-vencida td:first-child{border-left-color:#f97316}
 .cobros-table tr.cobros-row-avisada td:first-child{border-left-color:#f59e0b}
 .cobros-status-pill{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:20px;font-size:10.5px;font-weight:700;white-space:nowrap;border:1px solid rgba(0,0,0,.06)}
-.cobros-status-vencida{background:#fee2e2;color:#991b1b}
+.cobros-status-muyvencida{background:#fee2e2;color:#991b1b}
+.cobros-status-vencida{background:#ffedd5;color:#9a3412}
 .cobros-status-avisada{background:#fef3c7;color:#92400e}
 .cobros-status-plazo{background:#e6f0ff;color:#1a3a8f}
 /* Tarjetas de resumen arriba (facturas pendientes / vencidas / total) */
@@ -436,6 +438,8 @@ label{
 .cobros-stat-label{font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.04em;margin-top:2px}
 .cobros-stat.vencidas{background:#fef2f2;border-color:#fecaca}
 .cobros-stat.vencidas .cobros-stat-num{color:#991b1b}
+.cobros-stat.vencidas-leve{background:#fff7ed;border-color:#fed7aa}
+.cobros-stat.vencidas-leve .cobros-stat-num{color:#9a3412}
 .cobros-stat.total{background:#1a3a8f;border-color:#1a3a8f}
 .cobros-stat.total .cobros-stat-num,.cobros-stat.total .cobros-stat-label{color:#fff}
 .cobros-stat.total .cobros-stat-label{opacity:.75}
@@ -1056,7 +1060,7 @@ function migrarYSuscribirTodo(){
   // Antes de nada: si la nube todavía tiene alguno de los 31 contenedores con el valor erróneo
   // del corte de sincronización del 17-26/08, se corrige aquí mismo. Así, con que UN dispositivo
   // abra esta versión con conexión, la nube queda bien y el resto de dispositivos lo reciben solos.
-  return aplicarFix27AgoNube().then(()=>importarDeudoresNube()).then(()=>sincronizarDeudoresOctNube()).then(()=>Promise.all([
+  return aplicarFix27AgoNube().then(()=>importarDeudoresNube()).then(()=>sincronizarDeudoresOctNube()).then(()=>sincronizarDeudoresNovNube()).then(()=>Promise.all([
     syncContenedores.migrarLocales(containers.map(c=>{const {fotos,...r}=c; return r;})).then(n=>n&&total.push(n+' contenedor(es)')),
     syncAlbaranesCol.migrarLocales(albaranes).then(n=>n&&total.push(n+' albarán(es)')),
     syncTareasCol.migrarLocales(tareas).then(n=>n&&total.push(n+' tarea(s)')),
@@ -1146,6 +1150,7 @@ function loadData(){
   facturas=JSON.parse(localStorage.getItem('garvi_facturas')||'[]');
   if(importarDeudoresLocal()) saveFacturas();
   if(sincronizarDeudoresOctLocal()) saveFacturas();
+  if(sincronizarDeudoresNovLocal()) saveFacturas();
   aplicarClienteFiscalLote1Local();
   if(corregirCliente550Local()) saveFacturas();
   cfg=JSON.parse(localStorage.getItem('garvi_cfg')||'{"apiKey":"","ultimaFact":0,"ultimaProf":0}');
@@ -3279,7 +3284,10 @@ let factQ='';
 let facturasView='proformas'; // 'proformas' | 'facturas' — pestaña por defecto dentro de Facturación
 // Una factura (no proforma) se considera "vencida" a partir de 30 días desde su fecha de
 // emisión y sin cobrar — igual que el listado de deudores en papel que ya llevaba el usuario.
+// A partir de 60 días sin cobrar se considera "muy vencida" (segundo nivel, más grave) — mismo
+// criterio de color (rojo 60+, naranja 30-59) que el listado en papel.
 function facturaVencida(f){ return f.tipo==='factura'&&!f.cobrada&&daysSince(f.fecha)>=30; }
+function facturaMuyVencida(f){ return f.tipo==='factura'&&!f.cobrada&&daysSince(f.fecha)>=60; }
 function facturasPendientesList(){ return facturas.filter(f=>f.tipo==='factura'&&!f.cobrada); }
 // Facturas "fantasma": importadas del listado de deudores en papel, solo para llevar la cuenta
 // de lo pendiente (sin líneas, sin NIF...), no documentos creados de verdad en la app. Se quedan
@@ -3475,6 +3483,76 @@ function sincronizarDeudoresOctNube(){
     });
     return Promise.all(escrituras).then(()=>{ localStorage.setItem('garvi_sync_deudores_oct_v1','1'); });
   }).catch(e=>{ console.error('Error comprobando deudores en la nube para la actualización de octubre:',e); return 0; });
+}
+// ─── ACTUALIZACIÓN DEL LISTADO DE DEUDORES (revisado hasta el 04/11) ─────
+// Tercera pasada del mismo listado en papel/Excel, con el mismo mecanismo que la de octubre:
+// añade las facturas nuevas que aparecen en esta revisión y marca como cobradas las que ya NO
+// aparecen. Para las que siguen apareciendo no se toca avisado/metodoPago (por si ya se
+// actualizaron a mano desde Cobros pendientes).
+const NUEVOS_DEUDORES_NOV=[
+  {id:'ld581',tipo:'factura',num:'581',cliente:'CARSAN',fecha:'2026-10-15',total:1144,base:1144,iva:0,nif:'',dir:'',telefono:'',email:'',notas:'Importada del listado de deudores en papel',lineas:[],vencimiento:'',cobrada:false,fechaCobro:'',avisado:false,metodoPago:''},
+  {id:'ld582',tipo:'factura',num:'582',cliente:'FERROVIAL SERVITRIA',fecha:'2026-10-15',total:2530,base:2530,iva:0,nif:'',dir:'',telefono:'',email:'',notas:'Importada del listado de deudores en papel',lineas:[],vencimiento:'',cobrada:false,fechaCobro:'',avisado:false,metodoPago:''},
+  {id:'ld583',tipo:'factura',num:'583',cliente:'ARENA ALICANTE CIPRES',fecha:'2026-10-15',total:132,base:132,iva:0,nif:'',dir:'',telefono:'',email:'',notas:'Importada del listado de deudores en papel',lineas:[],vencimiento:'',cobrada:false,fechaCobro:'',avisado:false,metodoPago:''},
+  {id:'ld584',tipo:'factura',num:'584',cliente:'ARENA ALICANTE LOCUTOR',fecha:'2026-10-15',total:363,base:363,iva:0,nif:'',dir:'',telefono:'',email:'',notas:'Importada del listado de deudores en papel',lineas:[],vencimiento:'',cobrada:false,fechaCobro:'',avisado:false,metodoPago:''},
+  {id:'ld596',tipo:'factura',num:'596',cliente:'ESCLAPES',fecha:'2026-10-31',total:904.2,base:904.2,iva:0,nif:'',dir:'',telefono:'',email:'',notas:'Importada del listado de deudores en papel',lineas:[],vencimiento:'',cobrada:false,fechaCobro:'',avisado:false,metodoPago:''},
+  {id:'ld600',tipo:'factura',num:'600',cliente:'SEKMAG',fecha:'2026-10-31',total:759,base:759,iva:0,nif:'',dir:'',telefono:'',email:'',notas:'Importada del listado de deudores en papel',lineas:[],vencimiento:'',cobrada:false,fechaCobro:'',avisado:false,metodoPago:''},
+  {id:'ld601',tipo:'factura',num:'601',cliente:'SEKMAG',fecha:'2026-10-31',total:506,base:506,iva:0,nif:'',dir:'',telefono:'',email:'',notas:'Importada del listado de deudores en papel',lineas:[],vencimiento:'',cobrada:false,fechaCobro:'',avisado:false,metodoPago:''},
+  {id:'ld602',tipo:'factura',num:'602',cliente:'SEKMAG',fecha:'2026-10-31',total:253,base:253,iva:0,nif:'',dir:'',telefono:'',email:'',notas:'Importada del listado de deudores en papel',lineas:[],vencimiento:'',cobrada:false,fechaCobro:'',avisado:false,metodoPago:''},
+  {id:'ld603',tipo:'factura',num:'603',cliente:'SEKMAG',fecha:'2026-10-31',total:528,base:528,iva:0,nif:'',dir:'',telefono:'',email:'',notas:'Importada del listado de deudores en papel',lineas:[],vencimiento:'',cobrada:false,fechaCobro:'',avisado:false,metodoPago:''},
+  {id:'ld604',tipo:'factura',num:'604',cliente:'SEKMAG',fecha:'2026-10-31',total:506,base:506,iva:0,nif:'',dir:'',telefono:'',email:'',notas:'Importada del listado de deudores en papel',lineas:[],vencimiento:'',cobrada:false,fechaCobro:'',avisado:false,metodoPago:''},
+  {id:'ld605',tipo:'factura',num:'605',cliente:'SEKMAG',fecha:'2026-10-31',total:506,base:506,iva:0,nif:'',dir:'',telefono:'',email:'',notas:'Importada del listado de deudores en papel',lineas:[],vencimiento:'',cobrada:false,fechaCobro:'',avisado:false,metodoPago:''},
+  {id:'ld606',tipo:'factura',num:'606',cliente:'SEKMAG',fecha:'2026-10-31',total:253,base:253,iva:0,nif:'',dir:'',telefono:'',email:'',notas:'Importada del listado de deudores en papel',lineas:[],vencimiento:'',cobrada:false,fechaCobro:'',avisado:false,metodoPago:''},
+  {id:'ld607',tipo:'factura',num:'607',cliente:'SEKMAG',fecha:'2026-10-31',total:253,base:253,iva:0,nif:'',dir:'',telefono:'',email:'',notas:'Importada del listado de deudores en papel',lineas:[],vencimiento:'',cobrada:false,fechaCobro:'',avisado:false,metodoPago:''},
+  {id:'ld608',tipo:'factura',num:'608',cliente:'SEKMAG',fecha:'2026-10-31',total:253,base:253,iva:0,nif:'',dir:'',telefono:'',email:'',notas:'Importada del listado de deudores en papel',lineas:[],vencimiento:'',cobrada:false,fechaCobro:'',avisado:false,metodoPago:''},
+  {id:'ld609',tipo:'factura',num:'609',cliente:'SEKMAG',fecha:'2026-10-31',total:253,base:253,iva:0,nif:'',dir:'',telefono:'',email:'',notas:'Importada del listado de deudores en papel',lineas:[],vencimiento:'',cobrada:false,fechaCobro:'',avisado:false,metodoPago:''},
+  {id:'ld610',tipo:'factura',num:'610',cliente:'AKRA',fecha:'2026-10-31',total:1375,base:1375,iva:0,nif:'',dir:'',telefono:'',email:'',notas:'Importada del listado de deudores en papel',lineas:[],vencimiento:'',cobrada:false,fechaCobro:'',avisado:false,metodoPago:''},
+  {id:'ld611',tipo:'factura',num:'611',cliente:'AKRA',fecha:'2026-10-31',total:253,base:253,iva:0,nif:'',dir:'',telefono:'',email:'',notas:'Importada del listado de deudores en papel',lineas:[],vencimiento:'',cobrada:false,fechaCobro:'',avisado:false,metodoPago:''},
+  {id:'ld612',tipo:'factura',num:'612',cliente:'NOVALIGEPRO',fecha:'2026-10-31',total:904.2,base:904.2,iva:0,nif:'',dir:'',telefono:'',email:'',notas:'Importada del listado de deudores en papel',lineas:[],vencimiento:'',cobrada:false,fechaCobro:'',avisado:false,metodoPago:''},
+  {id:'ld613',tipo:'factura',num:'613',cliente:'NOVALIGEPRO',fecha:'2026-10-31',total:651.2,base:651.2,iva:0,nif:'',dir:'',telefono:'',email:'',notas:'Importada del listado de deudores en papel',lineas:[],vencimiento:'',cobrada:false,fechaCobro:'',avisado:false,metodoPago:''},
+  {id:'ld614',tipo:'factura',num:'614',cliente:'NOVALIGEPRO',fecha:'2026-10-31',total:398.2,base:398.2,iva:0,nif:'',dir:'',telefono:'',email:'',notas:'Importada del listado de deudores en papel',lineas:[],vencimiento:'',cobrada:false,fechaCobro:'',avisado:false,metodoPago:''},
+  {id:'ld615',tipo:'factura',num:'615',cliente:'NOVALIGEPRO',fecha:'2026-10-31',total:398.2,base:398.2,iva:0,nif:'',dir:'',telefono:'',email:'',notas:'Importada del listado de deudores en papel',lineas:[],vencimiento:'',cobrada:false,fechaCobro:'',avisado:false,metodoPago:''},
+  {id:'ld616',tipo:'factura',num:'616',cliente:'NOVALIGEPRO',fecha:'2026-10-31',total:6679.2,base:6679.2,iva:0,nif:'',dir:'',telefono:'',email:'',notas:'Importada del listado de deudores en papel',lineas:[],vencimiento:'',cobrada:false,fechaCobro:'',avisado:false,metodoPago:''},
+  {id:'ld617',tipo:'factura',num:'617',cliente:'NOVALIGEPRO',fecha:'2026-10-31',total:145.2,base:145.2,iva:0,nif:'',dir:'',telefono:'',email:'',notas:'Importada del listado de deudores en papel',lineas:[],vencimiento:'',cobrada:false,fechaCobro:'',avisado:false,metodoPago:''},
+  {id:'ld618',tipo:'factura',num:'618',cliente:'CYTEM',fecha:'2026-10-31',total:3355,base:3355,iva:0,nif:'',dir:'',telefono:'',email:'',notas:'Importada del listado de deudores en papel',lineas:[],vencimiento:'',cobrada:false,fechaCobro:'',avisado:false,metodoPago:''},
+  {id:'ld619',tipo:'factura',num:'619',cliente:'EDICAMP',fecha:'2026-10-31',total:36.3,base:36.3,iva:0,nif:'',dir:'',telefono:'',email:'',notas:'Importada del listado de deudores en papel',lineas:[],vencimiento:'',cobrada:false,fechaCobro:'',avisado:false,metodoPago:''},
+  {id:'ld620',tipo:'factura',num:'620',cliente:'CARSAN',fecha:'2026-10-31',total:253,base:253,iva:0,nif:'',dir:'',telefono:'',email:'',notas:'Importada del listado de deudores en papel',lineas:[],vencimiento:'',cobrada:false,fechaCobro:'',avisado:false,metodoPago:''},
+  {id:'ld621',tipo:'factura',num:'621',cliente:'ARENA ALICANTE CIPRES',fecha:'2026-10-31',total:495,base:495,iva:0,nif:'',dir:'',telefono:'',email:'',notas:'Importada del listado de deudores en papel',lineas:[],vencimiento:'',cobrada:false,fechaCobro:'',avisado:false,metodoPago:''},
+  {id:'ld622',tipo:'factura',num:'622',cliente:'UTE CSPA',fecha:'2026-10-31',total:550,base:550,iva:0,nif:'',dir:'',telefono:'',email:'',notas:'Importada del listado de deudores en papel',lineas:[],vencimiento:'',cobrada:false,fechaCobro:'',avisado:false,metodoPago:''},
+  {id:'ld623',tipo:'factura',num:'623',cliente:'SERVITRIA',fecha:'2026-10-31',total:275,base:275,iva:0,nif:'',dir:'',telefono:'',email:'',notas:'Importada del listado de deudores en papel',lineas:[],vencimiento:'',cobrada:false,fechaCobro:'',avisado:false,metodoPago:''},
+  {id:'ld624',tipo:'factura',num:'624',cliente:'NEW ON CT',fecha:'2026-10-31',total:4356,base:4356,iva:0,nif:'',dir:'',telefono:'',email:'',notas:'Importada del listado de deudores en papel',lineas:[],vencimiento:'',cobrada:false,fechaCobro:'',avisado:false,metodoPago:''},
+  {id:'ld625',tipo:'factura',num:'625',cliente:'FERROVIAL SERVITRIA',fecha:'2026-10-31',total:2530,base:2530,iva:0,nif:'',dir:'',telefono:'',email:'',notas:'Importada del listado de deudores en papel',lineas:[],vencimiento:'',cobrada:false,fechaCobro:'',avisado:false,metodoPago:''},
+];
+// Facturas del listado anterior que ya NO aparecen en esta revisión -> se dan por cobradas.
+const PAGADOS_DEUDORES_NOV=['ld130','ld189','ld257','ld329','ld363','ld379','ld399','ld455','ld489','ld528','ld542','ld549'];
+function sincronizarDeudoresNovLocal(){
+  let cambiado=false;
+  NUEVOS_DEUDORES_NOV.forEach(r=>{
+    if(facturas.some(f=>f.id===r.id)) return;
+    facturas.push({...r});
+    cambiado=true;
+  });
+  PAGADOS_DEUDORES_NOV.forEach(id=>{
+    const f=facturas.find(x=>x.id===id);
+    if(f&&!f.cobrada){ f.cobrada=true; f.fechaCobro=todayISO(); cambiado=true; }
+  });
+  return cambiado;
+}
+function sincronizarDeudoresNovNube(){
+  if(!fbDb||!fbReady) return Promise.resolve();
+  if(localStorage.getItem('garvi_sync_deudores_nov_v1')) return Promise.resolve();
+  return fbDb.collection('facturas').get().then(snap=>{
+    const existentes=new Map(); snap.forEach(d=>existentes.set(d.id,d.data()));
+    const nuevos=NUEVOS_DEUDORES_NOV.filter(r=>!existentes.has(r.id));
+    const escrituras=nuevos.map(r=>fbDb.collection('facturas').doc(r.id).set(r).catch(e=>console.error('Error sincronizando deudor '+r.id+':',e)));
+    const hoy=todayISO();
+    PAGADOS_DEUDORES_NOV.forEach(id=>{
+      const data=existentes.get(id);
+      if(data&&!data.cobrada){
+        escrituras.push(fbDb.collection('facturas').doc(id).update({cobrada:true,fechaCobro:hoy}).catch(e=>console.error('Error marcando cobrado '+id+':',e)));
+      }
+    });
+    return Promise.all(escrituras).then(()=>{ localStorage.setItem('garvi_sync_deudores_nov_v1','1'); });
+  }).catch(e=>{ console.error('Error comprobando deudores en la nube para la actualización de noviembre:',e); return 0; });
 }
 // ─── DATOS FISCALES Y CONCEPTOS DE CLIENTES, extraídos a mano de facturas en PDF (lote 1) ──
 // El nombre de cada cliente es el mismo que ya se usa en contenedores/facturas de la app (p.ej.
@@ -3714,7 +3792,8 @@ function renderCobrosPendientes(){
   const cq=cobrosQ.toLowerCase();
   const pendientes=facturasPendientesList().filter(f=>!cq||(f.cliente||'').toLowerCase().includes(cq)||(f.num||'').toLowerCase().includes(cq));
   const totalPendiente=pendientes.reduce((s,f)=>s+(f.total||0),0);
-  const numVencidas=pendientes.filter(facturaVencida).length;
+  const numMuyVencidas=pendientes.filter(facturaMuyVencida).length;
+  const numVencidas=pendientes.filter(f=>facturaVencida(f)&&!facturaMuyVencida(f)).length;
   const porCliente=Object.entries(pendientes.reduce((m,f)=>{m[f.cliente]=(m[f.cliente]||0)+(f.total||0);return m;},{})).sort((a,b)=>b[1]-a[1]);
   const maxCliente=porCliente.length?porCliente[0][1]:0;
   const resumenHtml=porCliente.length?`<div class="card" style="padding:10px 14px;margin-top:12px">
@@ -3728,9 +3807,11 @@ function renderCobrosPendientes(){
     </table></div>
   </div>`:'';
   const filasHtml=[...pendientes].sort((a,b)=>(a.fecha||'').localeCompare(b.fecha||'')).map(f=>{
+    const muyVencida=facturaMuyVencida(f);
     const vencida=facturaVencida(f);
-    const filaClase=vencida?'cobros-row-vencida':(f.avisado?'cobros-row-avisada':'');
-    const estadoPill=vencida?`<span class="cobros-status-pill cobros-status-vencida">🔴 ${daysSince(f.fecha)} días</span>`
+    const filaClase=muyVencida?'cobros-row-muyvencida':vencida?'cobros-row-vencida':(f.avisado?'cobros-row-avisada':'');
+    const estadoPill=muyVencida?`<span class="cobros-status-pill cobros-status-muyvencida">🔴 ${daysSince(f.fecha)} días</span>`
+      :vencida?`<span class="cobros-status-pill cobros-status-vencida">🟠 ${daysSince(f.fecha)} días</span>`
       :f.avisado?`<span class="cobros-status-pill cobros-status-avisada">🟡 Avisado</span>`
       :`<span class="cobros-status-pill cobros-status-plazo">🔵 En plazo</span>`;
     return `<tr class="${filaClase}">
@@ -3768,7 +3849,8 @@ function renderCobrosPendientes(){
       </div>
       <div class="cobros-stats">
         <div class="cobros-stat"><div class="cobros-stat-num">${pendientes.length}</div><div class="cobros-stat-label">Sin cobrar</div></div>
-        <div class="cobros-stat vencidas"><div class="cobros-stat-num">${numVencidas}</div><div class="cobros-stat-label">🔴 Vencidas (30+ días)</div></div>
+        <div class="cobros-stat vencidas"><div class="cobros-stat-num">${numMuyVencidas}</div><div class="cobros-stat-label">🔴 Muy vencidas (60+ días)</div></div>
+        <div class="cobros-stat vencidas-leve"><div class="cobros-stat-num">${numVencidas}</div><div class="cobros-stat-label">🟠 Vencidas (30-59 días)</div></div>
         <div class="cobros-stat total"><div class="cobros-stat-num">${fmtMoney(totalPendiente)}</div><div class="cobros-stat-label">Total pendiente</div></div>
       </div>
       <input class="search-input" id="cobros-search" type="search" placeholder="Buscar cliente o número…" value="${cobrosQ}">
@@ -3803,7 +3885,8 @@ function pdfFacturas(){
 }
 // PDF del listado de cobros pendientes, calcado al Excel en papel que ya llevaba el usuario:
 // mismas columnas (Avisado/Cliente/Nº Fac/Fecha/Importe) y mismos colores de fila
-// (rojo = vencida 30+ días, amarillo = avisado, blanco = aún en plazo), con el total al final.
+// (rojo = muy vencida 60+ días, naranja = vencida 30-59 días, amarillo = avisado,
+// blanco = aún en plazo), con el total al final.
 function pdfCobrosPendientes(){
   const fq=factQ.toLowerCase();
   const list=facturasPendientesList().filter(f=>!fq||(f.cliente||'').toLowerCase().includes(fq)||(f.num||'').toLowerCase().includes(fq))
@@ -3836,8 +3919,10 @@ function pdfCobrosPendientes(){
   let total=0;
   list.forEach(f=>{
     if(cy>270){doc.addPage();cy=20;printHeader();}
+    const muyVencida=facturaMuyVencida(f);
     const vencida=facturaVencida(f);
-    if(vencida) doc.setFillColor(254,226,226);
+    if(muyVencida) doc.setFillColor(254,226,226);
+    else if(vencida) doc.setFillColor(255,237,213);
     else if(f.avisado) doc.setFillColor(254,243,199);
     else doc.setFillColor(255,255,255);
     doc.rect(14,cy-4.5,182,rowH,'F');
