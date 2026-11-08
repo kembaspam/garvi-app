@@ -81,6 +81,7 @@ html,body{height:100%;font-family:'DM Sans',sans-serif;font-size:14px;color:var(
 .sidebar-logout:hover{color:#fca5a5}
 .sidebar-export{background:none;border:none;color:rgba(255,255,255,.3);cursor:pointer;font-size:18px;padding:4px;line-height:1;flex-shrink:0}
 .sidebar-export:hover{color:#fff}
+.nav-export{display:none}
 
 /* ── LAYOUT ────────────────────────────────────────── */
 #app{margin-left:var(--sidebar-w);min-height:100vh;transition:margin-left .2s}
@@ -117,6 +118,7 @@ html,body{height:100%;font-family:'DM Sans',sans-serif;font-size:14px;color:var(
     box-shadow:0 -2px 12px rgba(15,32,68,.08);
   }
   .sidebar-logo,.sidebar-footer{display:none}
+  .nav-export{display:flex}
   .sidebar-nav{display:flex;flex-direction:row;width:100%;height:100%;padding:0;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;scrollbar-width:none}
   .sidebar-nav::-webkit-scrollbar{display:none}
   .tab-btn{
@@ -693,6 +695,7 @@ label{
     <button class="tab-btn" data-action="tab" data-param="finanzas"><span class="tab-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2"/></svg></span><span class="tab-label">Finanzas</span></button>
     <button class="tab-btn" data-action="tab" data-param="clientes"><span class="tab-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 7a4 4 0 100 8 4 4 0 000-8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg></span><span class="tab-label">Clientes</span></button>
     <button class="tab-btn" data-action="tab" data-param="albaranes"><span class="tab-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2M9 12h6M9 16h4"/></svg></span><span class="tab-label">Albaranes</span></button>
+    <button class="tab-btn nav-export" data-action="exportar-copia"><span class="tab-icon">💾</span><span class="tab-label">Copia</span></button>
   </div>
   <div class="sidebar-footer">
     <div class="sidebar-avatar" id="sidebar-avatar">—</div>
