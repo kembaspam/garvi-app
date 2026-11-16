@@ -1629,6 +1629,32 @@ function agregarUnidadParaCliente(aId,tipo){
   saveAvisos(); syncAviso(a); renderAgenda(); renderCalendar();
   toastMsg((AVISO_CFG[tipo]||{}).label+' añadido ✓');
 }
+// Quita UNA unidad "propia" del aviso (ver lista "Unidades de este aviso" en el formulario de
+// Editar): si estaba hecha, se borra también su marca de completado; si no queda ninguna, no deja
+// bajar de 1 (para eso está el botón 🗑 de borrar el aviso entero).
+function quitarUnidadAviso(aId,idx){
+  const a=avisos.find(x=>x.id===aId); if(!a) return;
+  const total=a.cantidad||1;
+  if(total<=1){ toastMsg('Es la única unidad de este tipo — para quitar el aviso entero usa 🗑'); return; }
+  idx=+idx;
+  const completados=Array.isArray(a.completados)?a.completados:[];
+  if(idx<completados.length) completados.splice(idx,1);
+  a.completados=completados;
+  a.cantidad=total-1;
+  saveAvisos(); syncAviso(a); renderAgenda(); renderCalendar();
+  toastMsg('Unidad quitada ✓');
+  if(editAvisoId===aId) nuevoAvisoModal(aId);
+}
+// Quita una unidad "extra" (de otro tipo, añadida con +LL/+C/+R/+CR) de este mismo aviso.
+function quitarUnidadExtra(aId,idx){
+  const a=avisos.find(x=>x.id===aId); if(!a||!Array.isArray(a.extra)) return;
+  idx=+idx;
+  if(idx<0||idx>=a.extra.length) return;
+  a.extra.splice(idx,1);
+  saveAvisos(); syncAviso(a); renderAgenda(); renderCalendar();
+  toastMsg('Unidad quitada ✓');
+  if(editAvisoId===aId) nuevoAvisoModal(aId);
+}
 function renderUnidadCompletada(entry){
   const {a,idx,ts,total}=entry;
   const cfg=AVISO_CFG[a.tipo]||{label:a.tipo,color:'#999'};
@@ -1853,6 +1879,28 @@ function renderAvisoFields(editing){
       <div class="form-row"><label>Nueva fecha final</label><input id="av-fechafin" type="date" value="${a?a.fechaFin||calSelDay:calSelDay}"></div>`;
     return;
   }
+  // Lista de unidades de este aviso (las "propias" del tipo + las "extra" añadidas desde
+  // +LL/+C/+R/+CR en la tarjeta de agenda), cada una con un botón ✕ para quitarla sin tener que
+  // borrar el aviso entero. Solo se muestra editando un aviso ya guardado con más de 1 unidad.
+  const totalPropio=a?(a.cantidad||1):1;
+  const hechosPropio=a?(a.completados||[]).length:0;
+  const extraEdit=a&&Array.isArray(a.extra)?a.extra:[];
+  const unidadesListHtml=(a&&(totalPropio+extraEdit.length)>1)?`
+    <div class="form-row"><label>Unidades de este aviso (toca ✕ para quitar una)</label>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        ${Array.from({length:totalPropio},(_,i)=>{
+          const hecho=i<hechosPropio;
+          const colorP=(AVISO_CFG[tipo]||{}).color||'#999';
+          const letraP=AVISO_LETRA[tipo]||'?';
+          return `<button type="button" class="btn btn-secondary btn-sm" style="padding:2px 8px;font-size:11px;border-color:${colorP};color:${colorP}" data-action="quitar-unidad" data-param="${a.id}" data-idx="${i}">${letraP}${hecho?' ✓':''} ✕</button>`;
+        }).join('')}
+        ${extraEdit.map((ex,i)=>{
+          const ecfg=AVISO_CFG[ex.tipo]||{label:ex.tipo,color:'#999'};
+          const eletra=AVISO_LETRA[ex.tipo]||'?';
+          return `<button type="button" class="btn btn-secondary btn-sm" style="padding:2px 8px;font-size:11px;border-color:${ecfg.color};color:${ecfg.color}" data-action="quitar-extra" data-param="${a.id}" data-idx="${i}">${eletra}${ex.completadoEn?' ✓':''} ✕</button>`;
+        }).join('')}
+      </div>
+    </div>`:'';
   box.innerHTML=`
     <div class="form-row"><label>Cliente</label><input id="av-nota" list="dl-global-clientes" placeholder="Nombre del cliente…" value="${f_esc(a?a.nota:'')}"></div>
     <div class="form-row"><label>Dirección</label><input id="av-direccion" list="dl-global-direcciones" placeholder="Dirección…" value="${f_esc(a?a.direccion:'')}"></div>
@@ -1861,6 +1909,7 @@ function renderAvisoFields(editing){
       <div><label>Pago</label><input id="av-pago" placeholder="Ej: Pendiente, Pagado, 50€…" value="${f_esc(a?a.pago:'')}"></div>
     </div>
     <div class="form-row"><label>Cantidad (si el mismo cliente pide varios en este sitio)</label><input id="av-cantidad" type="number" min="1" step="1" placeholder="1" value="${a&&a.cantidad>1?a.cantidad:''}"></div>
+    ${unidadesListHtml}
     ${tipo==='permiso'
       ?`<div class="form-row cols2"><div><label>Fecha inicio</label><input id="av-fecha" type="date" value="${a?a.fecha:calSelDay}"></div><div><label>Fecha final</label><input id="av-fechafin" type="date" value="${a?a.fechaFin||calSelDay:calSelDay}"></div></div>
         <div class="form-row"><label>Hora (opcional)</label><input id="av-hora" type="time" value="${a?a.hora||'':''}"></div>`
@@ -5298,6 +5347,8 @@ document.addEventListener('click',e=>{
     if(a&&Array.isArray(a.completados)){ a.completados.splice(+idx,1); saveAvisos(); syncAviso(a); renderAgenda(); renderCalendar(); }
   }
   else if(action==='add-unidad-cliente') agregarUnidadParaCliente(param,btn.dataset.tipo);
+  else if(action==='quitar-unidad') quitarUnidadAviso(param,idx);
+  else if(action==='quitar-extra') quitarUnidadExtra(param,idx);
   else if(action==='completar-extra'){
     const a=avisos.find(x=>x.id===param);
     if(a&&Array.isArray(a.extra)&&a.extra[+idx]&&!a.extra[+idx].completadoEn){
