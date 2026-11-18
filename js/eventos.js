@@ -74,6 +74,8 @@ document.addEventListener('click',e=>{
   else if(action==='pdf-factura') pdfFactura(param);
   else if(action==='pdf-facturas') pdfFacturas();
   else if(action==='pdf-cobros-pendientes') pdfCobrosPendientes();
+  else if(action==='importar-deudores') elegirExcelDeudores();
+  else if(action==='aplicar-import-deudores') aplicarImportDeudores();
   else if(action==='facturas-view'){facturasView=param;renderFacturas();}
   else if(action==='toggle-avisado'){
     const f=facturas.find(x=>x.id===param); if(f){ f.avisado=!f.avisado; saveFacturas();syncFacturasCol.guardar(f);renderCobrosPendientes(); }

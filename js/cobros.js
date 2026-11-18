@@ -65,7 +65,10 @@ function renderCobrosPendientes(){
     <div class="section-header">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
         <div class="section-title">Cobros pendientes</div>
-        <button class="btn btn-secondary btn-sm" data-action="pdf-cobros-pendientes">📄 Crear PDF</button>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <button class="btn btn-secondary btn-sm" data-action="importar-deudores">📥 Importar Excel</button>
+          <button class="btn btn-secondary btn-sm" data-action="pdf-cobros-pendientes">📄 Crear PDF</button>
+        </div>
       </div>
       <div class="cobros-stats">
         <div class="cobros-stat"><div class="cobros-stat-num">${pendientes.length}</div><div class="cobros-stat-label">Sin cobrar</div></div>
@@ -471,7 +474,7 @@ function _doPdfFactura(f){
   doc.text('IVA',155,cy,{align:'right'});
   doc.text('IMPORTE',196,cy,{align:'right'});
   cy+=8;
-  // Líneas. Las facturas importadas del listado de deudores en papel (ver IMPORT_DEUDORES) no
+  // Líneas. Las facturas importadas del listado de deudores en papel (importadas desde el Excel de deudores) no
   // tienen desglose de líneas (el papel original nunca recogía qué tipo de contenedor era cada
   // deuda) — en vez de dejar la tabla vacía, se muestra una línea genérica con el total.
   doc.setFont('helvetica','normal'); doc.setTextColor(15,32,68);

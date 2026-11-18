@@ -185,7 +185,7 @@ function migrarYSuscribirTodo(){
   // Antes de nada: si la nube todavía tiene alguno de los 31 contenedores con el valor erróneo
   // del corte de sincronización del 17-26/08, se corrige aquí mismo. Así, con que UN dispositivo
   // abra esta versión con conexión, la nube queda bien y el resto de dispositivos lo reciben solos.
-  return aplicarFix27AgoNube().then(()=>importarDeudoresNube()).then(()=>sincronizarDeudoresOctNube()).then(()=>sincronizarDeudoresNovNube()).then(()=>sincronizarDeudoresNov16Nube()).then(()=>Promise.all([
+  return aplicarFix27AgoNube().then(()=>Promise.all([
     syncContenedores.migrarLocales(containers.map(c=>{const {fotos,...r}=c; return r;})).then(n=>n&&total.push(n+' contenedor(es)')),
     syncAlbaranesCol.migrarLocales(albaranes).then(n=>n&&total.push(n+' albarán(es)')),
     syncTareasCol.migrarLocales(tareas).then(n=>n&&total.push(n+' tarea(s)')),
@@ -273,10 +273,6 @@ function loadData(){
   tareas=JSON.parse(localStorage.getItem('garvi_tareas')||'[]');
   finanzas=JSON.parse(localStorage.getItem('garvi_finanzas')||'[]');
   facturas=JSON.parse(localStorage.getItem('garvi_facturas')||'[]');
-  if(importarDeudoresLocal()) saveFacturas();
-  if(sincronizarDeudoresOctLocal()) saveFacturas();
-  if(sincronizarDeudoresNovLocal()) saveFacturas();
-  if(sincronizarDeudoresNov16Local()) saveFacturas();
   aplicarClienteFiscalLote1Local();
   if(corregirCliente550Local()) saveFacturas();
   cfg=JSON.parse(localStorage.getItem('garvi_cfg')||'{"apiKey":"","ultimaFact":0,"ultimaProf":0}');
