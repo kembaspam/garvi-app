@@ -730,3 +730,10 @@ label{
   .cobros-table td.cobros-met{grid-area:met}
   .cobros-table td.cobros-accion{grid-area:acc;justify-self:end}
 }
+
+/* Factura ya avisada: fondo amarillo muy claro en toda la fila */
+.cobros-table tbody tr.cobros-avisado td{background:#fffbe6}
+.cobros-table tbody tr.cobros-avisado:hover td{background:#fff6cc}
+@media(max-width:720px){
+  .cobros-table:not(.cobros-table-resumen) tr.cobros-avisado{background:#fffbe6}
+}

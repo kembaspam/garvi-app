@@ -56,7 +56,7 @@ function renderCobrosPendientes(){
       :vencida?`<span class="cobros-status-pill cobros-status-vencida">${daysSince(f.fecha)} días</span>`
       :f.avisado?`<span class="cobros-status-pill cobros-status-avisada">Avisado</span>`
       :`<span class="cobros-status-pill cobros-status-plazo">En plazo</span>`;
-    return `<tr class="${filaClase}">
+    return `<tr class="${filaClase}${f.avisado?' cobros-avisado':''}">
       <td class="cobros-met">
         <div style="display:flex;gap:3px;align-items:center">
           <select class="metodo-pago-sel ${claseMetodoPago(f.metodoPago)}" data-id="${f.id}">
