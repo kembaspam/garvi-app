@@ -29,6 +29,18 @@ function setSyncStatus(estado){
   const c=cfgs[estado]||cfgs.off;
   el.textContent=c.txt; el.className='sync-status '+c.cls;
 }
+let syncIniciada=false;
+function iniciarSincronizacionNube(){
+  if(syncIniciada) return;
+  syncIniciada=true; fbReady=true;
+  setSyncStatus('on');
+  migrarAvisosLocalesAFirestore().then(suscribirAvisosFirestore);
+  intentarMigrarYSuscribir();
+  programarCopiaAutomatica();
+}
+// La nube solo se usa con una CUENTA REAL de Firebase (email/contraseña, ver SEGURIDAD.md): ya no
+// se entra como usuario anónimo. Si el dispositivo tenía la sesión anónima antigua, se cierra y
+// se vuelve a pedir usuario y contraseña (una sola vez).
 function initFirebase(){
   if(typeof firebase==='undefined'){ setSyncStatus('error'); return; }
   try{
@@ -36,16 +48,16 @@ function initFirebase(){
     firebase.initializeApp(firebaseConfig);
     fbDb=firebase.firestore();
     fbDb.enablePersistence({synchronizeTabs:true}).catch(()=>{});
-    firebase.auth().signInAnonymously().then(()=>{
-      fbReady=true;
-      setSyncStatus('on');
-      migrarAvisosLocalesAFirestore().then(suscribirAvisosFirestore);
-      intentarMigrarYSuscribir();
-      programarCopiaAutomatica();
-    }).catch(e=>{
-      console.error('Firebase auth:',e);
-      setSyncStatus('error');
-    });
+    firebase.auth().onAuthStateChanged(user=>{
+      if(user&&!user.isAnonymous){ iniciarSincronizacionNube(); return; }
+      fbReady=false; syncIniciada=false;
+      setSyncStatus('off');
+      if(user&&user.isAnonymous) firebase.auth().signOut().catch(()=>{});
+      if(localStorage.getItem('garvi_session')){   // sesión local sin cuenta de Firebase -> volver a entrar
+        localStorage.removeItem('garvi_session'); sessionStorage.removeItem('garvi_session');
+        location.reload();
+      }
+    },e=>{ console.error('Firebase auth:',e); setSyncStatus('error'); });
   }catch(e){
     console.error('Firebase init:',e);
     setSyncStatus('error');
@@ -497,14 +509,10 @@ function reFocusInput(id,fn){
 }
 
 // ─── AUTH ─────────────────────────────────────────────────────────
-// Las contraseñas ya NO van en texto plano en el código: solo su huella SHA-256 ("garvi|usuario|contraseña").
-// OJO: esto es una barrera de cortesía en el navegador; la protección real de los datos son las
-// reglas de Firestore (ver SEGURIDAD.md y firestore.rules).
-const USERS={ivan:{hash:'d2e6f452c0fef1a2b10f404e34ab2038573cd8cb72f9329cb5f0fe0b503c33da',label:'Iván'},halem:{hash:'8efd544dd10eeacaa18fecaa7a116355a35486dd2f03d8bfe5b9bd8c9e8f3713',label:'Halem'}};
-function sha256Hex(txt){
-  if(!(window.crypto&&crypto.subtle)) return Promise.reject(new Error('Abre la app desde su dirección https para poder entrar'));
-  return crypto.subtle.digest('SHA-256',new TextEncoder().encode(txt)).then(b=>[...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join(''));
-}
+// El inicio de sesión lo comprueba Firebase (cuentas usuario@garvi.app, ver SEGURIDAD.md). En el
+// código ya no hay contraseñas ni huellas de contraseñas: solo el nombre que se muestra.
+const USERS={ivan:{label:'Iván'},halem:{label:'Halem'}};
+const EMAIL_DOMINIO='@garvi.app';
 function setSidebarUser(label){
   const el=document.getElementById('sidebar-username');
   const av=document.getElementById('sidebar-avatar');
@@ -513,14 +521,23 @@ function setSidebarUser(label){
 }
 function handleLogin(){
   const u=(document.getElementById('li-user').value||'').toLowerCase().trim();
-  const p=(document.getElementById('li-pass').value||'').trim();
+  const p=document.getElementById('li-pass').value||'';
   const usr=USERS[u];
   const err=document.getElementById('li-err');
-  if(!usr){err.textContent='Usuario o contraseña incorrectos';return;}
-  sha256Hex('garvi|'+u+'|'+p).then(hx=>{
-    if(hx!==usr.hash){err.textContent='Usuario o contraseña incorrectos';return;}
+  if(!usr||!p){err.textContent='Usuario o contraseña incorrectos';return;}
+  if(typeof firebase==='undefined'||!firebase.apps.length){err.textContent='Sin conexión con el servidor: no se puede iniciar sesión';return;}
+  err.textContent='Entrando…';
+  firebase.auth().signInWithEmailAndPassword(u+EMAIL_DOMINIO,p).then(()=>{
+    err.textContent='';
     entrarTrasLogin(u,usr);
-  }).catch(e=>{err.textContent=e.message||'No se pudo comprobar la contraseña';});
+  }).catch(e=>{
+    const c=(e&&e.code)||'';
+    err.textContent=['auth/invalid-credential','auth/wrong-password','auth/user-not-found','auth/invalid-login-credentials','auth/invalid-email'].includes(c)?'Usuario o contraseña incorrectos'
+      :c==='auth/network-request-failed'?'Sin conexión: comprueba internet e inténtalo de nuevo'
+      :c==='auth/too-many-requests'?'Demasiados intentos: espera unos minutos'
+      :c==='auth/operation-not-allowed'?'El acceso con email no está activado en Firebase'
+      :'No se pudo iniciar sesión ('+(c||'error')+')';
+  });
 }
 function entrarTrasLogin(u,usr){
   // La sesión siempre se guarda de forma permanente (localStorage, sin caducidad): una vez que
@@ -572,7 +589,11 @@ function exportarCopia(){
   document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),1000);
   toastMsg('Copia exportada ('+Object.keys(datos).length+' apartados)');
 }
-function logout(){localStorage.removeItem('garvi_session');sessionStorage.removeItem('garvi_session');location.reload();}
+function logout(){
+  localStorage.removeItem('garvi_session');sessionStorage.removeItem('garvi_session');
+  const recargar=()=>location.reload();
+  try{ firebase.auth().signOut().then(recargar,recargar); }catch(e){ recargar(); }
+}
 
 function updateBadge(){
   const today=todayISO();

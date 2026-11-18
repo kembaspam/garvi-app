@@ -20,8 +20,8 @@ Consola: https://console.firebase.google.com → proyecto **garvi-app**
 1. **Authentication → Método de acceso → activar "Correo electrónico/contraseña".**
    Luego **Usuarios → Añadir usuario**: `ivan@garvi.app` y `halem@garvi.app`, cada uno con una
    contraseña NUEVA y larga (no reutilices las antiguas).
-2. **Avísame** y cambio el código para que, al iniciar sesión, la app entre en Firebase con esas
-   cuentas en vez de anónimo (no se puede hacer antes: se quedaría sin acceso a los datos).
+2. ✅ HECHO: la app ya inicia sesión en Firebase con esas cuentas (ya no entra como anónimo).
+   Cada dispositivo pedirá usuario (`ivan` / `halem`) y la contraseña NUEVA una sola vez.
 3. Cuando la app ya use esas cuentas: **Firestore → Reglas →** pega el contenido de
    `firestore.rules` → **Publicar**. Desde ese momento solo esas dos cuentas acceden.
 4. **Repo privado:** GitHub → repo `garvi-app` → Settings → Danger zone → *Change visibility* →
