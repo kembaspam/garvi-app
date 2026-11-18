@@ -1,5 +1,18 @@
 // ─── COBROS PENDIENTES (sección propia) ────────────────────────────
 let cobrosQ='';
+let cobrosOrden={k:'fecha',dir:1};   // orden de la tabla (pulsando las cabeceras)
+let cobrosFiltro='';                // '' | muyvencida | vencida | avisada | plazo
+const COBROS_FILTROS=[['','Todas'],['muyvencida','🔴 Muy vencidas (60+)'],['vencida','🟠 Vencidas (30-59)'],['avisada','🟡 Avisadas'],['plazo','🔵 En plazo']];
+function cobroNivel(f){
+  return facturaMuyVencida(f)?'muyvencida':facturaVencida(f)?'vencida':f.avisado?'avisada':'plazo';
+}
+function cobroValorOrden(f,k){
+  if(k==='cliente') return (f.cliente||'').toLowerCase();
+  if(k==='num') return parseFloat(f.num)||0;
+  if(k==='total') return f.total||0;
+  if(k==='dias') return daysSince(f.fecha);
+  return f.fecha||'';
+}
 let cobrosCliente='';   // filtro por cliente (se activa pulsando un cliente en "Debe cada cliente")
 // Clase de color para el desplegable de método de pago, según el valor elegido.
 function claseMetodoPago(mp){
@@ -12,12 +25,13 @@ function renderCobrosPendientes(){
   const sec=document.getElementById('sec-cobros');
   const cq=cobrosQ.toLowerCase();
   const pendientesBusqueda=facturasPendientesList().filter(f=>!cq||(f.cliente||'').toLowerCase().includes(cq)||(f.num||'').toLowerCase().includes(cq));
-  if(cobrosCliente&&!pendientesBusqueda.some(f=>f.cliente===cobrosCliente)) cobrosCliente='';
-  const pendientes=cobrosCliente?pendientesBusqueda.filter(f=>f.cliente===cobrosCliente):pendientesBusqueda;
+  const pendientesBase=cobrosFiltro?pendientesBusqueda.filter(f=>cobroNivel(f)===cobrosFiltro):pendientesBusqueda;
+  if(cobrosCliente&&!pendientesBase.some(f=>f.cliente===cobrosCliente)) cobrosCliente='';
+  const pendientes=cobrosCliente?pendientesBase.filter(f=>f.cliente===cobrosCliente):pendientesBase;
   const totalPendiente=pendientes.reduce((s,f)=>s+(f.total||0),0);
   const numMuyVencidas=pendientes.filter(facturaMuyVencida).length;
   const numVencidas=pendientes.filter(f=>facturaVencida(f)&&!facturaMuyVencida(f)).length;
-  const porCliente=Object.entries(pendientesBusqueda.reduce((m,f)=>{m[f.cliente]=(m[f.cliente]||0)+(f.total||0);return m;},{})).sort((a,b)=>b[1]-a[1]);
+  const porCliente=Object.entries(pendientesBase.reduce((m,f)=>{m[f.cliente]=(m[f.cliente]||0)+(f.total||0);return m;},{})).sort((a,b)=>b[1]-a[1]);
   const maxCliente=porCliente.length?porCliente[0][1]:0;
   const resumenHtml=porCliente.length?`<div class="card" style="padding:10px 14px;margin-top:12px">
     <div style="font-size:11px;font-weight:700;color:var(--accent-blue);text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px">💼 Debe cada cliente</div>
@@ -30,7 +44,11 @@ function renderCobrosPendientes(){
       }).join('')}</tbody>
     </table></div>
   </div>`:'';
-  const filasHtml=[...pendientes].sort((a,b)=>(a.fecha||'').localeCompare(b.fecha||'')).map(f=>{
+  const filasHtml=[...pendientes].sort((a,b)=>{
+    const x=cobroValorOrden(a,cobrosOrden.k), y=cobroValorOrden(b,cobrosOrden.k);
+    const r=typeof x==='number'?x-y:String(x).localeCompare(String(y),'es',{numeric:true});
+    return (r||String(a.fecha||'').localeCompare(String(b.fecha||''))||String(a.num).localeCompare(String(b.num),'es',{numeric:true}))*(r?cobrosOrden.dir:1);
+  }).map(f=>{
     const muyVencida=facturaMuyVencida(f);
     const vencida=facturaVencida(f);
     const filaClase=muyVencida?'cobros-row-muyvencida':vencida?'cobros-row-vencida':(f.avisado?'cobros-row-avisada':'');
@@ -39,7 +57,7 @@ function renderCobrosPendientes(){
       :f.avisado?`<span class="cobros-status-pill cobros-status-avisada">Avisado</span>`
       :`<span class="cobros-status-pill cobros-status-plazo">En plazo</span>`;
     return `<tr class="${filaClase}">
-      <td>
+      <td class="cobros-met">
         <div style="display:flex;gap:3px;align-items:center">
           <select class="metodo-pago-sel ${claseMetodoPago(f.metodoPago)}" data-id="${f.id}">
             <option value=""${!f.metodoPago?' selected':''}>—</option>
@@ -53,7 +71,7 @@ function renderCobrosPendientes(){
       <td class="cobros-cli" data-action="ver-factura" data-param="${f.id}">${f.cliente}</td>
       <td class="cobros-num" data-action="ver-factura" data-param="${f.id}">${f.num}</td>
       <td class="cobros-fecha" data-action="ver-factura" data-param="${f.id}">${fmtDate(f.fecha)}</td>
-      <td style="white-space:nowrap">${estadoPill}</td>
+      <td class="cobros-est">${estadoPill}</td>
       <td class="cobros-importe">${fmtMoney(f.total)}</td>
       <td class="cobros-accion">
         <button class="cobros-btn-cobrada" data-action="toggle-cobrada" data-param="${f.id}" title="Marcar como cobrada">✓ Cobrada</button>
@@ -62,7 +80,7 @@ function renderCobrosPendientes(){
     </tr>`;
   }).join('');
   const tablaHtml=filasHtml?`<div class="card" style="padding:0;overflow:hidden;border-radius:16px"><div class="cobros-table-wrap"><table class="cobros-table">
-    <thead><tr><th>Avisado</th><th>Cliente</th><th>Nº Fac</th><th>Fecha</th><th>Estado</th><th style="text-align:right">Importe</th><th></th></tr></thead>
+    <thead><tr><th>Avisado</th>${[['cliente','Cliente',''],['num','Nº Fac',''],['fecha','Fecha',''],['dias','Estado',''],['total','Importe','text-align:right']].map(([k,n,st])=>`<th class="ord${cobrosOrden.k===k?' on':''}" data-action="cobros-ordenar" data-param="${k}"${st?` style="${st}"`:''} title="Ordenar por ${n.toLowerCase()}">${n}<span class="ar">${cobrosOrden.k===k?(cobrosOrden.dir>0?'▲':'▼'):'↕'}</span></th>`).join('')}<th></th></tr></thead>
     <tbody>${filasHtml}</tbody>
   </table></div></div>`:'';
   sec.innerHTML=`
@@ -80,6 +98,7 @@ function renderCobrosPendientes(){
         <div class="cobros-stat vencidas-leve"><div class="cobros-stat-num">${numVencidas}</div><div class="cobros-stat-label">🟠 Vencidas (30-59 días)</div></div>
         <div class="cobros-stat total"><div class="cobros-stat-num">${fmtMoney(totalPendiente)}</div><div class="cobros-stat-label">Total pendiente</div></div>
       </div>
+      <div class="chips cobros-chips">${COBROS_FILTROS.map(([k,n])=>`<button class="chip${cobrosFiltro===k?' on':''}" data-action="cobros-filtro" data-param="${k}">${n}</button>`).join('')}</div>
       <input class="search-input" id="cobros-search" type="search" placeholder="Buscar cliente o número…" value="${cobrosQ}">
     </div>
     ${cobrosCliente?`<div class="cobros-chip">Mostrando solo <b>${escHtmlCal(cobrosCliente)}</b> <button data-action="cobros-filtrar-cliente" data-param="" title="Quitar filtro">✕</button></div>`:''}

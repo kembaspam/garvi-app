@@ -74,6 +74,8 @@ document.addEventListener('click',e=>{
   else if(action==='pdf-factura') pdfFactura(param);
   else if(action==='pdf-facturas') pdfFacturas();
   else if(action==='pdf-cobros-pendientes') pdfCobrosPendientes();
+  else if(action==='cobros-ordenar'){ cobrosOrden=(cobrosOrden.k===param)?{k:param,dir:-cobrosOrden.dir}:{k:param,dir:(param==='total'||param==='dias')?-1:1}; renderCobrosPendientes(); }
+  else if(action==='cobros-filtro'){ cobrosFiltro=param||''; renderCobrosPendientes(); }
   else if(action==='cobros-filtrar-cliente'){ cobrosCliente=(param===cobrosCliente)?'':(param||''); renderCobrosPendientes(); }
   else if(action==='importar-deudores') elegirExcelDeudores();
   else if(action==='aplicar-import-deudores') aplicarImportDeudores();
@@ -140,6 +142,8 @@ document.addEventListener('click',e=>{
   else if(action==='cal-prev') calChangeMonth(-1);
   else if(action==='cal-next') calChangeMonth(1);
   else if(action==='cal-sel-day') calSelectDay(param);
+  else if(action==='cal-vista') calSetVista(param);
+  else if(action==='cal-search-tipo') calSearchTipo(param);
   else if(action==='cal-search-toggle') calSearchToggle();
   else if(action==='cal-search-go') calSearchGo(param);
   else if(action==='nuevo-aviso') nuevoAvisoModal();

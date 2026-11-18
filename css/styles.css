@@ -663,3 +663,70 @@ label{
 .map-popup-title{font-weight:800;font-size:12.5px;color:var(--text);margin-bottom:4px}
 .map-popup-btn{display:inline-block;background:var(--accent-blue);color:#fff;border:none;border-radius:6px;padding:5px 10px;font-size:11.5px;font-weight:700;cursor:pointer;margin-top:4px}
 
+
+/* ── Chips, selector de vistas, semana y próximos 7 días ───────────── */
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}
+.chip{border:1.5px solid var(--border);background:#fff;border-radius:20px;padding:4px 11px;font:700 12px 'DM Sans',sans-serif;color:var(--text2);cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+.chip i{width:8px;height:8px;border-radius:50%;display:inline-block}
+.chip.on{background:var(--sidebar-bg);border-color:var(--sidebar-bg);color:#fff}
+.cal-search-chips{display:none}
+.cal-search-chips.open{display:flex}
+.seg{display:inline-flex;border:1px solid var(--border);border-radius:10px;overflow:hidden;background:#fff;max-width:100%}
+.seg button{border:none;background:none;padding:6px 14px;font:700 12.5px 'DM Sans',sans-serif;color:var(--text2);cursor:pointer}
+.seg button.on{background:var(--sidebar-bg);color:#fff}
+#cal-wrap{container-type:inline-size}
+.sem-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px}
+.sem-col{background:var(--surface2);border:1px solid var(--border2);border-radius:12px;padding:8px;min-height:170px;cursor:pointer}
+.sem-col.hoy{border-color:var(--accent);box-shadow:0 0 0 2px rgba(240,180,41,.2);background:#fffbef}
+.sem-col.sel{border-color:var(--sidebar-bg);box-shadow:0 0 0 2px rgba(15,32,68,.18)}
+.sem-dia{font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px}
+.sem-dia b{font-size:15px;color:var(--text)}
+.sem-av{border-left:4px solid #999;background:#fff;border-radius:8px;padding:6px 8px;margin-bottom:6px;font-size:12px;box-shadow:0 1px 2px rgba(15,32,68,.06)}
+.sem-av .t{font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.04em}
+.sem-av .n{font-weight:700;overflow-wrap:anywhere}
+.sem-av .m{color:var(--muted);font-size:11px;overflow-wrap:anywhere}
+.sem-av.hecho{opacity:.5}
+.sem-av.hecho .n{text-decoration:line-through}
+.sem-vacio{color:var(--muted);font-size:11.5px;text-align:center;padding:14px 0}
+.prox-item{display:flex;gap:12px;align-items:flex-start;padding:10px 6px;border-bottom:1px solid var(--border2);cursor:pointer}
+.prox-item .f{width:64px;flex-shrink:0;text-align:center;border-radius:10px;background:var(--surface2);padding:6px 0}
+.prox-item .f b{display:block;font-size:18px}
+.prox-item .f span{font-size:10px;font-weight:800;color:var(--muted);text-transform:uppercase}
+/* Si el calendario es estrecho (móvil o columna pequeña), los días de la semana se apilan */
+@container (max-width:640px){
+  .sem-grid{grid-template-columns:1fr}
+  .sem-col{min-height:0}
+}
+
+/* ── Cobros: cabeceras ordenables ─────────────────────────────────── */
+.cobros-table th.ord{cursor:pointer;user-select:none}
+.cobros-table th.ord:hover{color:var(--text)}
+.cobros-table th.ord .ar{opacity:.35;margin-left:4px}
+.cobros-table th.ord.on .ar{opacity:1;color:var(--accent-blue)}
+/* ── Cobros en móvil: cada fila de la tabla pasa a ser una tarjeta ───── */
+@media(max-width:720px){
+  .cobros-chips{flex-wrap:nowrap;overflow-x:auto;padding-bottom:4px}
+  .cobros-chips .chip{flex-shrink:0;white-space:nowrap}
+  .cobros-table:not(.cobros-table-resumen) thead{display:none}
+  .cobros-table:not(.cobros-table-resumen),.cobros-table:not(.cobros-table-resumen) tbody{display:block;background:transparent}
+  .cobros-table:not(.cobros-table-resumen) tr{
+    display:grid;grid-template-columns:auto auto 1fr auto;column-gap:10px;row-gap:8px;
+    grid-template-areas:"cli cli cli imp" "num fec fec fec" "est est est est" "met met acc acc";
+    margin:10px 10px 0;padding:12px;background:#fff;border:1px solid var(--border2);border-left:4px solid transparent;
+    border-radius:14px;box-shadow:var(--shadow);align-items:center}
+  .cobros-table:not(.cobros-table-resumen) tr:last-child{margin-bottom:10px}
+  .cobros-table:not(.cobros-table-resumen) tr.cobros-row-muyvencida{border-left-color:#ef4444}
+  .cobros-table:not(.cobros-table-resumen) tr.cobros-row-vencida{border-left-color:#f97316}
+  .cobros-table:not(.cobros-table-resumen) tr.cobros-row-avisada{border-left-color:#f59e0b}
+  .cobros-table:not(.cobros-table-resumen) td{display:block;padding:0;border:none;background:transparent!important}
+  .cobros-table:not(.cobros-table-resumen) tr td:first-child{border-left:none}
+  .cobros-table td.cobros-cli{grid-area:cli;font-size:15px}
+  .cobros-table td.cobros-importe{grid-area:imp;font-size:16px}
+  .cobros-table td.cobros-num{grid-area:num}
+  .cobros-table td.cobros-num::before{content:'Nº '}
+  .cobros-table td.cobros-fecha{grid-area:fec}
+  .cobros-table td.cobros-fecha::before{content:'· '}
+  .cobros-table td.cobros-est{grid-area:est}
+  .cobros-table td.cobros-met{grid-area:met}
+  .cobros-table td.cobros-accion{grid-area:acc;justify-self:end}
+}

@@ -27,6 +27,7 @@ function renderInicio(){
           <input id="cal-search-inp" type="search" placeholder="Buscar aviso (cliente, dirección, teléfono, nota…)" autocomplete="off" value="${escAttrCal(calSearchQ)}">
           <button class="cal-nav-btn" data-action="cal-search-toggle" title="Buscar avisos" aria-label="Buscar avisos">🔍</button>
         </div>
+        <div class="chips cal-search-chips${calSearchOpen?' open':''}" id="cal-search-chips"></div>
         <div class="cal-search-res" id="cal-search-res"></div>
         <div id="cal-wrap"></div>
       </div>
@@ -47,6 +48,7 @@ function renderInicio(){
 }
 // ── Buscador de avisos (discreto: icono que despliega un campo; resultados con fecha) ──
 let calSearchOpen=false, calSearchQ='';
+const calSearchTipos=new Set();   // chips de tipo activos en el buscador (vacío = todos)
 function escAttrCal(t){return String(t||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');}
 function escHtmlCal(t){return String(t||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 function normCal(t){return String(t==null?'':t).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();}
@@ -58,10 +60,14 @@ function avisoTextoBusqueda(a){
 }
 function renderCalSearch(){
   const box=document.getElementById('cal-search-res'); if(!box) return;
+  pintarChipsBusqueda();
   const q=normCal(calSearchQ).trim();
-  if(!calSearchOpen||!q){ box.classList.remove('open'); box.innerHTML=''; return; }
-  const palabras=q.split(/\s+/);
-  const hallados=avisos.filter(a=>{const t=avisoTextoBusqueda(a);return palabras.every(w=>t.includes(w));})
+  if(!calSearchOpen||(!q&&!calSearchTipos.size)){ box.classList.remove('open'); box.innerHTML=''; return; }
+  const palabras=q?q.split(/\s+/):[];
+  const hallados=avisos.filter(a=>{
+      if(calSearchTipos.size&&!calSearchTipos.has(a.tipo)&&!(a.extra||[]).some(e=>calSearchTipos.has(e.tipo))) return false;
+      const t=avisoTextoBusqueda(a); return palabras.every(w=>t.includes(w));
+    })
     .sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''));
   box.classList.add('open');
   if(!hallados.length){ box.innerHTML='<div class="cal-res-empty">Sin resultados</div>'; return; }
@@ -81,18 +87,28 @@ function renderCalSearch(){
     </div>`;
   }).join('')+(hallados.length>60?`<div class="cal-res-empty">…y ${hallados.length-60} más, afina la búsqueda</div>`:'');
 }
+function pintarChipsBusqueda(){
+  const el=document.getElementById('cal-search-chips'); if(!el) return;
+  el.classList.toggle('open',calSearchOpen);
+  el.innerHTML=`<button class="chip${calSearchTipos.size?'':' on'}" data-action="cal-search-tipo" data-param="">Todos</button>`
+    +Object.entries(AVISO_CFG).map(([k,v])=>`<button class="chip${calSearchTipos.has(k)?' on':''}" data-action="cal-search-tipo" data-param="${k}"><i style="background:${v.color}"></i>${v.label}</button>`).join('');
+}
+function calSearchTipo(k){
+  if(!k) calSearchTipos.clear(); else if(calSearchTipos.has(k)) calSearchTipos.delete(k); else calSearchTipos.add(k);
+  renderCalSearch();
+}
 function calSearchToggle(){
   calSearchOpen=!calSearchOpen;
   const row=document.getElementById('cal-search-row'); if(row) row.classList.toggle('open',calSearchOpen);
   const inp=document.getElementById('cal-search-inp');
   if(calSearchOpen&&inp) inp.focus();
-  if(!calSearchOpen){ calSearchQ=''; if(inp) inp.value=''; }
+  if(!calSearchOpen){ calSearchQ=''; calSearchTipos.clear(); if(inp) inp.value=''; }
   renderCalSearch();
 }
 function calSearchGo(iso){
   if(!iso) return;
   const d=new Date(iso+'T00:00:00');
-  calYear=d.getFullYear(); calMonth=d.getMonth(); calSelDay=iso;
+  calYear=d.getFullYear(); calMonth=d.getMonth(); calSelDay=iso; calSemIni=lunesDe(iso);
   renderCalendar(); renderAgenda();
   const ag=document.getElementById('agenda-list'); if(ag&&ag.scrollIntoView) ag.scrollIntoView({behavior:'smooth',block:'nearest'});
 }
@@ -101,8 +117,64 @@ function calSearchGo(iso){
 function avisosDelDia(dateStr){
   return avisos.filter(a=>a.fecha===dateStr);
 }
+// ── Vistas del calendario: Mes (la de siempre) · Semana · Próximos 7 días ──
+let calVista=(()=>{try{const v=localStorage.getItem('garvi_cal_vista');return ['mes','sem','prox'].includes(v)?v:'mes';}catch(e){return 'mes';}})();
+let calSemIni='';   // lunes (ISO) de la semana que se muestra
+const DOW_CORTO=['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
+function isoMasDias(iso,n){
+  const d=new Date(iso+'T00:00:00'); d.setDate(d.getDate()+n);
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+function lunesDe(iso){ return isoMasDias(iso,-((new Date(iso+'T00:00:00').getDay()+6)%7)); }
+function calVistasHtml(){
+  const b=(k,t)=>`<button class="${calVista===k?'on':''}" data-action="cal-vista" data-param="${k}">${t}</button>`;
+  return `<div class="seg" style="margin-bottom:10px">${b('mes','Mes')}${b('sem','Semana')}${b('prox','Próximos 7 días')}</div>`;
+}
+function calSetVista(v){
+  if(!['mes','sem','prox'].includes(v)) return;
+  calVista=v;
+  try{ localStorage.setItem('garvi_cal_vista',v); }catch(e){}
+  if(v==='sem') calSemIni=lunesDe(calSelDay);
+  renderCalendar();
+}
+function semAvHtml(a){
+  const cfg=AVISO_CFG[a.tipo]||{label:a.tipo,color:'#999'};
+  return `<div class="sem-av${avisoPendiente(a)?'':' hecho'}" style="border-left-color:${cfg.color}">
+    <div class="t" style="color:${cfg.color}">${cfg.label}${a.hora?' · '+escHtmlCal(a.hora):''}</div>
+    <div class="n">${escHtmlCal(a.nota)}</div>
+    ${a.direccion?`<div class="m">📍 ${escHtmlCal(a.direccion)}</div>`:''}
+  </div>`;
+}
+function avisosOrdenados(iso){
+  return avisosDelDia(iso).slice().sort((a,b)=>(a.hora||'99:99').localeCompare(b.hora||'99:99'));
+}
+function renderCalendarSemanaOProx(wrap){
+  const hoy=todayISO();
+  let html=calVistasHtml();
+  if(calVista==='sem'){
+    if(!calSemIni) calSemIni=lunesDe(calSelDay);
+    const t=new Date(calSemIni+'T00:00:00').toLocaleDateString('es-ES',{day:'numeric',month:'long'});
+    html+=`<div class="cal-head"><button class="cal-nav-btn" data-action="cal-prev">‹</button><div class="cal-head-title" style="text-transform:none">Semana del ${t}</div><button class="cal-nav-btn" data-action="cal-next">›</button></div><div class="sem-grid">`;
+    for(let i=0;i<7;i++){
+      const iso=isoMasDias(calSemIni,i), l=avisosOrdenados(iso);
+      html+=`<div class="sem-col${iso===hoy?' hoy':''}${iso===calSelDay?' sel':''}" data-action="cal-sel-day" data-param="${iso}"><div class="sem-dia">${DOW_CORTO[i]}<b>${+iso.slice(8)}</b></div>${l.map(semAvHtml).join('')||'<div class="sem-vacio">—</div>'}</div>`;
+    }
+    html+='</div>';
+  } else {
+    html+=`<div class="cal-head"><span style="width:30px"></span><div class="cal-head-title" style="text-transform:none">Próximos 7 días</div><span style="width:30px"></span></div>`;
+    let hay=false;
+    for(let i=0;i<7;i++){
+      const iso=isoMasDias(hoy,i), l=avisosOrdenados(iso); if(!l.length) continue; hay=true;
+      const dn=i===0?'Hoy':i===1?'Mañana':DOW_CORTO[(new Date(iso+'T00:00:00').getDay()+6)%7];
+      html+=`<div class="prox-item" data-action="cal-sel-day" data-param="${iso}"><div class="f"><b>${+iso.slice(8)}</b><span>${dn}</span></div><div style="flex:1;min-width:0">${l.map(semAvHtml).join('')}</div></div>`;
+    }
+    if(!hay) html+='<div class="empty-state" style="padding:22px 0"><div class="icon">🗓</div>Sin avisos en los próximos 7 días</div>';
+  }
+  wrap.innerHTML=html;
+}
 function renderCalendar(){
   const wrap=document.getElementById('cal-wrap'); if(!wrap) return;
+  if(calVista!=='mes') return renderCalendarSemanaOProx(wrap);
   const hoy=todayISO();
   const first=new Date(calYear,calMonth,1);
   const startOffset=(first.getDay()+6)%7;
@@ -114,7 +186,7 @@ function renderCalendar(){
   while(cells.length%7!==0) cells.push({d:cells.length-startOffset-daysInMonth+1,other:true,m:calMonth+1});
   const dow=['L','M','X','J','V','S','D'];
   const monthLabel=first.toLocaleDateString('es-ES',{month:'long',year:'numeric'});
-  let html=`<div class="cal-head">
+  let html=calVistasHtml()+`<div class="cal-head">
     <button class="cal-nav-btn" data-action="cal-prev">‹</button>
     <div class="cal-head-title">${monthLabel}</div>
     <button class="cal-nav-btn" data-action="cal-next">›</button>
@@ -140,11 +212,7 @@ function renderCalendar(){
     }
     html+=`<div class="${cls.join(' ')}" data-action="cal-sel-day" data-param="${iso}"><span>${c.d}</span><span class="cal-dots">${dots}</span></div>`;
   });
-  html+=`</div>
-  <div class="cal-legend">${Object.entries(AVISO_CFG).map(([k,v])=>`<span><i style="background:${v.color}"></i>${v.label}</span>`).join('')}
-    <span><i style="background:#16a34a"></i>Día completado</span>
-    <span><i style="background:#dc2626"></i>Pendiente atrasado</span>
-  </div>`;
+  html+=`</div>`;
   wrap.innerHTML=html;
 }
 function fmtHora(iso){return iso?new Date(iso).toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'}):'';}
@@ -350,6 +418,7 @@ function confirmarCopiaAviso(id){
   saveAvisos();syncAviso(a);closeModal();renderAgenda();renderCalendar();
 }
 function calChangeMonth(delta){
+  if(calVista==='sem'){ calSemIni=isoMasDias(calSemIni||lunesDe(calSelDay),delta*7); renderCalendar(); return; }
   calMonth+=delta;
   if(calMonth<0){calMonth=11;calYear--;}
   if(calMonth>11){calMonth=0;calYear++;}
