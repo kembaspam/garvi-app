@@ -418,23 +418,30 @@ label{
 /* Tabla de Cobros pendientes: columnas alineadas de verdad (como el Excel en papel), con
    scroll horizontal propio en pantallas estrechas en vez de romper el layout de la página. */
 .cobros-table-wrap{overflow-x:auto}
-.cobros-table{width:100%;border-collapse:collapse;font-size:12px;white-space:nowrap;background:#fff}
-.cobros-table th{text-align:left;font-size:9.5px;font-weight:700;color:#8a7a2e;text-transform:uppercase;letter-spacing:.05em;padding:6px 6px;background:#fef3b0;border-bottom:2px solid #fde98c}
-.cobros-table td{padding:3px 6px;border-bottom:1px solid #fbeec2;vertical-align:middle;white-space:normal;color:var(--text)}
+.cobros-table{width:100%;border-collapse:separate;border-spacing:0;font-size:13px;white-space:nowrap;background:#fff}
+.cobros-table th{text-align:left;font-size:10.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;padding:12px 12px;background:var(--surface2);border-bottom:1px solid var(--border)}
+.cobros-table td{padding:11px 12px;border-bottom:1px solid var(--border2);vertical-align:middle;white-space:normal;color:var(--text)}
 .cobros-table tbody tr:last-child td{border-bottom:none}
 .cobros-table tbody tr{transition:background .12s}
-.cobros-table tbody tr:hover td{filter:brightness(.96)}
-/* Estado de la fila: una franja de color a la izquierda (no la fila entera, para que se pueda
-   seguir leyendo bien). */
+.cobros-table tbody tr:hover td{background:#f6f9fd}
+/* Estado de la fila: franja de color a la izquierda (no la fila entera, para leer bien). */
 .cobros-table tr td:first-child{border-left:4px solid transparent}
-.cobros-table tr.cobros-row-muyvencida td:first-child{border-left-color:#dc2626}
+.cobros-table tr.cobros-row-muyvencida td:first-child{border-left-color:#ef4444}
 .cobros-table tr.cobros-row-vencida td:first-child{border-left-color:#f97316}
 .cobros-table tr.cobros-row-avisada td:first-child{border-left-color:#f59e0b}
-.cobros-status-pill{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:20px;font-size:10.5px;font-weight:700;white-space:nowrap;border:1px solid rgba(0,0,0,.06)}
-.cobros-status-muyvencida{background:#fee2e2;color:#991b1b}
-.cobros-status-vencida{background:#ffedd5;color:#9a3412}
-.cobros-status-avisada{background:#fef3c7;color:#92400e}
-.cobros-status-plazo{background:#e6f0ff;color:#1a3a8f}
+.cobros-cli{font-weight:700;font-size:13.5px;cursor:pointer}
+.cobros-num{color:var(--muted);font-family:'DM Mono',monospace;font-size:12px;cursor:pointer}
+.cobros-fecha{color:var(--text2);font-size:12.5px;white-space:nowrap;cursor:pointer}
+.cobros-importe{text-align:right;font-family:'DM Mono',monospace;font-weight:700;font-size:14px;color:var(--text);white-space:nowrap}
+.cobros-status-pill{display:inline-flex;align-items:center;gap:6px;padding:3px 10px 3px 8px;border-radius:20px;font-size:11.5px;font-weight:700;white-space:nowrap}
+.cobros-status-pill::before{content:'';width:7px;height:7px;border-radius:50%;background:currentColor;flex-shrink:0}
+.cobros-status-muyvencida{background:#fee2e2;color:#b91c1c}
+.cobros-status-vencida{background:#ffedd5;color:#c2410c}
+.cobros-status-avisada{background:#fef3c7;color:#a16207}
+.cobros-status-plazo{background:#e0ecff;color:#1d4ed8}
+.cobros-accion{white-space:nowrap;text-align:right}
+.cobros-btn-cobrada{display:inline-flex;align-items:center;gap:5px;padding:5px 12px;border-radius:8px;border:1.5px solid #86d9a5;background:#f0fdf4;color:#15803d;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .15s}
+.cobros-btn-cobrada:hover{background:#16a34a;border-color:#16a34a;color:#fff}
 /* Tarjetas de resumen arriba (facturas pendientes / vencidas / total) */
 .cobros-stats{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
 .cobros-stat{flex:1;min-width:140px;background:var(--surface);border:1px solid var(--border2);border-radius:14px;padding:12px 16px;box-shadow:var(--shadow)}
@@ -454,8 +461,8 @@ label{
 .cobros-bar-cliente{position:relative;font-weight:600}
 .cobros-bar-importe{position:relative;text-align:right;font-family:'DM Mono',monospace;font-weight:700;color:var(--accent-blue)}
 .metodo-pago-sel{
-  width:94px;font-size:10px;padding:3px 4px;border-radius:6px;
-  border:1.5px solid var(--border);background:#fff;color:var(--text);
+  width:104px;font-size:11.5px;padding:5px 6px;border-radius:8px;
+  border:1.5px solid var(--border);background:#fff;color:var(--text2);
   cursor:pointer;display:block;flex-shrink:0;
 }
 /* Color según el método de pago elegido, para distinguirlos de un vistazo sin leer el texto. */
@@ -464,7 +471,7 @@ label{
 .metodo-pago-sel.mp-cheque{background:#e0f7fa;border-color:#0891b2;color:#0e7490;font-weight:700}
 .avisado-toggle{
   display:flex;align-items:center;justify-content:center;
-  width:26px;height:26px;padding:0;border-radius:6px;border:1.5px solid var(--border);
+  width:30px;height:30px;padding:0;border-radius:8px;border:1.5px solid var(--border);
   background:#fff;color:var(--muted);font-size:13px;font-weight:700;
   cursor:pointer;transition:all .15s;font-family:inherit;flex-shrink:0;
 }
@@ -1080,7 +1087,7 @@ function migrarYSuscribirTodo(){
   // Antes de nada: si la nube todavía tiene alguno de los 31 contenedores con el valor erróneo
   // del corte de sincronización del 17-26/08, se corrige aquí mismo. Así, con que UN dispositivo
   // abra esta versión con conexión, la nube queda bien y el resto de dispositivos lo reciben solos.
-  return aplicarFix27AgoNube().then(()=>importarDeudoresNube()).then(()=>sincronizarDeudoresOctNube()).then(()=>sincronizarDeudoresNovNube()).then(()=>Promise.all([
+  return aplicarFix27AgoNube().then(()=>importarDeudoresNube()).then(()=>sincronizarDeudoresOctNube()).then(()=>sincronizarDeudoresNovNube()).then(()=>sincronizarDeudoresNov16Nube()).then(()=>Promise.all([
     syncContenedores.migrarLocales(containers.map(c=>{const {fotos,...r}=c; return r;})).then(n=>n&&total.push(n+' contenedor(es)')),
     syncAlbaranesCol.migrarLocales(albaranes).then(n=>n&&total.push(n+' albarán(es)')),
     syncTareasCol.migrarLocales(tareas).then(n=>n&&total.push(n+' tarea(s)')),
@@ -1171,6 +1178,7 @@ function loadData(){
   if(importarDeudoresLocal()) saveFacturas();
   if(sincronizarDeudoresOctLocal()) saveFacturas();
   if(sincronizarDeudoresNovLocal()) saveFacturas();
+  if(sincronizarDeudoresNov16Local()) saveFacturas();
   aplicarClienteFiscalLote1Local();
   if(corregirCliente550Local()) saveFacturas();
   cfg=JSON.parse(localStorage.getItem('garvi_cfg')||'{"apiKey":"","ultimaFact":0,"ultimaProf":0}');
@@ -3437,7 +3445,9 @@ let facturasView='proformas'; // 'proformas' | 'facturas' — pestaña por defec
 // criterio de color (rojo 60+, naranja 30-59) que el listado en papel.
 function facturaVencida(f){ return f.tipo==='factura'&&!f.cobrada&&daysSince(f.fecha)>=30; }
 function facturaMuyVencida(f){ return f.tipo==='factura'&&!f.cobrada&&daysSince(f.fecha)>=60; }
-function facturasPendientesList(){ return facturas.filter(f=>f.tipo==='factura'&&!f.cobrada); }
+// Cobros pendientes (pantalla y PDF) refleja SOLO el listado de deudores (Excel): las facturas
+// creadas a mano en la app que no están en ese listado no se cuelan aquí (siguen en Facturación).
+function facturasPendientesList(){ return facturas.filter(f=>f.tipo==='factura'&&!f.cobrada&&esFacturaFantasma(f)); }
 // Facturas "fantasma": importadas del listado de deudores en papel, solo para llevar la cuenta
 // de lo pendiente (sin líneas, sin NIF...), no documentos creados de verdad en la app. Se quedan
 // fuera de la lista de Facturación (ver renderFacturas) pero siguen intactas en Cobros pendientes.
@@ -3703,6 +3713,72 @@ function sincronizarDeudoresNovNube(){
     return Promise.all(escrituras).then(()=>{ localStorage.setItem('garvi_sync_deudores_nov_v1','1'); });
   }).catch(e=>{ console.error('Error comprobando deudores en la nube para la actualización de noviembre:',e); return 0; });
 }
+// ─── ACTUALIZACIÓN DEL LISTADO DE DEUDORES (revisado hasta el 16/11) ─────
+// Cuarta pasada del mismo listado (LISTADO DEUDORES.xlsx), mismo mecanismo que las anteriores:
+// añade las facturas nuevas, marca como cobradas las que ya NO aparecen y, para las que siguen,
+// rellena PAGARÉ/CHEQUE (y 'avisado') SOLO si en la app el método estaba vacío, sin pisar lo que
+// ya se hubiera puesto a mano desde Cobros pendientes.
+const NUEVOS_DEUDORES_NOV16=[
+  {id:'ld691',tipo:'factura',num:'691',cliente:'FAHUARAN',fecha:'2025-12-31',total:1067,base:1067,iva:0,nif:'',dir:'',telefono:'',email:'',notas:'Importada del listado de deudores en papel',lineas:[],vencimiento:'',cobrada:false,fechaCobro:'',avisado:false,metodoPago:''},
+  {id:'ld631',tipo:'factura',num:'631',cliente:'FERROVIAL SERVITRIA',fecha:'2026-11-15',total:2948,base:2948,iva:0,nif:'',dir:'',telefono:'',email:'',notas:'Importada del listado de deudores en papel',lineas:[],vencimiento:'',cobrada:false,fechaCobro:'',avisado:false,metodoPago:''},
+  {id:'ld632',tipo:'factura',num:'632',cliente:'CARSAN',fecha:'2026-11-15',total:891,base:891,iva:0,nif:'',dir:'',telefono:'',email:'',notas:'Importada del listado de deudores en papel',lineas:[],vencimiento:'',cobrada:false,fechaCobro:'',avisado:false,metodoPago:''},
+  {id:'ld633',tipo:'factura',num:'633',cliente:'NEW ON CT',fecha:'2026-11-15',total:9504,base:9504,iva:0,nif:'',dir:'',telefono:'',email:'',notas:'Importada del listado de deudores en papel',lineas:[],vencimiento:'',cobrada:false,fechaCobro:'',avisado:false,metodoPago:''},
+  {id:'ld634',tipo:'factura',num:'634',cliente:'SERVITRIA',fecha:'2026-11-15',total:594,base:594,iva:0,nif:'',dir:'',telefono:'',email:'',notas:'Importada del listado de deudores en papel',lineas:[],vencimiento:'',cobrada:false,fechaCobro:'',avisado:false,metodoPago:''},
+];
+// Facturas que el Excel sigue dando como pendientes pero que en la app figuraban cobradas (2025).
+const REABIERTAS_DEUDORES_NOV16=['ld691'];
+const PAGADOS_DEUDORES_NOV16=['ld44', 'ld59', 'ld107', 'ld151', 'ld158', 'ld196', 'ld295', 'ld330', 'ld358', 'ld374', 'ld410', 'ld411', 'ld412', 'ld414', 'ld416', 'ld417', 'ld437', 'ld439', 'ld456', 'ld457', 'ld474', 'ld475', 'ld476', 'ld477', 'ld478', 'ld482', 'ld484', 'ld485', 'ld498', 'ld514', 'ld556'];
+const METODOS_DEUDORES_NOV16={'ld460': 'PAGARÉ', 'ld462': 'PAGARÉ', 'ld464': 'PAGARÉ', 'ld465': 'PAGARÉ', 'ld467': 'PAGARÉ', 'ld512': 'CHEQUE', 'ld529': 'PAGARÉ', 'ld530': 'PAGARÉ', 'ld531': 'PAGARÉ', 'ld535': 'PAGARÉ', 'ld537': 'PAGARÉ', 'ld538': 'PAGARÉ', 'ld539': 'PAGARÉ', 'ld540': 'PAGARÉ', 'ld546': 'PAGARÉ', 'ld547': 'PAGARÉ', 'ld548': 'PAGARÉ'};
+function sincronizarDeudoresNov16Local(){
+  let cambiado=false;
+  NUEVOS_DEUDORES_NOV16.forEach(r=>{
+    if(facturas.some(f=>f.id===r.id)) return;
+    facturas.push({...r});
+    cambiado=true;
+  });
+  REABIERTAS_DEUDORES_NOV16.forEach(id=>{
+    const f=facturas.find(x=>x.id===id);
+    if(f&&f.cobrada){ f.cobrada=false; f.fechaCobro=''; cambiado=true; }
+  });
+  PAGADOS_DEUDORES_NOV16.forEach(id=>{
+    const f=facturas.find(x=>x.id===id);
+    if(f&&!f.cobrada){ f.cobrada=true; f.fechaCobro=todayISO(); cambiado=true; }
+  });
+  Object.entries(METODOS_DEUDORES_NOV16).forEach(([id,m])=>{
+    const f=facturas.find(x=>x.id===id);
+    if(f&&!f.cobrada&&!f.metodoPago){ f.metodoPago=m; f.avisado=true; cambiado=true; }
+  });
+  return cambiado;
+}
+function sincronizarDeudoresNov16Nube(){
+  if(!fbDb||!fbReady) return Promise.resolve();
+  if(localStorage.getItem('garvi_sync_deudores_nov16_v1')) return Promise.resolve();
+  return fbDb.collection('facturas').get().then(snap=>{
+    const existentes=new Map(); snap.forEach(d=>existentes.set(d.id,d.data()));
+    const nuevos=NUEVOS_DEUDORES_NOV16.filter(r=>!existentes.has(r.id));
+    const escrituras=nuevos.map(r=>fbDb.collection('facturas').doc(r.id).set(r).catch(e=>console.error('Error sincronizando deudor '+r.id+':',e)));
+    const hoy=todayISO();
+    REABIERTAS_DEUDORES_NOV16.forEach(id=>{
+      const data=existentes.get(id);
+      if(data&&data.cobrada){
+        escrituras.push(fbDb.collection('facturas').doc(id).update({cobrada:false,fechaCobro:''}).catch(e=>console.error('Error reabriendo '+id+':',e)));
+      }
+    });
+    PAGADOS_DEUDORES_NOV16.forEach(id=>{
+      const data=existentes.get(id);
+      if(data&&!data.cobrada){
+        escrituras.push(fbDb.collection('facturas').doc(id).update({cobrada:true,fechaCobro:hoy}).catch(e=>console.error('Error marcando cobrado '+id+':',e)));
+      }
+    });
+    Object.entries(METODOS_DEUDORES_NOV16).forEach(([id,m])=>{
+      const data=existentes.get(id);
+      if(data&&!data.cobrada&&!data.metodoPago){
+        escrituras.push(fbDb.collection('facturas').doc(id).update({metodoPago:m,avisado:true}).catch(e=>console.error('Error marcando método '+id+':',e)));
+      }
+    });
+    return Promise.all(escrituras).then(()=>{ localStorage.setItem('garvi_sync_deudores_nov16_v1','1'); });
+  }).catch(e=>{ console.error('Error comprobando deudores en la nube para la actualización del 16/11:',e); return 0; });
+}
 // ─── DATOS FISCALES Y CONCEPTOS DE CLIENTES, extraídos a mano de facturas en PDF (lote 1) ──
 // El nombre de cada cliente es el mismo que ya se usa en contenedores/facturas de la app (p.ej.
 // "SERVITRIA", "CYTEM", "CUPOLA", "ESCLAPES"...), NO el nombre fiscal largo que a veces aparece
@@ -3959,10 +4035,10 @@ function renderCobrosPendientes(){
     const muyVencida=facturaMuyVencida(f);
     const vencida=facturaVencida(f);
     const filaClase=muyVencida?'cobros-row-muyvencida':vencida?'cobros-row-vencida':(f.avisado?'cobros-row-avisada':'');
-    const estadoPill=muyVencida?`<span class="cobros-status-pill cobros-status-muyvencida">🔴 ${daysSince(f.fecha)} días</span>`
-      :vencida?`<span class="cobros-status-pill cobros-status-vencida">🟠 ${daysSince(f.fecha)} días</span>`
-      :f.avisado?`<span class="cobros-status-pill cobros-status-avisada">🟡 Avisado</span>`
-      :`<span class="cobros-status-pill cobros-status-plazo">🔵 En plazo</span>`;
+    const estadoPill=muyVencida?`<span class="cobros-status-pill cobros-status-muyvencida">${daysSince(f.fecha)} días</span>`
+      :vencida?`<span class="cobros-status-pill cobros-status-vencida">${daysSince(f.fecha)} días</span>`
+      :f.avisado?`<span class="cobros-status-pill cobros-status-avisada">Avisado</span>`
+      :`<span class="cobros-status-pill cobros-status-plazo">En plazo</span>`;
     return `<tr class="${filaClase}">
       <td>
         <div style="display:flex;gap:3px;align-items:center">
@@ -3975,18 +4051,18 @@ function renderCobrosPendientes(){
           <button class="avisado-toggle${f.avisado?' on':''}" data-action="toggle-avisado" data-param="${f.id}" title="${f.avisado?'Avisado — pulsa para quitar':'Marcar como avisado'}">${f.avisado?'✓':'🔔'}</button>
         </div>
       </td>
-      <td data-action="ver-factura" data-param="${f.id}" style="cursor:pointer;font-weight:700">${f.cliente}</td>
-      <td data-action="ver-factura" data-param="${f.id}" style="cursor:pointer;color:var(--muted)">${f.num}</td>
-      <td data-action="ver-factura" data-param="${f.id}" style="cursor:pointer;white-space:nowrap">${fmtDate(f.fecha)}</td>
+      <td class="cobros-cli" data-action="ver-factura" data-param="${f.id}">${f.cliente}</td>
+      <td class="cobros-num" data-action="ver-factura" data-param="${f.id}">${f.num}</td>
+      <td class="cobros-fecha" data-action="ver-factura" data-param="${f.id}">${fmtDate(f.fecha)}</td>
       <td style="white-space:nowrap">${estadoPill}</td>
-      <td style="text-align:right;font-family:'DM Mono',monospace;font-weight:700;color:var(--accent-blue);white-space:nowrap">${fmtMoney(f.total)}</td>
-      <td style="white-space:nowrap">
-        <button class="btn btn-cobrar btn-sm" data-action="toggle-cobrada" data-param="${f.id}" style="padding:2px 7px;font-size:10px">💰 Cobrada</button>
+      <td class="cobros-importe">${fmtMoney(f.total)}</td>
+      <td class="cobros-accion">
+        <button class="cobros-btn-cobrada" data-action="toggle-cobrada" data-param="${f.id}" title="Marcar como cobrada">✓ Cobrada</button>
         ${f.telefono?`<a href="https://wa.me/34${f.telefono.replace(/\D/g,'')}" target="_blank" class="btn btn-secondary btn-sm" style="padding:2px 7px;font-size:10px;margin-left:4px">${ICO_WA}</a>`:''}
       </td>
     </tr>`;
   }).join('');
-  const tablaHtml=filasHtml?`<div class="card" style="padding:0;overflow:hidden"><div class="cobros-table-wrap"><table class="cobros-table">
+  const tablaHtml=filasHtml?`<div class="card" style="padding:0;overflow:hidden;border-radius:16px"><div class="cobros-table-wrap"><table class="cobros-table">
     <thead><tr><th>Avisado</th><th>Cliente</th><th>Nº Fac</th><th>Fecha</th><th>Estado</th><th style="text-align:right">Importe</th><th></th></tr></thead>
     <tbody>${filasHtml}</tbody>
   </table></div></div>`:'';
