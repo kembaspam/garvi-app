@@ -74,6 +74,7 @@ document.addEventListener('click',e=>{
   else if(action==='pdf-factura') pdfFactura(param);
   else if(action==='pdf-facturas') pdfFacturas();
   else if(action==='pdf-cobros-pendientes') pdfCobrosPendientes();
+  else if(action==='cobros-filtrar-cliente'){ cobrosCliente=(param===cobrosCliente)?'':(param||''); renderCobrosPendientes(); }
   else if(action==='importar-deudores') elegirExcelDeudores();
   else if(action==='aplicar-import-deudores') aplicarImportDeudores();
   else if(action==='facturas-view'){facturasView=param;renderFacturas();}

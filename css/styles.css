@@ -424,6 +424,13 @@ label{
 .cobros-accion{white-space:nowrap;text-align:right}
 .cobros-btn-cobrada{display:inline-flex;align-items:center;gap:5px;padding:5px 12px;border-radius:8px;border:1.5px solid #86d9a5;background:#f0fdf4;color:#15803d;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .15s}
 .cobros-btn-cobrada:hover{background:#16a34a;border-color:#16a34a;color:#fff}
+/* Filtro por cliente: filas de "Debe cada cliente" pulsables + chip del filtro activo */
+.cobros-bar-clic{cursor:pointer}
+.cobros-bar-clic:hover .cobros-bar-fill{filter:brightness(.92)}
+.cobros-bar-clic.sel td{font-weight:800}
+.cobros-bar-clic.sel .cobros-bar-fill{background:linear-gradient(90deg,rgba(26,58,143,.18),rgba(26,58,143,.32))}
+.cobros-chip{display:inline-flex;align-items:center;gap:8px;margin:0 0 10px;padding:5px 6px 5px 12px;border-radius:20px;background:#e0ecff;color:#1d4ed8;font-size:12.5px}
+.cobros-chip button{border:none;background:#1d4ed8;color:#fff;width:20px;height:20px;border-radius:50%;cursor:pointer;font-size:11px;line-height:1}
 /* Tarjetas de resumen arriba (facturas pendientes / vencidas / total) */
 .cobros-stats{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
 .cobros-stat{flex:1;min-width:140px;background:var(--surface);border:1px solid var(--border2);border-radius:14px;padding:12px 16px;box-shadow:var(--shadow)}

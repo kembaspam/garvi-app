@@ -41,6 +41,7 @@ function initFirebase(){
       setSyncStatus('on');
       migrarAvisosLocalesAFirestore().then(suscribirAvisosFirestore);
       intentarMigrarYSuscribir();
+      programarCopiaAutomatica();
     }).catch(e=>{
       console.error('Firebase auth:',e);
       setSyncStatus('error');

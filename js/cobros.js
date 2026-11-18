@@ -1,5 +1,6 @@
 // ─── COBROS PENDIENTES (sección propia) ────────────────────────────
 let cobrosQ='';
+let cobrosCliente='';   // filtro por cliente (se activa pulsando un cliente en "Debe cada cliente")
 // Clase de color para el desplegable de método de pago, según el valor elegido.
 function claseMetodoPago(mp){
   if(mp==='CONFIRMING') return 'mp-confirming';
@@ -10,11 +11,13 @@ function claseMetodoPago(mp){
 function renderCobrosPendientes(){
   const sec=document.getElementById('sec-cobros');
   const cq=cobrosQ.toLowerCase();
-  const pendientes=facturasPendientesList().filter(f=>!cq||(f.cliente||'').toLowerCase().includes(cq)||(f.num||'').toLowerCase().includes(cq));
+  const pendientesBusqueda=facturasPendientesList().filter(f=>!cq||(f.cliente||'').toLowerCase().includes(cq)||(f.num||'').toLowerCase().includes(cq));
+  if(cobrosCliente&&!pendientesBusqueda.some(f=>f.cliente===cobrosCliente)) cobrosCliente='';
+  const pendientes=cobrosCliente?pendientesBusqueda.filter(f=>f.cliente===cobrosCliente):pendientesBusqueda;
   const totalPendiente=pendientes.reduce((s,f)=>s+(f.total||0),0);
   const numMuyVencidas=pendientes.filter(facturaMuyVencida).length;
   const numVencidas=pendientes.filter(f=>facturaVencida(f)&&!facturaMuyVencida(f)).length;
-  const porCliente=Object.entries(pendientes.reduce((m,f)=>{m[f.cliente]=(m[f.cliente]||0)+(f.total||0);return m;},{})).sort((a,b)=>b[1]-a[1]);
+  const porCliente=Object.entries(pendientesBusqueda.reduce((m,f)=>{m[f.cliente]=(m[f.cliente]||0)+(f.total||0);return m;},{})).sort((a,b)=>b[1]-a[1]);
   const maxCliente=porCliente.length?porCliente[0][1]:0;
   const resumenHtml=porCliente.length?`<div class="card" style="padding:10px 14px;margin-top:12px">
     <div style="font-size:11px;font-weight:700;color:var(--accent-blue);text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px">💼 Debe cada cliente</div>
@@ -22,7 +25,8 @@ function renderCobrosPendientes(){
       <thead><tr><th>Cliente</th><th style="text-align:right">Importe</th></tr></thead>
       <tbody>${porCliente.map(([cli,tot])=>{
         const pct=maxCliente?Math.max((tot/maxCliente)*100,4):0;
-        return `<tr class="cobros-bar-row"><td class="cobros-bar-cliente"><span class="cobros-bar-fill" style="width:${pct}%"></span><span style="position:relative">${cli}</span></td><td class="cobros-bar-importe">${fmtMoney(tot)}</td></tr>`;
+        const sel=cobrosCliente===cli;
+        return `<tr class="cobros-bar-row cobros-bar-clic${sel?' sel':''}" data-action="cobros-filtrar-cliente" data-param="${escAttrCal(cli)}" title="${sel?'Quitar filtro':'Ver solo las facturas de este cliente'}"><td class="cobros-bar-cliente"><span class="cobros-bar-fill" style="width:${pct}%"></span><span style="position:relative">${cli}</span></td><td class="cobros-bar-importe">${fmtMoney(tot)}</td></tr>`;
       }).join('')}</tbody>
     </table></div>
   </div>`:'';
@@ -78,6 +82,7 @@ function renderCobrosPendientes(){
       </div>
       <input class="search-input" id="cobros-search" type="search" placeholder="Buscar cliente o número…" value="${cobrosQ}">
     </div>
+    ${cobrosCliente?`<div class="cobros-chip">Mostrando solo <b>${escHtmlCal(cobrosCliente)}</b> <button data-action="cobros-filtrar-cliente" data-param="" title="Quitar filtro">✕</button></div>`:''}
     ${tablaHtml||'<div class="empty-state"><div class="icon">🎉</div>Sin facturas pendientes de cobro.</div>'}
     ${resumenHtml}`;
   document.getElementById('cobros-search').addEventListener('input',e=>{cobrosQ=e.target.value;reFocusInput('cobros-search',renderCobrosPendientes);});
