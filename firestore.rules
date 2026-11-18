@@ -1,0 +1,12 @@
+rules_version = '2';
+// Reglas de Firestore para GARVI — NO PUBLICAR hasta seguir SEGURIDAD.md (pasos 1 y 2).
+// Solo dejan leer y escribir a las dos cuentas de la empresa (inicio de sesión con email/contraseña
+// de Firebase). Cualquier otra persona, aunque tenga la clave pública de la app, recibe "denegado".
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if request.auth != null
+        && request.auth.token.email in ['ivan@garvi.app', 'halem@garvi.app'];
+    }
+  }
+}

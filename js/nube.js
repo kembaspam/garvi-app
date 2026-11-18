@@ -497,7 +497,14 @@ function reFocusInput(id,fn){
 }
 
 // ─── AUTH ─────────────────────────────────────────────────────────
-const USERS={ivan:{pass:'74392853c',label:'Iván'},halem:{pass:'74369288f',label:'Halem'}};
+// Las contraseñas ya NO van en texto plano en el código: solo su huella SHA-256 ("garvi|usuario|contraseña").
+// OJO: esto es una barrera de cortesía en el navegador; la protección real de los datos son las
+// reglas de Firestore (ver SEGURIDAD.md y firestore.rules).
+const USERS={ivan:{hash:'d2e6f452c0fef1a2b10f404e34ab2038573cd8cb72f9329cb5f0fe0b503c33da',label:'Iván'},halem:{hash:'8efd544dd10eeacaa18fecaa7a116355a35486dd2f03d8bfe5b9bd8c9e8f3713',label:'Halem'}};
+function sha256Hex(txt){
+  if(!(window.crypto&&crypto.subtle)) return Promise.reject(new Error('Abre la app desde su dirección https para poder entrar'));
+  return crypto.subtle.digest('SHA-256',new TextEncoder().encode(txt)).then(b=>[...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join(''));
+}
 function setSidebarUser(label){
   const el=document.getElementById('sidebar-username');
   const av=document.getElementById('sidebar-avatar');
@@ -508,7 +515,14 @@ function handleLogin(){
   const u=(document.getElementById('li-user').value||'').toLowerCase().trim();
   const p=(document.getElementById('li-pass').value||'').trim();
   const usr=USERS[u];
-  if(!usr||usr.pass!==p){document.getElementById('li-err').textContent='Usuario o contraseña incorrectos';return;}
+  const err=document.getElementById('li-err');
+  if(!usr){err.textContent='Usuario o contraseña incorrectos';return;}
+  sha256Hex('garvi|'+u+'|'+p).then(hx=>{
+    if(hx!==usr.hash){err.textContent='Usuario o contraseña incorrectos';return;}
+    entrarTrasLogin(u,usr);
+  }).catch(e=>{err.textContent=e.message||'No se pudo comprobar la contraseña';});
+}
+function entrarTrasLogin(u,usr){
   // La sesión siempre se guarda de forma permanente (localStorage, sin caducidad): una vez que
   // entras, este dispositivo queda con la sesión iniciada indefinidamente, como en apps tipo YouTube.
   localStorage.setItem('garvi_session',JSON.stringify({user:u,label:usr.label}));
