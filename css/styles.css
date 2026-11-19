@@ -855,13 +855,16 @@ select.seg-in{cursor:pointer;padding-right:2px}
   .seg-resumen{padding:6px 8px;font-size:11.5px;gap:10px}
   .seg-nota{width:calc(100% - 12px);margin:6px;padding:6px 8px;font-size:12px}
   .seg-pad{padding:6px;gap:8px}
-  /* A cuenta de clientes: ajustada al ancho */
+  /* A cuenta de clientes: ajustada al ancho, con letra pequeña */
   .seg-t-acuenta{table-layout:fixed;width:100%}
-  .seg-t-acuenta th:nth-child(2){width:88px!important}
-  .seg-t-acuenta th:nth-child(3){width:78px!important}
+  .seg-t-acuenta th{font-size:8.5px;padding:3px 1px}
+  .seg-t-acuenta th:nth-child(2){width:78px!important}
+  .seg-t-acuenta th:nth-child(3){width:68px!important}
+  .seg-t-acuenta th.seg-x,.seg-t-acuenta td.seg-x{width:18px}
+  .seg-t-acuenta .seg-in{font-size:11px;padding:5px 3px;overflow:hidden;text-overflow:ellipsis}
   .seg-t-acuenta td:first-child .seg-in{font-weight:700}
-  .seg-t-acuenta .seg-in{overflow:hidden;text-overflow:ellipsis}
-  .seg-t-acuenta td:nth-child(2) .seg-in{font-size:11.5px;padding-left:0;padding-right:0}
-  .seg-t-acuenta td:nth-child(3) .seg-in{font-size:11px;padding-left:1px}
+  .seg-t-acuenta td:nth-child(2) .seg-in{font-size:10.5px;padding-left:0;padding-right:0}
+  .seg-t-acuenta select.seg-in{font-size:10px;padding:5px 0}
+  .seg-t-acuenta .seg-del{padding:3px 1px;font-size:11px}
   .seg-nota{min-height:58px}
 }
