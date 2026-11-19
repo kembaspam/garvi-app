@@ -207,11 +207,13 @@ function migrarYSuscribirTodo(){
     syncCertificadosCol.migrarLocales(certificados).then(n=>n&&total.push(n+' certificado(s)')),
     migrarCfg(),
     migrarClientesExtra(),
+    migrarSeguimiento(),
     aplicarClienteFiscalLote1Nube(),
     corregirCliente550Nube(),
   ])).then(()=>{
     if(total.length) toastMsg('Subido a la nube: '+total.join(', ')+' ✓',4000);
     suscribirCfgYClientesExtra();
+    suscribirSeguimiento();
     syncContenedores.suscribir(v=>{
       const fotosByNum={}; containers.forEach(c=>{ if(c.fotos&&c.fotos.length) fotosByNum[c.num]=c.fotos; });
       containers=v.map(c=>({...c,fotos:fotosByNum[c.num]||c.fotos||[]}));
@@ -291,6 +293,7 @@ function loadData(){
   cfg=JSON.parse(localStorage.getItem('garvi_cfg')||'{"apiKey":"","ultimaFact":0,"ultimaProf":0}');
   certificados=JSON.parse(localStorage.getItem('garvi_certificados')||'[]');
   avisos=JSON.parse(localStorage.getItem('garvi_avisos')||'[]');
+  loadSeguimiento();
   avisos.forEach(migrarAviso);
   syncClientes();
   datosLocalesCargados=true;
@@ -612,7 +615,7 @@ function renderTab(tab){
   document.querySelectorAll('.tab-btn').forEach(b=>{b.classList.toggle('active',b.dataset.param===tab);});
   document.querySelectorAll('.section').forEach(s=>{s.classList.remove('active');});
   document.getElementById('sec-'+tab).classList.add('active');
-  const renders={inicio:renderInicio,contenedores:renderContenedores,albaranes:renderAlbaranes,facturas:renderFacturas,cobros:renderCobrosPendientes,finanzas:renderFinanzas,clientes:renderClientes,tareas:renderTareas,presupuestos:renderPresupuestos,certificados:renderCertificados};
+  const renders={inicio:renderInicio,contenedores:renderContenedores,albaranes:renderAlbaranes,facturas:renderFacturas,cobros:renderCobrosPendientes,seguimiento:renderSeguimiento,finanzas:renderFinanzas,clientes:renderClientes,tareas:renderTareas,presupuestos:renderPresupuestos,certificados:renderCertificados};
   if(renders[tab]) renders[tab]();
 }
 

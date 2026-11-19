@@ -10,7 +10,8 @@ const COPIA_AUTO_DIAS=7, COPIA_AUTO_CONSERVAR=8, COPIA_AUTO_TROZO=300000;
 function datosParaCopiaAuto(){
   const sinFotos=containers.map(c=>{const {fotos,...resto}=c;return resto;});
   return {contenedores:sinFotos,albaranes,tareas,finanzas,facturas,certificados,avisos,
-    config:[{id:'cfg',...(cfg||{})}]};
+    config:[{id:'cfg',...(cfg||{})}],
+    seguimiento:[{id:'seguimiento',...seguimiento}]};
 }
 function trocearCopia(nombre,items){
   const partes=[]; let actual=[], tam=0;

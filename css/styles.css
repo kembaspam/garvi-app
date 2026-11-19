@@ -737,3 +737,55 @@ label{
 @media(max-width:720px){
   .cobros-table:not(.cobros-table-resumen) tr.cobros-avisado{background:#fffbe6}
 }
+
+/* ── SEGUIMIENTO: permisos y recordatorios (mismo aire que el Excel, más limpio) ───────── */
+.seg-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;align-items:start}
+.seg-col{display:flex;flex-direction:column;gap:16px;min-width:0}
+@media(max-width:1000px){.seg-grid{grid-template-columns:1fr}}
+.seg-bloque{background:var(--surface);border:1px solid var(--border2);border-radius:14px;box-shadow:var(--shadow);overflow:hidden}
+.seg-titulo{display:flex;align-items:center;gap:8px;padding:9px 12px;font-weight:800;font-size:13.5px;text-transform:uppercase;letter-spacing:.04em;color:#3b2f00}
+.seg-titulo>span{flex:1}
+.seg-amarillo{background:#fde68a}.seg-cian{background:#a5f3fc;color:#083344}.seg-verde{background:#86efac;color:#052e16}.seg-lila{background:#ddd6fe;color:#2e1065}
+.seg-mas{border:none;background:rgba(255,255,255,.65);color:inherit;border-radius:8px;padding:3px 10px;font:700 12px 'DM Sans',sans-serif;cursor:pointer;white-space:nowrap}
+.seg-mas:hover{background:#fff}
+.seg-mas-claro{background:#fff;border:1px solid var(--border)}
+.seg-scroll{overflow-x:auto}
+.seg-tabla{width:100%;border-collapse:separate;border-spacing:0;font-size:13px}
+.seg-tabla th{background:#e9e4f7;color:#4c3f7a;font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;text-align:center;padding:6px 6px;border-bottom:1px solid #d9d1f0}
+.seg-tabla td{padding:0;border-bottom:1px solid #f2e7c9;background:#fff8e6}
+.seg-tabla tbody tr:last-child td{border-bottom:none}
+.seg-tabla td.seg-x,.seg-tabla th.seg-x{width:30px;background:var(--surface);text-align:center}
+.seg-tabla td.seg-c{text-align:center}
+.seg-in{width:100%;border:none;background:transparent;padding:8px 8px;font:600 13px 'DM Sans',sans-serif;color:var(--text);outline:none;border-radius:0;min-width:0}
+.seg-in:focus{background:#fff;box-shadow:inset 0 0 0 2px var(--accent)}
+select.seg-in{cursor:pointer;padding-right:2px}
+.seg-centro{text-align:center}
+.seg-num{text-align:right;font-family:'DM Mono',monospace}
+.seg-chk{width:18px;height:18px;cursor:pointer;accent-color:#16a34a}
+.seg-del{border:none;background:none;color:var(--muted);cursor:pointer;font-size:13px;padding:6px;border-radius:6px}
+.seg-del:hover{background:#fee2e2;color:#b91c1c}
+.seg-vacio{color:var(--muted);font-size:12px;text-align:center;padding:14px 8px!important;background:var(--surface)!important}
+.seg-fila-ok td{background:#dcfce7}
+.seg-fila-ok .seg-in{text-decoration:line-through;color:var(--text2)}
+.seg-fila-tarde td{background:#fee2e2}
+.seg-fila-pronto td{background:#fef3c7}
+.seg-resumen{display:flex;gap:16px;align-items:center;flex-wrap:wrap;padding:8px 12px;font-size:12.5px;color:var(--text2);border-top:1px solid var(--border2)}
+.seg-resumen b{color:var(--text);font-family:'DM Mono',monospace}
+.seg-nota{display:block;width:calc(100% - 20px);margin:10px;border:1px dashed #fca5a5;border-radius:8px;padding:8px 10px;font:600 13px 'DM Sans',sans-serif;color:#b91c1c;background:#fff7f7;resize:vertical}
+.seg-nota:focus{outline:2px solid var(--accent)}
+.seg-pad{padding:10px;display:flex;flex-direction:column;gap:12px}
+.seg-persona{border:1px solid var(--border2);border-radius:10px;overflow:hidden}
+.seg-persona-cab{display:flex;align-items:center;gap:6px;background:#f5f1ff;padding:2px 8px}
+.seg-nombre{font-weight:800!important;text-transform:uppercase;letter-spacing:.04em}
+.seg-dias{text-align:center;font-family:'DM Mono',monospace;font-weight:700;background:#f5f1ff!important;padding:0 6px!important}
+.seg-nota-p{flex:1;font-weight:500!important;font-size:12px!important}
+.seg-mini .seg-titulo{padding:4px 8px}
+.seg-titulo-in{flex:1;font-weight:800!important;text-transform:uppercase;letter-spacing:.04em;font-size:13px!important}
+.seg-titulo-in::placeholder{color:rgba(0,0,0,.4)}
+.seg-sin-cab td:first-child .seg-in{font-weight:700}
+.seg-nuevo-bloque{border:2px dashed var(--border);background:transparent;border-radius:12px;padding:10px;color:var(--text2);font:700 13px 'DM Sans',sans-serif;cursor:pointer}
+.seg-nuevo-bloque:hover{border-color:var(--accent);color:var(--text)}
+@media(max-width:720px){.seg-in{font-size:16px}}   /* 16px evita el zoom automático de iOS al escribir */
+.seg-full{grid-column:1/-1}
+.seg-tabla{min-width:420px}
+.seg-tabla.seg-ancha{min-width:820px}
