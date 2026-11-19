@@ -135,7 +135,7 @@ function segTablaHtml(bloque){
   const body=filas.map(f=>`<tr>${def.cols.map(c=>`<td${segTdAttrs('c:'+bloque+':'+c.k)}>${segInput(bloque,f.id,c,f[c.k])}</td>`).join('')}<td class="seg-x"><button class="seg-del" data-sact="fila-del" data-b="${bloque}" data-id="${f.id}" title="Quitar fila">✕</button></td></tr>`).join('')
     ||`<tr><td colspan="${def.cols.length+1}" class="seg-vacio">${def.vacio}</td></tr>`;
   return `<div class="seg-bloque">${segTitulo(def.titulo,def.color,`<button class="seg-mas" data-sact="fila-add" data-b="${bloque}">+ Añadir</button>`,'t:'+bloque)}
-    <div class="seg-scroll"><table class="seg-tabla${bloque==='permisos'||bloque==='renovaciones'?' seg-ancha':''}"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div></div>`;
+    <div class="seg-scroll"><table class="seg-tabla seg-t-${bloque}${bloque==='permisos'||bloque==='renovaciones'?' seg-ancha':''}"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div></div>`;
 }
 function segAcuentaHtml(){
   return segTablaHtml('acuenta').replace(/<\/div><\/div>$/,'')+

@@ -828,3 +828,40 @@ select.seg-in{cursor:pointer;padding-right:2px}
 .seg-paleta-otro input{width:44px;height:28px;border:none;background:none;cursor:pointer;padding:0}
 .seg-paleta-quitar{margin-top:8px;width:100%;border:1px solid var(--border);background:var(--surface2);border-radius:8px;padding:6px;font:700 12.5px 'DM Sans',sans-serif;color:var(--text2);cursor:pointer}
 .seg-paleta-quitar:hover{background:#fee2e2;color:#b91c1c}
+
+/* ── Seguimiento en móvil: más pequeño y compacto ────────────────────────────────
+   La tabla "A cuenta de clientes" se ajusta EXACTAMENTE al ancho de la pantalla (sin scroll lateral):
+   Cliente ocupa lo que sobra, Hecho/Total y Tipo llevan ancho fijo. Las tablas muy anchas
+   (Permisos y Renovación) siguen desplazándose en horizontal. */
+@media(max-width:767px){
+  #sec-seguimiento.section{padding:8px 6px}
+  #sec-seguimiento .section-header{padding:8px 2px 6px;margin-bottom:8px}
+  #sec-seguimiento .section-title{font-size:17px}
+  #sec-seguimiento .section-header .btn{padding:4px 8px;font-size:11px}
+  #sec-seguimiento .seg-ayuda{font-size:11.5px;padding:5px 9px}
+  .seg-grid,.seg-col{gap:8px}
+  .seg-bloque{border-radius:10px}
+  .seg-titulo{padding:5px 8px;font-size:11.5px;gap:5px}
+  .seg-mas{padding:2px 7px;font-size:11px}
+  .seg-tabla{min-width:0;font-size:12px}
+  .seg-tabla.seg-ancha{min-width:760px}
+  .seg-tabla th{font-size:9px;padding:4px 2px;letter-spacing:.03em}
+  .seg-in{font-size:12.5px;padding:6px 4px}
+  .seg-in:focus{font-size:16px}               /* 16px al escribir evita el zoom automático de iOS */
+  select.seg-in{-webkit-appearance:none;appearance:none;padding:6px 2px;text-overflow:clip;font-size:11.5px}
+  .seg-tabla td.seg-x,.seg-tabla th.seg-x{width:22px}
+  .seg-del{padding:4px 3px;font-size:12px}
+  .seg-vacio{padding:10px 6px!important}
+  .seg-resumen{padding:6px 8px;font-size:11.5px;gap:10px}
+  .seg-nota{width:calc(100% - 12px);margin:6px;padding:6px 8px;font-size:12px}
+  .seg-pad{padding:6px;gap:8px}
+  /* A cuenta de clientes: ajustada al ancho */
+  .seg-t-acuenta{table-layout:fixed;width:100%}
+  .seg-t-acuenta th:nth-child(2){width:88px!important}
+  .seg-t-acuenta th:nth-child(3){width:78px!important}
+  .seg-t-acuenta td:first-child .seg-in{font-weight:700}
+  .seg-t-acuenta .seg-in{overflow:hidden;text-overflow:ellipsis}
+  .seg-t-acuenta td:nth-child(2) .seg-in{font-size:11.5px;padding-left:0;padding-right:0}
+  .seg-t-acuenta td:nth-child(3) .seg-in{font-size:11px;padding-left:1px}
+  .seg-nota{min-height:58px}
+}
