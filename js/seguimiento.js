@@ -183,7 +183,9 @@ function segVacacionesHtml(){
 }
 function segTarifasHtml(){
   const grupos=seguimiento.tarifas.map(g=>{
-    const filas=(g.filas||[]).map(f=>`<tr>
+    const filas=(g.filas||[]).map(f=>f.sub?`<tr class="seg-sub">
+      <td colspan="2"><input class="seg-in" data-segt="${g.id}" data-fid="${f.id}" data-k="concepto" value="${segEsc(f.concepto)}" placeholder="Subtítulo" autocomplete="off"></td>
+      <td class="seg-x"><button class="seg-del" data-sact="tarifa-fila-del" data-b="${g.id}" data-id="${f.id}" title="Quitar">✕</button></td></tr>`:`<tr>
       <td><input class="seg-in" data-segt="${g.id}" data-fid="${f.id}" data-k="concepto" value="${segEsc(f.concepto)}" autocomplete="off"></td>
       <td><input class="seg-in seg-centro" data-segt="${g.id}" data-fid="${f.id}" data-k="valor" value="${segEsc(f.valor)}" autocomplete="off"></td>
       <td class="seg-x"><button class="seg-del" data-sact="tarifa-fila-del" data-b="${g.id}" data-id="${f.id}" title="Quitar">✕</button></td></tr>`).join('')
@@ -192,7 +194,8 @@ function segTarifasHtml(){
     return `<div class="seg-bloque seg-mini"${cg?` style="--tdc:${segMezcla(cg,.6)}"`:''}>
       <div class="seg-titulo${cg?'':' seg-'+color}${segModoColor?' seg-colorable':''}"${cg?` style="background:${cg};color:${segTexto(cg)}"`:''}${segCk('g:'+g.id)}><input class="seg-in seg-titulo-in" data-segt="${g.id}" data-k="titulo" value="${segEsc(g.titulo)}" placeholder="Título" autocomplete="off">
         <button class="seg-mas" data-sact="tarifa-color" data-b="${g.id}" title="Elegir el color de este bloque">🎨</button>
-        <button class="seg-mas" data-sact="tarifa-fila-add" data-b="${g.id}">+</button>
+        <button class="seg-mas" data-sact="tarifa-sub-add" data-b="${g.id}" title="Añadir un subtítulo (separa secciones dentro del bloque)">T</button>
+        <button class="seg-mas" data-sact="tarifa-fila-add" data-b="${g.id}" title="Añadir una fila">+</button>
         <button class="seg-mas" data-sact="tarifa-del" data-b="${g.id}" title="Quitar este bloque">🗑</button></div>
       <div class="seg-scroll"><table class="seg-tabla seg-sin-cab"><tbody>${filas}</tbody></table></div></div>`;
   }).join('');
@@ -325,6 +328,7 @@ document.addEventListener('click',e=>{
   else if(a==='tarifa-add'){ seguimiento.tarifas.push({id:segUid(),titulo:'',color:'amarillo',filas:[{id:segUid(),concepto:'',valor:''}]}); saveSeguimiento('tarifas'); renderSeguimiento(); }
   else if(a==='tarifa-del'){ const g=segGrupo(bl); if(g&&confirm('¿Quitar el bloque “'+(g.titulo||'sin título')+'”?')){ seguimiento.tarifas=seguimiento.tarifas.filter(x=>x.id!==bl); saveSeguimiento('tarifas'); renderSeguimiento(); } }
   else if(a==='tarifa-fila-add'){ const g=segGrupo(bl); if(g){ (g.filas=g.filas||[]).push({id:segUid(),concepto:'',valor:''}); saveSeguimiento('tarifas'); renderSeguimiento(); } }
+  else if(a==='tarifa-sub-add'){ const g=segGrupo(bl); if(g){ (g.filas=g.filas||[]).push({id:segUid(),concepto:'',valor:'',sub:true}); saveSeguimiento('tarifas'); renderSeguimiento(); } }
   else if(a==='tarifa-fila-del'){ const g=segGrupo(bl); if(g){ g.filas=(g.filas||[]).filter(x=>x.id!==id); saveSeguimiento('tarifas'); renderSeguimiento(); } }
   else if(a==='tarifa-color'){ segAbrirPaleta('g:'+bl,e.clientX,e.clientY); }
   else if(a==='mover-modo'){ segModoMover=!segModoMover; renderSeguimiento(); }

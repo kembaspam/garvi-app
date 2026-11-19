@@ -917,3 +917,9 @@ select.seg-in{cursor:pointer;padding-right:2px}
   .badge{right:calc(50% - 20px)}
 }
 
+/* Subtítulo dentro de un bloque de tarifas (p. ej. "Descuentos", "Precios") */
+.seg-tabla tr.seg-sub td{background:#e9e4f7;border-bottom:1px solid #d9d1f0}
+.seg-tabla tr.seg-sub td.seg-x{background:var(--surface)}
+.seg-tabla tr.seg-sub .seg-in{font-weight:800;font-size:11.5px;text-transform:uppercase;letter-spacing:.05em;color:#4c3f7a}
+.seg-sin-cab td:first-child{width:62%}
+

@@ -103,8 +103,16 @@ function segParseGrid(L,R,op){
   const partir=(txt)=>{ const t=String(txt).replace(/^[-–]\s*/,''); const k=t.indexOf('='); return k<0?{concepto:t.trim(),valor:''}:{concepto:t.slice(0,k).trim(),valor:t.slice(k+1).trim()}; };
   const grupo=(titulo,color,filas)=>({id:uid(),titulo,color,filas:filas.map(f=>({id:uid(),concepto:f.concepto,valor:f.valor}))});
   if(iMerc>=0){ const f=[0,1,2,3].map(k=>C(R[iMerc+1],k)).filter(Boolean).map(partir); out.tarifas.push(grupo(R[iMerc].map(c=>c.t).find(t=>segNorm(t)==='MERCADILLO'),'amarillo',f)); }
-  if(iViajes>=0){ const f=[]; for(let i=iViajes+1;i<R.length&&C(R[i],2);i++) f.push(partir(C(R[i],2))); out.tarifas.push(grupo(C(R[iViajes],2),'verde',f)); }
-  if(iSab>=0){ const f=[]; for(let i=iSab+1;i<R.length&&C(R[i],3);i++) f.push(partir(C(R[i],3))); out.tarifas.push(grupo(C(R[iSab],3),'verde',f)); }
+  // Sabospa = viajes de la semana + descuentos por descargas (+ los precios, que no vienen en la hoja):
+  // todo en UN solo bloque, con subtítulos. Los precios ya escritos en la app se conservan.
+  if(iViajes>=0||iSab>=0){
+    const filas=[], sub=(t)=>filas.push({id:uid(),concepto:t,valor:'',sub:true});
+    if(iViajes>=0){ sub('Viajes semana'); for(let i=iViajes+1;i<R.length&&C(R[i],2);i++){ const p=partir(C(R[i],2)); filas.push({id:uid(),concepto:p.concepto,valor:p.valor}); } }
+    if(iSab>=0){ sub('Descuentos por descargas'); for(let i=iSab+1;i<R.length&&C(R[i],3);i++){ const p=partir(C(R[i],3)); filas.push({id:uid(),concepto:p.concepto,valor:p.valor}); } }
+    const prev=(existente.tarifas||[]).find(g=>segNorm(g.titulo)==='SABOSPA');
+    if(prev){ const k=(prev.filas||[]).findIndex(f=>f.sub&&segNorm(f.concepto).startsWith('CONTENEDORES')); if(k>=0) prev.filas.slice(k).forEach(f=>filas.push({...f,id:uid()})); }
+    out.tarifas.push({id:uid(),titulo:'SABOSPA',color:'verde',filas});
+  }
   if(iVert>=0){ const f=[]; for(let i=iVert+1;i<R.length&&C(R[i],0);i++) f.push({concepto:C(R[i],0),valor:C(R[i],1)}); out.tarifas.push(grupo(R[iVert].map(c=>String(c.t).trim()).find(t=>segNorm(t).startsWith('VERTEDERO')),'amarillo',f)); }
 
   if(iVac>=0){
