@@ -159,7 +159,7 @@ function segPagaresHtml(){
   }).join('')||`<tr><td colspan="6" class="seg-vacio">Sin pagarés ni cheques</td></tr>`;
   const resumen=`<div class="seg-resumen"><span>Pendiente: <b>${fmtMoney(totalPend)}</b></span>${prox?`<span>Próximo: <b>${segFmtCorta(prox.vence)}</b></span>`:''}</div>`;
   return `<div class="seg-bloque">${segTitulo('Pagarés y cheques','amarillo','<button class="seg-mas" data-sact="fila-add" data-b="pagares">+ Añadir</button>','t:pagares')}
-    <div class="seg-scroll"><table class="seg-tabla"><thead><tr><th${segThAttrs('c:pagares:cliente')}>Cliente</th><th${segThAttrs('c:pagares:tipo','92px')}>Tipo</th><th${segThAttrs('c:pagares:vence','132px')}>Vencimiento</th><th${segThAttrs('c:pagares:importe','100px')}>Importe</th><th${segThAttrs('c:pagares:cobrado','44px','seg-c')} title="Cobrado">✓</th><th class="seg-x"></th></tr></thead><tbody>${body}</tbody></table></div>${resumen}</div>`;
+    <div class="seg-scroll"><table class="seg-tabla seg-t-pagares"><thead><tr><th${segThAttrs('c:pagares:cliente')}>Cliente</th><th${segThAttrs('c:pagares:tipo','92px')}>Tipo</th><th${segThAttrs('c:pagares:vence','132px')}>Vencimiento</th><th${segThAttrs('c:pagares:importe','100px')}>Importe</th><th${segThAttrs('c:pagares:cobrado','44px','seg-c')} title="Cobrado">✓</th><th class="seg-x"></th></tr></thead><tbody>${body}</tbody></table></div>${resumen}</div>`;
 }
 function segVacacionesHtml(){
   const personas=seguimiento.vacaciones.map(p=>{
@@ -175,7 +175,7 @@ function segVacacionesHtml(){
       <div class="seg-persona-cab${segModoColor?' seg-colorable':''}"${segCol('p:'+p.id)?` style="background:${segCol('p:'+p.id)};color:${segTexto(segCol('p:'+p.id))}"`:''}${segCk('p:'+p.id)}><input class="seg-in seg-nombre" data-segv="${p.id}" data-k="nombre" value="${segEsc(p.nombre)}" placeholder="Nombre" autocomplete="off">
         <button class="seg-mas seg-mas-claro" data-sact="periodo-add" data-b="${p.id}">+ Periodo</button>
         <button class="seg-del" data-sact="persona-del" data-b="${p.id}" title="Quitar a esta persona">🗑</button></div>
-      <div class="seg-scroll"><table class="seg-tabla"><thead><tr><th${segThAttrs('c:vac:desde','132px')}>Desde</th><th${segThAttrs('c:vac:hasta','132px')}>Hasta</th><th${segThAttrs('c:vac:dias','48px')}>Días</th><th${segThAttrs('c:vac:nota')}>Nota</th><th class="seg-x"></th></tr></thead><tbody>${filas}</tbody></table></div>
+      <div class="seg-scroll"><table class="seg-tabla seg-t-vac"><thead><tr><th${segThAttrs('c:vac:desde','132px')}>Desde</th><th${segThAttrs('c:vac:hasta','132px')}>Hasta</th><th${segThAttrs('c:vac:dias','48px')}>Días</th><th${segThAttrs('c:vac:nota')}>Nota</th><th class="seg-x"></th></tr></thead><tbody>${filas}</tbody></table></div>
       <div class="seg-resumen"><span>Total: <b>${total} días</b></span><input class="seg-in seg-nota-p" data-segv="${p.id}" data-k="nota" value="${segEsc(p.nota)}" placeholder="Nota (p. ej. días pendientes del año anterior)" autocomplete="off"></div></div>`;
   }).join('');
   return `<div class="seg-bloque">${segTitulo('Vacaciones','amarillo','<button class="seg-mas" data-sact="persona-add">+ Persona</button>','t:vacaciones')}
