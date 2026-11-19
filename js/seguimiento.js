@@ -6,8 +6,20 @@
 //
 // Los datos NO van en el código (el repo es público): se cargan con el botón "Importar" o se
 // escriben a mano. "Exportar" baja todo a un .json (copia de seguridad / traspaso).
-const SEG_BLOQUES=['acuenta','permisos','renovaciones','facturar','pagares','vacaciones','tarifas','acuentaNota'];
-let seguimiento={acuenta:[],permisos:[],renovaciones:[],facturar:[],pagares:[],vacaciones:[],tarifas:[],acuentaNota:''};
+const SEG_BLOQUES=['acuenta','permisos','renovaciones','facturar','pagares','vacaciones','tarifas','acuentaNota','layout'];
+// Posición de los bloques en pantalla: 3 zonas (arriba a todo el ancho · columna izquierda · columna derecha).
+// Se puede cambiar con "↕ Mover bloques" y se sincroniza entre dispositivos (campo "layout").
+const SEG_LAYOUT_DEFECTO={arriba:['permisos','renovaciones'],izq:['acuenta','tarifas'],der:['facturar','pagares','vacaciones']};
+const SEG_NOMBRE_BLOQUE={permisos:'Permisos',renovaciones:'Renovación de permisos',acuenta:'A cuenta de clientes',facturar:'Facturación a…',pagares:'Pagarés y cheques',tarifas:'Tarifas y notas',vacaciones:'Vacaciones'};
+let seguimiento={acuenta:[],permisos:[],renovaciones:[],facturar:[],pagares:[],vacaciones:[],tarifas:[],acuentaNota:'',layout:JSON.parse(JSON.stringify(SEG_LAYOUT_DEFECTO))};
+let segModoMover=false;
+// Deja el layout siempre completo y sin repetidos (por si falta algún bloque o hay uno desconocido).
+function segLayoutValido(l){
+  const todos=Object.keys(SEG_NOMBRE_BLOQUE), vistos=new Set(), out={arriba:[],izq:[],der:[]};
+  ['arriba','izq','der'].forEach(z=>((l&&Array.isArray(l[z]))?l[z]:[]).forEach(id=>{ if(SEG_NOMBRE_BLOQUE[id]&&!vistos.has(id)){ vistos.add(id); out[z].push(id); } }));
+  todos.filter(id=>!vistos.has(id)).forEach(id=>{ const z=['arriba','izq','der'].find(z=>SEG_LAYOUT_DEFECTO[z].includes(id)); out[z].push(id); });
+  return out;
+}
 let segRenderPendiente=false;
 
 // Definición de las tablas sencillas. tipo: text (por defecto) | date | num | select | check
@@ -37,6 +49,7 @@ function loadSeguimiento(){
   let d={};
   try{ d=JSON.parse(localStorage.getItem('garvi_seguimiento')||'{}')||{}; }catch(e){}
   SEG_BLOQUES.forEach(b=>{ if(d[b]!==undefined) seguimiento[b]=d[b]; });
+  seguimiento.layout=segLayoutValido(seguimiento.layout);
 }
 function saveSeguimiento(bloque){
   try{ localStorage.setItem('garvi_seguimiento',JSON.stringify(seguimiento)); }catch(e){}
@@ -54,6 +67,7 @@ function suscribirSeguimiento(){
     const d=doc.data(); let cambio=false;
     SEG_BLOQUES.forEach(b=>{ if(d[b]!==undefined&&JSON.stringify(d[b])!==JSON.stringify(seguimiento[b])){ seguimiento[b]=d[b]; cambio=true; } });
     if(!cambio) return;
+    seguimiento.layout=segLayoutValido(seguimiento.layout);
     saveSeguimiento();
     if(currentTab==='seguimiento') pedirRenderSeguimiento();
   },err=>console.error('seguimiento onSnapshot:',err));
@@ -166,29 +180,88 @@ function segTarifasHtml(){
   }).join('');
   return grupos+`<button class="seg-nuevo-bloque" data-sact="tarifa-add">+ Añadir bloque de tarifas / notas</button>`;
 }
+function segBloqueHtml(id){
+  switch(id){
+    case 'permisos': return segTablaHtml('permisos');
+    case 'renovaciones': return segTablaHtml('renovaciones');
+    case 'acuenta': return segAcuentaHtml();
+    case 'facturar': return segTablaHtml('facturar');
+    case 'pagares': return segPagaresHtml();
+    case 'tarifas': return segTarifasHtml();
+    case 'vacaciones': return segVacacionesHtml();
+  }
+  return '';
+}
+function segItemHtml(id,zona,i,n){
+  if(!segModoMover) return `<div class="seg-item" data-bloque="${id}">${segBloqueHtml(id)}</div>`;
+  const arriba=!(i===0&&zona==='arriba'), abajo=!(i===n-1&&zona!=='arriba');
+  return `<div class="seg-item seg-mov" data-bloque="${id}" draggable="true">
+    <div class="seg-mover-bar"><span class="seg-grip" title="Arrastra">⠿</span><span class="seg-mover-nom">${SEG_NOMBRE_BLOQUE[id]}</span>
+      ${arriba?`<button data-sact="mv" data-d="up" data-b="${id}" title="Subir">▲</button>`:''}
+      ${abajo?`<button data-sact="mv" data-d="down" data-b="${id}" title="Bajar">▼</button>`:''}
+      ${zona==='der'?`<button data-sact="mv" data-d="izq" data-b="${id}" title="Pasar a la columna izquierda">◀</button>`:''}
+      ${zona==='izq'?`<button data-sact="mv" data-d="der" data-b="${id}" title="Pasar a la columna derecha">▶</button>`:''}
+    </div>${segBloqueHtml(id)}</div>`;
+}
 function renderSeguimiento(){
   const sec=document.getElementById('sec-seguimiento'); if(!sec) return;
   segRenderPendiente=false;
-  const pos=window.scrollY;
+  const pos=window.scrollY, L=seguimiento.layout;
+  const zona=(z,extra)=>`<div class="seg-col ${extra}${segModoMover?' seg-zona-mov':''}" data-zona="${z}">${L[z].map((id,i)=>segItemHtml(id,z,i,L[z].length)).join('')}${segModoMover&&!L[z].length?'<div class="seg-zona-vacia">Suelta aquí un bloque</div>':''}</div>`;
   sec.innerHTML=`
     <div class="section-header">
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
         <div class="section-title">Permisos y recordatorios</div>
         <div style="display:flex;gap:6px;flex-wrap:wrap">
-          <button class="btn btn-secondary btn-sm" data-sact="importar" title="Importa desde el Excel (.xlsx) o el PDF de Permisos y Recordatorios">⬆️ Importar Excel / PDF</button>
-          <button class="btn btn-secondary btn-sm" data-sact="exportar">⬇️ Exportar</button>
+          <button class="btn ${segModoMover?'btn-primary':'btn-secondary'} btn-sm" data-sact="mover-modo" title="Cambiar de sitio los bloques">${segModoMover?'✓ Listo':'↕ Mover bloques'}</button>
+          ${segModoMover?'<button class="btn btn-secondary btn-sm" data-sact="layout-reset">Restablecer</button>':`<button class="btn btn-secondary btn-sm" data-sact="importar" title="Importa desde el Excel (.xlsx) o el PDF de Permisos y Recordatorios">⬆️ Importar Excel / PDF</button>
+          <button class="btn btn-secondary btn-sm" data-sact="exportar">⬇️ Exportar</button>`}
         </div>
       </div>
+      ${segModoMover?'<div class="seg-ayuda">Usa las flechas de cada bloque (▲ ▼ ◀ ▶) o arrástralo desde ⠿. Pulsa “Listo” al terminar.</div>':''}
     </div>
-    <div class="seg-grid">
-      <div class="seg-col seg-full">${segTablaHtml('permisos')}${segTablaHtml('renovaciones')}</div>
-      <div class="seg-col">${segAcuentaHtml()}</div>
-      <div class="seg-col">${segTablaHtml('facturar')}${segPagaresHtml()}</div>
-      <div class="seg-col">${segTarifasHtml()}</div>
-      <div class="seg-col">${segVacacionesHtml()}</div>
-    </div>`;
+    <div class="seg-grid">${zona('arriba','seg-full')}${zona('izq','')}${zona('der','')}</div>`;
   window.scrollTo(0,pos);
 }
+// ── Mover bloques ──
+function segEncuentra(id){ const L=seguimiento.layout; const z=['arriba','izq','der'].find(z=>L[z].includes(id)); return {z,i:z?L[z].indexOf(id):-1}; }
+function segMover(id,dir){
+  const L=seguimiento.layout, {z,i}=segEncuentra(id); if(!z) return;
+  const swap=(j)=>{ [L[z][j],L[z][i]]=[L[z][i],L[z][j]]; };
+  if(dir==='up'){ if(i>0) swap(i-1); else if(z!=='arriba'){ L[z].splice(i,1); L.arriba.push(id); } }
+  else if(dir==='down'){ if(i<L[z].length-1) swap(i+1); else if(z==='arriba'){ L.arriba.splice(i,1); L.izq.unshift(id); } }
+  else if(dir==='izq'&&z==='der'){ L.der.splice(i,1); L.izq.splice(Math.min(i,L.izq.length),0,id); }
+  else if(dir==='der'&&z==='izq'){ L.izq.splice(i,1); L.der.splice(Math.min(i,L.der.length),0,id); }
+  saveSeguimiento('layout'); renderSeguimiento();
+}
+function segColocar(id,zonaDestino,antesDe){   // arrastrar y soltar
+  const L=seguimiento.layout, {z,i}=segEncuentra(id); if(!z) return;
+  L[z].splice(i,1);
+  let j=antesDe?L[zonaDestino].indexOf(antesDe):-1; if(j<0) j=L[zonaDestino].length;
+  L[zonaDestino].splice(j,0,id);
+  saveSeguimiento('layout'); renderSeguimiento();
+}
+let segArrastrando=null;
+document.addEventListener('dragstart',e=>{
+  const it=e.target.closest&&e.target.closest('#sec-seguimiento .seg-item.seg-mov'); if(!it) return;
+  segArrastrando=it.dataset.bloque; it.classList.add('seg-arrastrando');
+  try{ e.dataTransfer.setData('text/plain',segArrastrando); e.dataTransfer.effectAllowed='move'; }catch(x){}
+});
+document.addEventListener('dragend',()=>{ segArrastrando=null; document.querySelectorAll('.seg-arrastrando,.seg-sobre').forEach(x=>x.classList.remove('seg-arrastrando','seg-sobre')); });
+document.addEventListener('dragover',e=>{
+  if(!segArrastrando) return;
+  const zona=e.target.closest&&e.target.closest('#sec-seguimiento .seg-col'); if(!zona) return;
+  e.preventDefault();
+  document.querySelectorAll('.seg-sobre').forEach(x=>x.classList.remove('seg-sobre'));
+  const it=e.target.closest('.seg-item'); (it&&it.dataset.bloque!==segArrastrando?it:zona).classList.add('seg-sobre');
+});
+document.addEventListener('drop',e=>{
+  if(!segArrastrando) return;
+  const zona=e.target.closest&&e.target.closest('#sec-seguimiento .seg-col'); if(!zona) return;
+  e.preventDefault();
+  const it=e.target.closest('.seg-item'), id=segArrastrando; segArrastrando=null;
+  segColocar(id,zona.dataset.zona,it&&it.dataset.bloque!==id?it.dataset.bloque:null);
+});
 
 // ── Edición ──
 function segFila(bloque,id){ return (seguimiento[bloque]||[]).find(f=>f.id===id); }
@@ -232,6 +305,9 @@ document.addEventListener('click',e=>{
   else if(a==='tarifa-fila-add'){ const g=segGrupo(bl); if(g){ (g.filas=g.filas||[]).push({id:segUid(),concepto:'',valor:''}); saveSeguimiento('tarifas'); renderSeguimiento(); } }
   else if(a==='tarifa-fila-del'){ const g=segGrupo(bl); if(g){ g.filas=(g.filas||[]).filter(x=>x.id!==id); saveSeguimiento('tarifas'); renderSeguimiento(); } }
   else if(a==='tarifa-color'){ const g=segGrupo(bl); if(g){ g.color=SEG_COLORES[(SEG_COLORES.indexOf(g.color)+1)%SEG_COLORES.length]; saveSeguimiento('tarifas'); renderSeguimiento(); } }
+  else if(a==='mover-modo'){ segModoMover=!segModoMover; renderSeguimiento(); }
+  else if(a==='mv') segMover(bl,b.dataset.d);
+  else if(a==='layout-reset'){ seguimiento.layout=JSON.parse(JSON.stringify(SEG_LAYOUT_DEFECTO)); saveSeguimiento('layout'); renderSeguimiento(); }
   else if(a==='exportar') exportarSeguimiento();
   else if(a==='importar') importarSeguimiento();
 });

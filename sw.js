@@ -1,7 +1,7 @@
-const CACHE = 'garvi-v6';
+const CACHE = 'garvi-v7';
 const STATIC = ['./', './index.html', './manifest.json', './css/styles.css',
   './js/datos.js', './js/nube.js', './js/inicio.js', './js/contenedores.js',
-  './js/facturacion.js', './js/cobros.js', './js/importar-deudores.js', './js/copia-auto.js', './js/seguimiento.js', './js/seguimiento-import.js', './js/gestion.js', './js/eventos.js'];
+  './js/facturacion.js', './js/cobros.js', './js/importar-deudores.js', './js/copia-auto.js', './js/seguimiento.js', './js/seguimiento-import.js', './js/personalizar.js', './js/gestion.js', './js/eventos.js'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(STATIC).catch(() => {})));

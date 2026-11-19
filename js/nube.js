@@ -214,6 +214,7 @@ function migrarYSuscribirTodo(){
     if(total.length) toastMsg('Subido a la nube: '+total.join(', ')+' ✓',4000);
     suscribirCfgYClientesExtra();
     suscribirSeguimiento();
+    suscribirMenu();
     syncContenedores.suscribir(v=>{
       const fotosByNum={}; containers.forEach(c=>{ if(c.fotos&&c.fotos.length) fotosByNum[c.num]=c.fotos; });
       containers=v.map(c=>({...c,fotos:fotosByNum[c.num]||c.fotos||[]}));
