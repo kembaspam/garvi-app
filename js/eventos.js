@@ -78,6 +78,7 @@ document.addEventListener('click',e=>{
   else if(action==='cobros-filtro'){ cobrosFiltro=param||''; renderCobrosPendientes(); }
   else if(action==='cobros-filtrar-cliente'){ cobrosCliente=(param===cobrosCliente)?'':(param||''); renderCobrosPendientes(); }
   else if(action==='importar-deudores') elegirExcelDeudores();
+  else if(action==='aplicar-import-seguimiento') aplicarImportSeguimiento();
   else if(action==='aplicar-import-deudores') aplicarImportDeudores();
   else if(action==='facturas-view'){facturasView=param;renderFacturas();}
   else if(action==='toggle-avisado'){

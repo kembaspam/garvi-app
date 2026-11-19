@@ -20,7 +20,7 @@ const SEG_TABLAS={
     cols:[{k:'fecha',l:'Fecha',ancho:'120px'},{k:'direccion',l:'Dirección'},{k:'contacto',l:'Contacto'},{k:'pago',l:'Pago',ancho:'74px'}],
     nueva:()=>({fecha:'',direccion:'',contacto:'',pago:''})},
   renovaciones:{titulo:'Renovación de permisos',color:'cian',vacio:'Sin renovaciones pendientes',
-    cols:[{k:'limite',l:'Fecha límite',ancho:'160px'},{k:'fecha',l:'Fecha',ancho:'210px'},{k:'direccion',l:'Dirección'},{k:'contacto',l:'Contacto'},{k:'pago',l:'Pago',ancho:'66px'}],
+    cols:[{k:'limite',l:'Fecha límite',ancho:'196px'},{k:'fecha',l:'Fecha',ancho:'250px'},{k:'direccion',l:'Dirección'},{k:'contacto',l:'Contacto'},{k:'pago',l:'Pago',ancho:'66px'}],
     nueva:()=>({limite:'',fecha:'',direccion:'',contacto:'',pago:''})},
   facturar:{titulo:'Facturación a…',color:'amarillo',vacio:'Nada pendiente de facturar',
     cols:[{k:'cliente',l:'Cliente'},{k:'concepto',l:'Permiso o certificado',ancho:'140px'},{k:'lugar',l:'Lugar'}],
@@ -175,7 +175,7 @@ function renderSeguimiento(){
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
         <div class="section-title">Permisos y recordatorios</div>
         <div style="display:flex;gap:6px;flex-wrap:wrap">
-          <button class="btn btn-secondary btn-sm" data-sact="importar">⬆️ Importar</button>
+          <button class="btn btn-secondary btn-sm" data-sact="importar" title="Importa desde el Excel (.xlsx) o el PDF de Permisos y Recordatorios">⬆️ Importar Excel / PDF</button>
           <button class="btn btn-secondary btn-sm" data-sact="exportar">⬇️ Exportar</button>
         </div>
       </div>
@@ -251,17 +251,23 @@ function exportarSeguimiento(){
   toastMsg('Seguimiento exportado ✓');
 }
 function importarSeguimiento(){
-  const inp=document.createElement('input'); inp.type='file'; inp.accept='.json,application/json';
+  const inp=document.createElement('input'); inp.type='file'; inp.accept='.xlsx,.xls,.pdf,.json,application/json,application/pdf';
   inp.onchange=()=>{
     const f=inp.files&&inp.files[0]; if(!f) return;
-    f.text().then(t=>{
-      const j=JSON.parse(t); const d=j.datos||j;
-      if(!SEG_BLOQUES.some(b=>d[b]!==undefined)) throw new Error('El archivo no parece de Seguimiento');
-      if(!confirm('Se reemplazarán los datos actuales de esta sección por los del archivo. ¿Seguir?')) return;
-      SEG_BLOQUES.forEach(b=>{ if(d[b]!==undefined){ seguimiento[b]=d[b]; } });
-      saveSeguimiento(); SEG_BLOQUES.forEach(b=>{ if(d[b]!==undefined) syncSeguimiento(b); });
-      renderSeguimiento(); toastMsg('Datos importados ✓');
-    }).catch(e=>{ console.error(e); toastMsg('No se pudo importar: '+(e.message||e)); });
+    if(/\.json$/i.test(f.name)) return importarSeguimientoJson(f);
+    toastMsg('Leyendo '+f.name+'…');
+    leerArchivoSeguimiento(f).then(res=>mostrarResumenImportSeguimiento(res,f.name))
+      .catch(e=>{ console.error(e); toastMsg('No se pudo leer el archivo: '+(e.message||e)); });
   };
   inp.click();
+}
+function importarSeguimientoJson(f){
+  f.text().then(t=>{
+    const j=JSON.parse(t); const d=j.datos||j;
+    if(!SEG_BLOQUES.some(b=>d[b]!==undefined)) throw new Error('El archivo no parece de Seguimiento');
+    if(!confirm('Se reemplazarán los datos actuales de esta sección por los del archivo. ¿Seguir?')) return;
+    SEG_BLOQUES.forEach(b=>{ if(d[b]!==undefined){ seguimiento[b]=d[b]; } });
+    saveSeguimiento(); SEG_BLOQUES.forEach(b=>{ if(d[b]!==undefined) syncSeguimiento(b); });
+    renderSeguimiento(); toastMsg('Datos importados ✓');
+  }).catch(e=>{ console.error(e); toastMsg('No se pudo importar: '+(e.message||e)); });
 }
