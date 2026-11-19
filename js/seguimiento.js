@@ -6,13 +6,13 @@
 //
 // Los datos NO van en el código (el repo es público): se cargan con el botón "Importar" o se
 // escriben a mano. "Exportar" baja todo a un .json (copia de seguridad / traspaso).
-const SEG_BLOQUES=['acuenta','permisos','renovaciones','facturar','pagares','vacaciones','tarifas','acuentaNota','layout'];
+const SEG_BLOQUES=['acuenta','permisos','renovaciones','facturar','pagares','vacaciones','tarifas','acuentaNota','layout','colores'];
 // Posición de los bloques en pantalla: 3 zonas (arriba a todo el ancho · columna izquierda · columna derecha).
 // Se puede cambiar con "↕ Mover bloques" y se sincroniza entre dispositivos (campo "layout").
 const SEG_LAYOUT_DEFECTO={arriba:['permisos','renovaciones'],izq:['acuenta','tarifas'],der:['facturar','pagares','vacaciones']};
 const SEG_NOMBRE_BLOQUE={permisos:'Permisos',renovaciones:'Renovación de permisos',acuenta:'A cuenta de clientes',facturar:'Facturación a…',pagares:'Pagarés y cheques',tarifas:'Tarifas y notas',vacaciones:'Vacaciones'};
-let seguimiento={acuenta:[],permisos:[],renovaciones:[],facturar:[],pagares:[],vacaciones:[],tarifas:[],acuentaNota:'',layout:JSON.parse(JSON.stringify(SEG_LAYOUT_DEFECTO))};
-let segModoMover=false;
+let seguimiento={acuenta:[],permisos:[],renovaciones:[],facturar:[],pagares:[],vacaciones:[],tarifas:[],acuentaNota:'',layout:JSON.parse(JSON.stringify(SEG_LAYOUT_DEFECTO)),colores:{}};
+let segModoMover=false, segModoColor=false;
 // Deja el layout siempre completo y sin repetidos (por si falta algún bloque o hay uno desconocido).
 function segLayoutValido(l){
   const todos=Object.keys(SEG_NOMBRE_BLOQUE), vistos=new Set(), out={arriba:[],izq:[],der:[]};
@@ -50,6 +50,7 @@ function loadSeguimiento(){
   try{ d=JSON.parse(localStorage.getItem('garvi_seguimiento')||'{}')||{}; }catch(e){}
   SEG_BLOQUES.forEach(b=>{ if(d[b]!==undefined) seguimiento[b]=d[b]; });
   seguimiento.layout=segLayoutValido(seguimiento.layout);
+  if(!seguimiento.colores||typeof seguimiento.colores!=='object'||Array.isArray(seguimiento.colores)) seguimiento.colores={};
 }
 function saveSeguimiento(bloque){
   try{ localStorage.setItem('garvi_seguimiento',JSON.stringify(seguimiento)); }catch(e){}
@@ -57,7 +58,7 @@ function saveSeguimiento(bloque){
 }
 function syncSeguimiento(bloque){
   if(!fbDb||!fbReady) return;
-  fbDb.collection('config').doc('seguimiento').set({[bloque]:seguimiento[bloque]},{merge:true})
+  fbDb.collection('config').doc('seguimiento').set({[bloque]:seguimiento[bloque]},{mergeFields:[bloque]})
     .catch(e=>console.error('Error guardando seguimiento en la nube:',e));
 }
 function suscribirSeguimiento(){
@@ -68,6 +69,7 @@ function suscribirSeguimiento(){
     SEG_BLOQUES.forEach(b=>{ if(d[b]!==undefined&&JSON.stringify(d[b])!==JSON.stringify(seguimiento[b])){ seguimiento[b]=d[b]; cambio=true; } });
     if(!cambio) return;
     seguimiento.layout=segLayoutValido(seguimiento.layout);
+    if(!seguimiento.colores||typeof seguimiento.colores!=='object') seguimiento.colores={};
     saveSeguimiento();
     if(currentTab==='seguimiento') pedirRenderSeguimiento();
   },err=>console.error('seguimiento onSnapshot:',err));
@@ -102,7 +104,23 @@ function segDias(desde,hasta){
 function segFmtCorta(iso){ if(!iso) return ''; const d=new Date(iso+'T00:00:00'); return d.toLocaleDateString('es-ES',{day:'numeric',month:'short'}); }
 
 // ── Pintado ──
-function segTitulo(texto,color,extra){ return `<div class="seg-titulo seg-${color}"><span>${texto}</span>${extra||''}</div>`; }
+// ── Colores personalizables (títulos de bloque y columnas de tabla) ──
+const SEG_PALETA=['#fde68a','#fdba74','#fca5a5','#f9a8d4','#d8b4fe','#a5b4fc','#93c5fd','#67e8f9','#86efac','#bef264','#e5e7eb','#ffffff'];
+function segCol(k){ const c=seguimiento.colores&&seguimiento.colores[k]; return /^#[0-9a-f]{6}$/i.test(c||'')?c:''; }
+function segRgb(hex){ return [1,3,5].map(i=>parseInt(hex.slice(i,i+2),16)); }
+function segMezcla(hex,t){ return '#'+segRgb(hex).map(c=>Math.round(c+(255-c)*t).toString(16).padStart(2,'0')).join(''); }
+function segTexto(hex){ const [r,g,b]=segRgb(hex); return (0.299*r+0.587*g+0.114*b)>150?'#1f2937':'#ffffff'; }
+function segCk(k){ return segModoColor?` data-ckey="${k}"`:''; }
+function segThAttrs(k,ancho,clase){
+  const c=segCol(k), st=[]; if(ancho) st.push('width:'+ancho); if(c){ st.push('--thc:'+c,'--thx:'+segTexto(c)); }
+  const cl=[clase||'',segModoColor?'seg-colorable':''].filter(Boolean).join(' ');
+  return (cl?` class="${cl}"`:'')+(st.length?` style="${st.join(';')}"`:'')+segCk(k);
+}
+function segTdAttrs(k){ const c=segCol(k); return c?` style="--tdc:${segMezcla(c,.6)}"`:''; }
+function segTitulo(texto,color,extra,k){
+  const c=k&&segCol(k);
+  return `<div class="seg-titulo${c?'':' seg-'+color}${segModoColor?' seg-colorable':''}"${c?` style="background:${c};color:${segTexto(c)}"`:''}${k?segCk(k):''}><span>${texto}</span>${extra||''}</div>`;
+}
 function segInput(bloque,id,col,valor){
   const comun=`data-seg="${bloque}" data-id="${id}" data-k="${col.k}"`;
   if(col.tipo==='select'){
@@ -113,10 +131,10 @@ function segInput(bloque,id,col,valor){
 }
 function segTablaHtml(bloque){
   const def=SEG_TABLAS[bloque], filas=seguimiento[bloque]||[];
-  const head=def.cols.map(c=>`<th${c.ancho?` style="width:${c.ancho}"`:''}>${c.l}</th>`).join('')+'<th class="seg-x"></th>';
-  const body=filas.map(f=>`<tr>${def.cols.map(c=>`<td>${segInput(bloque,f.id,c,f[c.k])}</td>`).join('')}<td class="seg-x"><button class="seg-del" data-sact="fila-del" data-b="${bloque}" data-id="${f.id}" title="Quitar fila">✕</button></td></tr>`).join('')
+  const head=def.cols.map(c=>`<th${segThAttrs('c:'+bloque+':'+c.k,c.ancho)}>${c.l}</th>`).join('')+'<th class="seg-x"></th>';
+  const body=filas.map(f=>`<tr>${def.cols.map(c=>`<td${segTdAttrs('c:'+bloque+':'+c.k)}>${segInput(bloque,f.id,c,f[c.k])}</td>`).join('')}<td class="seg-x"><button class="seg-del" data-sact="fila-del" data-b="${bloque}" data-id="${f.id}" title="Quitar fila">✕</button></td></tr>`).join('')
     ||`<tr><td colspan="${def.cols.length+1}" class="seg-vacio">${def.vacio}</td></tr>`;
-  return `<div class="seg-bloque">${segTitulo(def.titulo,def.color,`<button class="seg-mas" data-sact="fila-add" data-b="${bloque}">+ Añadir</button>`)}
+  return `<div class="seg-bloque">${segTitulo(def.titulo,def.color,`<button class="seg-mas" data-sact="fila-add" data-b="${bloque}">+ Añadir</button>`,'t:'+bloque)}
     <div class="seg-scroll"><table class="seg-tabla${bloque==='permisos'||bloque==='renovaciones'?' seg-ancha':''}"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div></div>`;
 }
 function segAcuentaHtml(){
@@ -132,35 +150,35 @@ function segPagaresHtml(){
   const body=filas.map(f=>{
     const est=f.cobrado?'ok':(f.vence&&f.vence<hoy)?'tarde':(f.vence&&f.vence<=lim)?'pronto':'';
     return `<tr class="seg-fila-${est}">
-      <td><input class="seg-in" data-seg="pagares" data-id="${f.id}" data-k="cliente" value="${segEsc(f.cliente)}" autocomplete="off"></td>
-      <td><select class="seg-in" data-seg="pagares" data-id="${f.id}" data-k="tipo">${['Pagaré','Cheque'].map(o=>`<option${o===f.tipo?' selected':''}>${o}</option>`).join('')}</select></td>
-      <td><input class="seg-in" type="date" data-seg="pagares" data-id="${f.id}" data-k="vence" value="${segEsc(f.vence)}"></td>
-      <td><input class="seg-in seg-num" type="number" step="0.01" data-seg="pagares" data-id="${f.id}" data-k="importe" value="${segEsc(f.importe)}"></td>
-      <td class="seg-c"><input type="checkbox" class="seg-chk" data-seg="pagares" data-id="${f.id}" data-k="cobrado"${f.cobrado?' checked':''} title="Cobrado / ingresado"></td>
+      <td${segTdAttrs('c:pagares:cliente')}><input class="seg-in" data-seg="pagares" data-id="${f.id}" data-k="cliente" value="${segEsc(f.cliente)}" autocomplete="off"></td>
+      <td${segTdAttrs('c:pagares:tipo')}><select class="seg-in" data-seg="pagares" data-id="${f.id}" data-k="tipo">${['Pagaré','Cheque'].map(o=>`<option${o===f.tipo?' selected':''}>${o}</option>`).join('')}</select></td>
+      <td${segTdAttrs('c:pagares:vence')}><input class="seg-in" type="date" data-seg="pagares" data-id="${f.id}" data-k="vence" value="${segEsc(f.vence)}"></td>
+      <td${segTdAttrs('c:pagares:importe')}><input class="seg-in seg-num" type="number" step="0.01" data-seg="pagares" data-id="${f.id}" data-k="importe" value="${segEsc(f.importe)}"></td>
+      <td class="seg-c"${segTdAttrs('c:pagares:cobrado')}><input type="checkbox" class="seg-chk" data-seg="pagares" data-id="${f.id}" data-k="cobrado"${f.cobrado?' checked':''} title="Cobrado / ingresado"></td>
       <td class="seg-x"><button class="seg-del" data-sact="fila-del" data-b="pagares" data-id="${f.id}" title="Quitar">✕</button></td></tr>`;
   }).join('')||`<tr><td colspan="6" class="seg-vacio">Sin pagarés ni cheques</td></tr>`;
   const resumen=`<div class="seg-resumen"><span>Pendiente: <b>${fmtMoney(totalPend)}</b></span>${prox?`<span>Próximo: <b>${segFmtCorta(prox.vence)}</b></span>`:''}</div>`;
-  return `<div class="seg-bloque">${segTitulo('Pagarés y cheques','amarillo','<button class="seg-mas" data-sact="fila-add" data-b="pagares">+ Añadir</button>')}
-    <div class="seg-scroll"><table class="seg-tabla"><thead><tr><th>Cliente</th><th style="width:92px">Tipo</th><th style="width:132px">Vencimiento</th><th style="width:100px">Importe</th><th class="seg-c" style="width:44px" title="Cobrado">✓</th><th class="seg-x"></th></tr></thead><tbody>${body}</tbody></table></div>${resumen}</div>`;
+  return `<div class="seg-bloque">${segTitulo('Pagarés y cheques','amarillo','<button class="seg-mas" data-sact="fila-add" data-b="pagares">+ Añadir</button>','t:pagares')}
+    <div class="seg-scroll"><table class="seg-tabla"><thead><tr><th${segThAttrs('c:pagares:cliente')}>Cliente</th><th${segThAttrs('c:pagares:tipo','92px')}>Tipo</th><th${segThAttrs('c:pagares:vence','132px')}>Vencimiento</th><th${segThAttrs('c:pagares:importe','100px')}>Importe</th><th${segThAttrs('c:pagares:cobrado','44px','seg-c')} title="Cobrado">✓</th><th class="seg-x"></th></tr></thead><tbody>${body}</tbody></table></div>${resumen}</div>`;
 }
 function segVacacionesHtml(){
   const personas=seguimiento.vacaciones.map(p=>{
     const total=(p.periodos||[]).reduce((s,x)=>s+segDias(x.desde,x.hasta),0);
     const filas=(p.periodos||[]).map(x=>`<tr>
-      <td><input class="seg-in" type="date" data-segv="${p.id}" data-pid="${x.id}" data-k="desde" value="${segEsc(x.desde)}"></td>
-      <td><input class="seg-in" type="date" data-segv="${p.id}" data-pid="${x.id}" data-k="hasta" value="${segEsc(x.hasta)}"></td>
-      <td class="seg-dias">${segDias(x.desde,x.hasta)||''}</td>
-      <td><input class="seg-in" data-segv="${p.id}" data-pid="${x.id}" data-k="nota" value="${segEsc(x.nota)}" placeholder="nota" autocomplete="off"></td>
+      <td${segTdAttrs('c:vac:desde')}><input class="seg-in" type="date" data-segv="${p.id}" data-pid="${x.id}" data-k="desde" value="${segEsc(x.desde)}"></td>
+      <td${segTdAttrs('c:vac:hasta')}><input class="seg-in" type="date" data-segv="${p.id}" data-pid="${x.id}" data-k="hasta" value="${segEsc(x.hasta)}"></td>
+      <td class="seg-dias"${segTdAttrs('c:vac:dias')}>${segDias(x.desde,x.hasta)||''}</td>
+      <td${segTdAttrs('c:vac:nota')}><input class="seg-in" data-segv="${p.id}" data-pid="${x.id}" data-k="nota" value="${segEsc(x.nota)}" placeholder="nota" autocomplete="off"></td>
       <td class="seg-x"><button class="seg-del" data-sact="periodo-del" data-b="${p.id}" data-id="${x.id}" title="Quitar">✕</button></td></tr>`).join('')
       ||`<tr><td colspan="5" class="seg-vacio">Sin periodos</td></tr>`;
     return `<div class="seg-persona">
-      <div class="seg-persona-cab"><input class="seg-in seg-nombre" data-segv="${p.id}" data-k="nombre" value="${segEsc(p.nombre)}" placeholder="Nombre" autocomplete="off">
+      <div class="seg-persona-cab${segModoColor?' seg-colorable':''}"${segCol('p:'+p.id)?` style="background:${segCol('p:'+p.id)};color:${segTexto(segCol('p:'+p.id))}"`:''}${segCk('p:'+p.id)}><input class="seg-in seg-nombre" data-segv="${p.id}" data-k="nombre" value="${segEsc(p.nombre)}" placeholder="Nombre" autocomplete="off">
         <button class="seg-mas seg-mas-claro" data-sact="periodo-add" data-b="${p.id}">+ Periodo</button>
         <button class="seg-del" data-sact="persona-del" data-b="${p.id}" title="Quitar a esta persona">🗑</button></div>
-      <div class="seg-scroll"><table class="seg-tabla"><thead><tr><th style="width:132px">Desde</th><th style="width:132px">Hasta</th><th style="width:48px">Días</th><th>Nota</th><th class="seg-x"></th></tr></thead><tbody>${filas}</tbody></table></div>
+      <div class="seg-scroll"><table class="seg-tabla"><thead><tr><th${segThAttrs('c:vac:desde','132px')}>Desde</th><th${segThAttrs('c:vac:hasta','132px')}>Hasta</th><th${segThAttrs('c:vac:dias','48px')}>Días</th><th${segThAttrs('c:vac:nota')}>Nota</th><th class="seg-x"></th></tr></thead><tbody>${filas}</tbody></table></div>
       <div class="seg-resumen"><span>Total: <b>${total} días</b></span><input class="seg-in seg-nota-p" data-segv="${p.id}" data-k="nota" value="${segEsc(p.nota)}" placeholder="Nota (p. ej. días pendientes del año anterior)" autocomplete="off"></div></div>`;
   }).join('');
-  return `<div class="seg-bloque">${segTitulo('Vacaciones','amarillo','<button class="seg-mas" data-sact="persona-add">+ Persona</button>')}
+  return `<div class="seg-bloque">${segTitulo('Vacaciones','amarillo','<button class="seg-mas" data-sact="persona-add">+ Persona</button>','t:vacaciones')}
     <div class="seg-pad">${personas||'<div class="seg-vacio">Sin personas. Pulsa “+ Persona”.</div>'}</div></div>`;
 }
 function segTarifasHtml(){
@@ -170,10 +188,10 @@ function segTarifasHtml(){
       <td><input class="seg-in seg-centro" data-segt="${g.id}" data-fid="${f.id}" data-k="valor" value="${segEsc(f.valor)}" autocomplete="off"></td>
       <td class="seg-x"><button class="seg-del" data-sact="tarifa-fila-del" data-b="${g.id}" data-id="${f.id}" title="Quitar">✕</button></td></tr>`).join('')
       ||`<tr><td colspan="3" class="seg-vacio">Sin filas</td></tr>`;
-    const color=SEG_COLORES.includes(g.color)?g.color:'amarillo';
-    return `<div class="seg-bloque seg-mini">
-      <div class="seg-titulo seg-${color}"><input class="seg-in seg-titulo-in" data-segt="${g.id}" data-k="titulo" value="${segEsc(g.titulo)}" placeholder="Título" autocomplete="off">
-        <button class="seg-mas" data-sact="tarifa-color" data-b="${g.id}" title="Cambiar color">🎨</button>
+    const color=SEG_COLORES.includes(g.color)?g.color:'amarillo', cg=segCol('g:'+g.id);
+    return `<div class="seg-bloque seg-mini"${cg?` style="--tdc:${segMezcla(cg,.6)}"`:''}>
+      <div class="seg-titulo${cg?'':' seg-'+color}${segModoColor?' seg-colorable':''}"${cg?` style="background:${cg};color:${segTexto(cg)}"`:''}${segCk('g:'+g.id)}><input class="seg-in seg-titulo-in" data-segt="${g.id}" data-k="titulo" value="${segEsc(g.titulo)}" placeholder="Título" autocomplete="off">
+        <button class="seg-mas" data-sact="tarifa-color" data-b="${g.id}" title="Elegir el color de este bloque">🎨</button>
         <button class="seg-mas" data-sact="tarifa-fila-add" data-b="${g.id}">+</button>
         <button class="seg-mas" data-sact="tarifa-del" data-b="${g.id}" title="Quitar este bloque">🗑</button></div>
       <div class="seg-scroll"><table class="seg-tabla seg-sin-cab"><tbody>${filas}</tbody></table></div></div>`;
@@ -203,6 +221,13 @@ function segItemHtml(id,zona,i,n){
       ${zona==='izq'?`<button data-sact="mv" data-d="der" data-b="${id}" title="Pasar a la columna derecha">▶</button>`:''}
     </div>${segBloqueHtml(id)}</div>`;
 }
+function segBotonesCabecera(){
+  const b=(act,txt,primario,titulo)=>`<button class="btn ${primario?'btn-primary':'btn-secondary'} btn-sm" data-sact="${act}"${titulo?` title="${titulo}"`:''}>${txt}</button>`;
+  if(segModoMover) return b('mover-modo','✓ Listo',true)+b('layout-reset','Restablecer');
+  if(segModoColor) return b('color-modo','✓ Listo',true)+b('colores-reset','Quitar todos los colores');
+  return b('mover-modo','↕ Mover bloques',false,'Cambiar de sitio los bloques')+b('color-modo','🎨 Colores',false,'Cambiar los colores de títulos y columnas')
+    +b('importar','⬆️ Importar Excel / PDF',false,'Importa desde el Excel (.xlsx) o el PDF de Permisos y Recordatorios')+b('exportar','⬇️ Exportar');
+}
 function renderSeguimiento(){
   const sec=document.getElementById('sec-seguimiento'); if(!sec) return;
   segRenderPendiente=false;
@@ -212,13 +237,10 @@ function renderSeguimiento(){
     <div class="section-header">
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
         <div class="section-title">Permisos y recordatorios</div>
-        <div style="display:flex;gap:6px;flex-wrap:wrap">
-          <button class="btn ${segModoMover?'btn-primary':'btn-secondary'} btn-sm" data-sact="mover-modo" title="Cambiar de sitio los bloques">${segModoMover?'✓ Listo':'↕ Mover bloques'}</button>
-          ${segModoMover?'<button class="btn btn-secondary btn-sm" data-sact="layout-reset">Restablecer</button>':`<button class="btn btn-secondary btn-sm" data-sact="importar" title="Importa desde el Excel (.xlsx) o el PDF de Permisos y Recordatorios">⬆️ Importar Excel / PDF</button>
-          <button class="btn btn-secondary btn-sm" data-sact="exportar">⬇️ Exportar</button>`}
-        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">${segBotonesCabecera()}</div>
       </div>
       ${segModoMover?'<div class="seg-ayuda">Usa las flechas de cada bloque (▲ ▼ ◀ ▶) o arrástralo desde ⠿. Pulsa “Listo” al terminar.</div>':''}
+      ${segModoColor?'<div class="seg-ayuda">Pulsa el <b>título</b> de un bloque o la <b>cabecera de una columna</b> (las que tienen borde punteado) para elegir su color.</div>':''}
     </div>
     <div class="seg-grid">${zona('arriba','seg-full')}${zona('izq','')}${zona('der','')}</div>`;
   window.scrollTo(0,pos);
@@ -304,8 +326,10 @@ document.addEventListener('click',e=>{
   else if(a==='tarifa-del'){ const g=segGrupo(bl); if(g&&confirm('¿Quitar el bloque “'+(g.titulo||'sin título')+'”?')){ seguimiento.tarifas=seguimiento.tarifas.filter(x=>x.id!==bl); saveSeguimiento('tarifas'); renderSeguimiento(); } }
   else if(a==='tarifa-fila-add'){ const g=segGrupo(bl); if(g){ (g.filas=g.filas||[]).push({id:segUid(),concepto:'',valor:''}); saveSeguimiento('tarifas'); renderSeguimiento(); } }
   else if(a==='tarifa-fila-del'){ const g=segGrupo(bl); if(g){ g.filas=(g.filas||[]).filter(x=>x.id!==id); saveSeguimiento('tarifas'); renderSeguimiento(); } }
-  else if(a==='tarifa-color'){ const g=segGrupo(bl); if(g){ g.color=SEG_COLORES[(SEG_COLORES.indexOf(g.color)+1)%SEG_COLORES.length]; saveSeguimiento('tarifas'); renderSeguimiento(); } }
+  else if(a==='tarifa-color'){ segAbrirPaleta('g:'+bl,e.clientX,e.clientY); }
   else if(a==='mover-modo'){ segModoMover=!segModoMover; renderSeguimiento(); }
+  else if(a==='color-modo'){ segModoColor=!segModoColor; segCerrarPaleta(); renderSeguimiento(); }
+  else if(a==='colores-reset'){ if(confirm('¿Quitar todos los colores personalizados y volver a los de fábrica?')){ seguimiento.colores={}; saveSeguimiento('colores'); renderSeguimiento(); } }
   else if(a==='mv') segMover(bl,b.dataset.d);
   else if(a==='layout-reset'){ seguimiento.layout=JSON.parse(JSON.stringify(SEG_LAYOUT_DEFECTO)); saveSeguimiento('layout'); renderSeguimiento(); }
   else if(a==='exportar') exportarSeguimiento();
@@ -347,3 +371,33 @@ function importarSeguimientoJson(f){
     renderSeguimiento(); toastMsg('Datos importados ✓');
   }).catch(e=>{ console.error(e); toastMsg('No se pudo importar: '+(e.message||e)); });
 }
+
+// ── Selector de color (ventanita junto a lo pulsado) ──
+function segCerrarPaleta(){ const p=document.getElementById('seg-paleta'); if(p) p.remove(); }
+function segSetColor(k,hex){
+  if(!hex) delete seguimiento.colores[k]; else seguimiento.colores[k]=hex;
+  saveSeguimiento('colores'); segCerrarPaleta(); renderSeguimiento();
+}
+function segAbrirPaleta(k,x,y){
+  segCerrarPaleta();
+  const actual=segCol(k)||'#fde68a';
+  const p=document.createElement('div'); p.id='seg-paleta'; p.className='seg-paleta'; p.dataset.k=k;
+  p.innerHTML=`<div class="seg-paleta-grid">${SEG_PALETA.map(c=>`<button class="seg-sw${actual.toLowerCase()===c?' on':''}" style="background:${c}" data-pc="${c}" title="${c}"></button>`).join('')}</div>
+    <label class="seg-paleta-otro">Otro color <input type="color" value="${actual}"></label>
+    <button class="seg-paleta-quitar" data-pc="">Quitar color</button>`;
+  document.body.appendChild(p);
+  const w=p.offsetWidth, h=p.offsetHeight;
+  p.style.left=Math.max(8,Math.min(x,window.innerWidth-w-8))+'px';
+  p.style.top=Math.max(8,Math.min(y+8,window.innerHeight-h-8))+'px';
+  p.querySelector('input[type=color]').addEventListener('change',e=>segSetColor(k,e.target.value));
+}
+document.addEventListener('click',e=>{
+  const sw=e.target.closest&&e.target.closest('#seg-paleta [data-pc]');
+  if(sw){ segSetColor(document.getElementById('seg-paleta').dataset.k,sw.dataset.pc); return; }
+  if(e.target.closest&&e.target.closest('#seg-paleta')) return;
+  // clic en un título o cabecera "coloreable" (solo en modo Colores)
+  const t=e.target.closest&&e.target.closest('#sec-seguimiento [data-ckey]');
+  if(t&&segModoColor&&!e.target.closest('button,input,select,textarea,a')){ e.stopPropagation(); segAbrirPaleta(t.dataset.ckey,e.clientX,e.clientY); return; }
+  if(!(e.target.closest&&e.target.closest('[data-sact="tarifa-color"]'))) segCerrarPaleta();
+},true);
+document.addEventListener('keydown',e=>{ if(e.key==='Escape') segCerrarPaleta(); });

@@ -751,8 +751,8 @@ label{
 .seg-mas-claro{background:#fff;border:1px solid var(--border)}
 .seg-scroll{overflow-x:auto}
 .seg-tabla{width:100%;border-collapse:separate;border-spacing:0;font-size:13px}
-.seg-tabla th{background:#e9e4f7;color:#4c3f7a;font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;text-align:center;padding:6px 6px;border-bottom:1px solid #d9d1f0}
-.seg-tabla td{padding:0;border-bottom:1px solid #f2e7c9;background:#fff8e6}
+.seg-tabla th{background:var(--thc,#e9e4f7);color:var(--thx,#4c3f7a);font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;text-align:center;padding:6px 6px;border-bottom:1px solid #d9d1f0}
+.seg-tabla td{padding:0;border-bottom:1px solid #f2e7c9;background:var(--tdc,#fff8e6)}
 .seg-tabla tbody tr:last-child td{border-bottom:none}
 .seg-tabla td.seg-x,.seg-tabla th.seg-x{width:30px;background:var(--surface);text-align:center}
 .seg-tabla td.seg-c{text-align:center}
@@ -777,7 +777,7 @@ select.seg-in{cursor:pointer;padding-right:2px}
 .seg-persona{border:1px solid var(--border2);border-radius:10px;overflow:hidden}
 .seg-persona-cab{display:flex;align-items:center;gap:6px;background:#f5f1ff;padding:2px 8px}
 .seg-nombre{font-weight:800!important;text-transform:uppercase;letter-spacing:.04em}
-.seg-dias{text-align:center;font-family:'DM Mono',monospace;font-weight:700;background:#f5f1ff!important;padding:0 6px!important}
+.seg-tabla td.seg-dias{text-align:center;font-family:'DM Mono',monospace;font-weight:700;background:var(--tdc,#f5f1ff);padding:0 6px}
 .seg-nota-p{flex:1;font-weight:500!important;font-size:12px!important}
 .seg-mini .seg-titulo{padding:4px 8px}
 .seg-titulo-in{flex:1;font-weight:800!important;text-transform:uppercase;letter-spacing:.04em;font-size:13px!important}
@@ -814,3 +814,17 @@ select.seg-in{cursor:pointer;padding-right:2px}
 .orden-item button{border:1px solid var(--border);background:#fff;border-radius:8px;width:30px;height:26px;cursor:pointer;color:var(--text2)}
 .orden-item button:hover:not(:disabled){background:var(--accent);color:#fff;border-color:var(--accent)}
 .orden-item button:disabled{opacity:.3;cursor:default}
+
+/* ── Seguimiento: colores personalizados y separación de bloques de tarifas ── */
+.seg-mini{margin-bottom:14px}
+.seg-colorable{cursor:pointer;outline:2px dashed rgba(15,32,68,.45);outline-offset:-3px}
+.seg-colorable:hover{filter:brightness(.95)}
+.seg-paleta{position:fixed;z-index:3000;background:#fff;border:1px solid var(--border);border-radius:14px;box-shadow:var(--shadow-md);padding:12px;width:228px}
+.seg-paleta-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:8px}
+.seg-sw{width:28px;height:28px;border-radius:50%;border:2px solid rgba(15,32,68,.15);cursor:pointer;padding:0}
+.seg-sw:hover{transform:scale(1.12)}
+.seg-sw.on{border-color:var(--sidebar-bg);box-shadow:0 0 0 2px #fff inset}
+.seg-paleta-otro{display:flex;align-items:center;justify-content:space-between;margin-top:10px;font-size:12.5px;font-weight:700;color:var(--text2)}
+.seg-paleta-otro input{width:44px;height:28px;border:none;background:none;cursor:pointer;padding:0}
+.seg-paleta-quitar{margin-top:8px;width:100%;border:1px solid var(--border);background:var(--surface2);border-radius:8px;padding:6px;font:700 12.5px 'DM Sans',sans-serif;color:var(--text2);cursor:pointer}
+.seg-paleta-quitar:hover{background:#fee2e2;color:#b91c1c}
