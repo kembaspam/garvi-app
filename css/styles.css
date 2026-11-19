@@ -906,3 +906,14 @@ select.seg-in{cursor:pointer;padding-right:2px}
   .seg-titulo-in{font-size:11px!important}
   .seg-mini .seg-mas{padding:2px 6px}
 }
+
+/* ── Barra de abajo en móvil: que ni los iconos ni los textos se toquen ─────────────────
+   Cada botón mide lo que mida su texto (+ colchón a los lados) y el texto no se parte ni se
+   recorta; si no caben todos en pantalla, la barra se desplaza en horizontal. */
+@media(max-width:767px){
+  .sidebar-nav .tab-btn{width:auto;min-width:74px;padding:5px 14px;gap:3px}
+  .sidebar-nav .tab-btn .tab-label{flex:none;overflow:visible;text-overflow:clip;white-space:nowrap;font-size:10px;line-height:1.2;text-align:center}
+  .sidebar-nav .tab-btn .tab-icon{flex:none}
+  .badge{right:calc(50% - 20px)}
+}
+
