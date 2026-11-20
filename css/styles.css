@@ -923,3 +923,7 @@ select.seg-in{cursor:pointer;padding-right:2px}
 .seg-tabla tr.seg-sub .seg-in{font-weight:800;font-size:11.5px;text-transform:uppercase;letter-spacing:.05em;color:#4c3f7a}
 .seg-sin-cab td:first-child{width:62%}
 
+/* Permisos y Renovación: Fecha y Dirección anchas, Contacto corto (teléfono y nombre), Pago/Metros estrecho */
+.seg-t-permisos,.seg-t-renovaciones{table-layout:fixed;width:100%}
+.seg-t-permisos th.seg-x,.seg-t-renovaciones th.seg-x,.seg-t-permisos td.seg-x,.seg-t-renovaciones td.seg-x{width:30px}
+
